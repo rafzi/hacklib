@@ -10,6 +10,7 @@ SET(FILES_H
     include/hacklib/MessageBox.h
     include/hacklib/Main.h
     include/hacklib/Injector.h
+    include/hacklib/Hooker.h
     include/hacklib/ForeignClass.h
     )
 

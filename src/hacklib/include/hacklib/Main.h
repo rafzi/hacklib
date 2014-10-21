@@ -52,22 +52,30 @@ namespace hl
             {
                 T main;
                 self->m_pMain = &main;
-                if (main.init())
-                {
-                    while (main.step()) { }
-                } else {
-                    hl::MsgBox("Main Error", "Initialization function returned false");
-                }
-
-                main.shutdown();
+                UserCode(main);
                 self->m_pMain = nullptr;
             }
             catch (...)
             {
-                hl::MsgBox("Main Error", "Unhandled exception");
+                hl::MsgBox("Main Error", "Unhandled C++ exception");
             }
 
             FreeLibraryAndExitThread(hModule, 0);
+        }
+
+        static void UserCode(T& main)
+        {
+            __try {
+                if (main.init())
+                {
+                    while (main.step()) { }
+                }
+                main.shutdown();
+            } __except (EXCEPTION_EXECUTE_HANDLER) {
+                []{
+                    hl::MsgBox("Main Error", "Unhandled SEH exception");
+                }();
+            }
         }
 
         static HMODULE GetCurrentModule()
