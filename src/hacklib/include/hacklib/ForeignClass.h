@@ -1,7 +1,10 @@
-#ifndef FOREIGNCLASS_H
-#define FOREIGNCLASS_H
+#ifndef HACKLIB_FOREIGNCLASS_H
+#define HACKLIB_FOREIGNCLASS_H
 
 #include <cstdint>
+
+
+namespace hl {
 
 
 /* C++ style casting is avoided for readability. */
@@ -78,5 +81,7 @@ inline bool operator==(nullptr_t, const ForeignClass& rhs)
     return nullptr == rhs.data();
 }
 
+
+}
 
 #endif

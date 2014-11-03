@@ -1,8 +1,9 @@
 #include "hacklib/Hooker.h"
 #include <Windows.h>
 #include <algorithm>
-// by Rafael S.
 
+
+using namespace hl;
 using std::uintptr_t;
 
 

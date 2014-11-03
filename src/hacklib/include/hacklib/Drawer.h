@@ -1,5 +1,5 @@
-#ifndef DRAWER_H
-#define DRAWER_H
+#ifndef HACKLIB_DRAWER_H
+#define HACKLIB_DRAWER_H
 
 // link with: d3d9.lib d3dx9.lib
 #include "d3d9.h"
@@ -8,6 +8,9 @@
 #include <string>
 #include <memory>
 #include <algorithm>
+
+
+namespace hl {
 
 
 struct VERTEX_2D_COL { // transformed colorizable
@@ -106,18 +109,27 @@ private:
 class Drawer
 {
 public:
+    // Releases all resources aquired by the Alloc* functions.
     void ClearRessources();
 
+    // Associates a d3d device with the drawer. Must be done before
+    // calling any other function.
     void SetDevice(IDirect3DDevice9 *pDevice);
     IDirect3DDevice9 *GetDevice() const;
 
+    // Changes the view and projection matrix for 3D drawing.
     void Update(const D3DXMATRIX &viewMatrix, const D3DXMATRIX &projectionMatrix);
 
+    // Gets the width and height of the viewport.
     float GetWidth() const;
     float GetHeight() const;
 
+    // Projects a position in world coordiantes to screen coordinates.
     void Project(const D3DXVECTOR3 &worldPos, D3DXVECTOR3 &screenPos, const D3DXMATRIX *worldMatrix = nullptr) const;
+    // Returns true if the screen position is in front of the camera.
     bool IsInfrontCam(const D3DXVECTOR3 &screenPos) const;
+    // Checks if a screen position would be visible on the viewport. The offScreenTolerance is measured in pixels.
+    // Returns true if the position is behind the camera, but on the viewport.
     bool IsOnScreen(const D3DXVECTOR3 &screenPos, float offScreenTolerance = 0) const;
 
     void DrawLine(float x1, float y1, float x2, float y2, D3DCOLOR color) const;
@@ -140,6 +152,7 @@ public:
     template <class T>
     const VertexBuffer *AllocVertexBuffer(const std::vector<T> &vertices);
     const IndexBuffer *AllocIndexBuffer(const std::vector<unsigned int> &indices);
+    // Draws a primitive. The IndexBuffer is optional. See d3d documentation for primitive types.
     void DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix) const;
     void DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix, D3DCOLOR color) const;
     void ReleaseVertexBuffer(const VertexBuffer *pVertBuf);
@@ -148,7 +161,9 @@ public:
     const Sprite *AllocSprite();
     void ReleaseSprite(const Sprite *pSprite);
 
+    // Must be called before Reset.
     void OnLostDevice();
+    // Must be called after Reset.
     void OnResetDevice();
 
 private:
@@ -208,6 +223,8 @@ const VertexBuffer *Drawer::AllocVertexBuffer(const std::vector<T> &vertices)
     pd3dVertexBuffer->Unlock();
 
     return Alloc(m_vertexBuffers, T::FVF, pd3dVertexBuffer, static_cast<unsigned int>(vertices.size()));
+}
+
 }
 
 #endif

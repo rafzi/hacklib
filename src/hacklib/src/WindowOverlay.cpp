@@ -2,6 +2,9 @@
 #include <dwmapi.h>
 
 
+using namespace hl;
+
+
 static BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
 {
     /* criteria: owned by current process, visible, not a child window and client size > 0

@@ -1,9 +1,15 @@
-#ifndef WINDOWOVERLAY_H
-#define WINDOWOVERLAY_H
+#ifndef HACKLIB_WINDOWOVERLAY_H
+#define HACKLIB_WINDOWOVERLAY_H
 
 #include "GfxOverlay.h"
 
 
+namespace hl {
+
+
+/*
+ * Wrapper for GfxOverlay that follows the main window of the current process.
+ */
 class WindowOverlay : public GfxOverlay
 {
 public:
@@ -11,6 +17,9 @@ public:
 
     GfxOverlay::Error create();
 
+    // When the host window is resized, the device must be reset.
+    // This function registers hooks before and after the Reset operation.
+    // For example see hl::Drawer::OnDeviceLost and OnDeviceReset.
     template <class F1, class F2>
     void registerResetHandlers(F1 cbPreReset, F2 cbPostReset)
     {
@@ -28,5 +37,7 @@ private:
     std::function <void()> m_cbPostReset;
 
 };
+
+}
 
 #endif

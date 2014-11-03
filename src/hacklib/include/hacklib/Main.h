@@ -10,17 +10,22 @@
 
 namespace hl
 {
+    /*
+     * This class can be used to do start and stop a dynamic library inside a foreign process.
+     *
+     * If you derive from this class and use it for static initialization,
+     * make sure that the constructor and destructor are safe for execution
+     * while in a loader lock. If initialization or cleanup requires synchronization,
+     * override the init and shutdown member functions.
+     */
     class Main
     {
     public:
-        //Main();
-
-        // TODO copy good doc from hackproj
-        // is called on initialization. if returning false, the dll will detach
+        // Is called on initialization. If returning false, the dll will detach.
         virtual bool init();
-        // is called continuously sequenially while running. if returning false, the dll will detach
+        // Is called continuously sequenially while running. If returning false, the dll will detach.
         virtual bool step();
-        // is called on shutdown
+        // Is called on shutdown.
         virtual void shutdown();
 
     };

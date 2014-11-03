@@ -1,6 +1,9 @@
 #include "hacklib/Drawer.h"
 
 
+using namespace hl;
+
+
 class TempFVF {
     IDirect3DDevice9 *dev;
     DWORD prevFVF;
@@ -291,7 +294,7 @@ const Texture *Drawer::AllocTexture(std::string filename)
 const Texture *Drawer::AllocTexture(const void *buffer, size_t size)
 {
     IDirect3DTexture9 *pTexture;
-    if (D3DXCreateTextureFromFileInMemory(m_pDevice, buffer, size, &pTexture) != D3D_OK)
+    if (D3DXCreateTextureFromFileInMemory(m_pDevice, buffer, (UINT)size, &pTexture) != D3D_OK)
         return nullptr;
 
     return Alloc(m_textures, pTexture);
@@ -419,9 +422,13 @@ void Drawer::OnLostDevice()
 {
     for (auto& i : m_fonts)
         i->m_pFont->OnLostDevice();
+    for (auto& i : m_sprites)
+        i->m_pSprite->OnLostDevice();
 }
 
 void Drawer::OnResetDevice(){
     for (auto& i : m_fonts)
         i->m_pFont->OnResetDevice();
+    for (auto& i : m_sprites)
+        i->m_pSprite->OnResetDevice();
 }

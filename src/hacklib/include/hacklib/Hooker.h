@@ -1,10 +1,12 @@
-#ifndef HOOKER_H
-#define HOOKER_H
-// by Rafael S.
+#ifndef HACKLIB_HOOKER_H
+#define HACKLIB_HOOKER_H
 
 #include <cstdint>
 #include <vector>
 #include <memory>
+
+
+namespace hl {
 
 
 class VTHook
@@ -47,5 +49,7 @@ private:
     std::vector<std::unique_ptr<JMPHook>> m_JMPHooks;
 
 };
+
+}
 
 #endif

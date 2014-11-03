@@ -8,11 +8,13 @@
 #include <Windows.h>
 
 
+namespace hl {
+
 
 class PatternScanner
 {
 public:
-    // searches for referenced strings in code of the module
+    // Searches for referenced strings in code of the module.
     std::vector<uintptr_t> find(const std::vector<std::string>& strings, const char *moduleName = nullptr);
 
 private:
@@ -26,5 +28,8 @@ std::uintptr_t FindPattern(const char *byteMask, const char *checkMask, const ch
 
 // instruction is assumed to end after the relative address. for example jmp, call
 std::uintptr_t FollowRelativeAddress(std::uintptr_t adr);
+
+
+}
 
 #endif

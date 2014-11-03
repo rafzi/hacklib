@@ -1,0 +1,1 @@
+"%ProgramFiles(x86)%\CMake 2.8\bin\cmake.exe" -G "Visual Studio 12 Win64" ..

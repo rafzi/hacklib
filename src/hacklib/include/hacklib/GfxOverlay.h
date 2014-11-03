@@ -1,11 +1,14 @@
-#ifndef GFXOVERLAY_H
-#define GFXOVERLAY_H
+#ifndef HACKLIB_GFXOVERLAY_H
+#define HACKLIB_GFXOVERLAY_H
 
 // link with: d3d9.lib dwmapi.lib
 #include <Windows.h>
 #include "d3d9.h"
 #include <thread>
 #include <future>
+
+
+namespace hl {
 
 
 // the overlay requires the desktop window manager introduced in windows 6.0 (vista) to be in compositing mode
@@ -30,6 +33,7 @@ public:
     };
 
 public:
+    // Determines the current window manager mode.
     static bool IsCompositionEnabled();
 
 public:
@@ -42,14 +46,18 @@ public:
     bool isOpen() const;
 
     IDirect3DDevice9 *getDev() const;
+    // Generates a d3d parameter set thats suitable for an overlay.
+    // Trys to set the highest multisampling and best depth buffer thats supported by the hardware.
     D3DPRESENT_PARAMETERS getPresentParams() const;
     int getPosX() const;
     int getPosY() const;
     int getWidth() const;
     int getHeight() const;
 
-    //void handleWindowMessages() const;
+    // Helper for clearing the backbuffer. Also clears the alpha channel.
     void clearRenderTarget() const;
+    // If the window manager on a system prior to windows 8 switches to stacking mode,
+    // this function must be called to get the overlay working again.
     void resetRequiredSettings() const;
 
 private:
@@ -77,5 +85,7 @@ protected:
     int m_height = 0;
 
 };
+
+}
 
 #endif

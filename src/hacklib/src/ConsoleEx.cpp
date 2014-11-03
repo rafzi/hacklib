@@ -1,6 +1,9 @@
 #include "hacklib/ConsoleEx.h"
 
 
+using namespace hl;
+
+
 static int g_wndClassRefCount = 0;
 
 static const char WNDCLASS_CONSOLEEX[] = "CONSOLEEX";

@@ -2,6 +2,9 @@
 #include <algorithm>
 
 
+using namespace hl;
+
+
 static std::map<const char*, MEMORY_BASIC_INFORMATION> s_mbi;
 
 
@@ -29,7 +32,7 @@ static HMODULE GetModuleFromAddress(uintptr_t adr)
 #define NO_OF_CHARS 256
 
 // The preprocessing function for Boyer Moore's bad character heuristic
-void badCharHeuristic(const uint8_t *str, int size, int badchar[NO_OF_CHARS])
+static void badCharHeuristic(const uint8_t *str, int size, int badchar[NO_OF_CHARS])
 {
     int i;
 
@@ -44,7 +47,7 @@ void badCharHeuristic(const uint8_t *str, int size, int badchar[NO_OF_CHARS])
 
 /* A pattern searching function that uses Bad Character Heuristic of
 Boyer Moore Algorithm */
-const uint8_t *boyermoore(const uint8_t *txt, const int n, const uint8_t *pat, const int m)
+static const uint8_t *boyermoore(const uint8_t *txt, const int n, const uint8_t *pat, const int m)
 {
     int badchar[NO_OF_CHARS];
 
@@ -126,7 +129,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
             int i = 0;
             for (const auto& str : strings)
             {
-                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, mbi.RegionSize, (const uint8_t*)str.data(), str.size());
+                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, (int)mbi.RegionSize, (const uint8_t*)str.data(), (int)str.size());
 
                 if (found)
                 {
@@ -156,7 +159,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
             int i = 0;
             for (const auto& strAddr : strAddrs)
             {
-                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, mbi.RegionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
+                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, (int)mbi.RegionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
 
                 if (found)
                 {
@@ -177,7 +180,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
 
 
 
-bool compareData(uintptr_t address, const char *byteMask, const char *checkMask)
+static bool compareData(uintptr_t address, const char *byteMask, const char *checkMask)
 {
     for (; *checkMask; ++checkMask, ++address, ++byteMask)
         if (*checkMask=='x' && *(char*)address!=*byteMask)
@@ -186,7 +189,7 @@ bool compareData(uintptr_t address, const char *byteMask, const char *checkMask)
 }
 
 
-uintptr_t FindPattern(const char *byteMask, const char *checkMask, const char *moduleName)
+uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const char *moduleName)
 {
     uintptr_t& address = (uintptr_t&)s_mbi[moduleName].BaseAddress;
 
@@ -212,7 +215,7 @@ uintptr_t FindPattern(const char *byteMask, const char *checkMask, const char *m
 }
 
 
-std::uintptr_t FollowRelativeAddress(std::uintptr_t adr)
+std::uintptr_t hl::FollowRelativeAddress(std::uintptr_t adr)
 {
     return *(uintptr_t*)adr + adr + 4;
 }

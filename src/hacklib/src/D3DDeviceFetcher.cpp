@@ -2,6 +2,18 @@
 #include <Windows.h>
 
 
+using namespace hl;
+
+
+#ifdef _WIN64
+#define PROGRAM_COUNTER Rip
+#define STACK_POINTER   Rsp
+#else
+#define PROGRAM_COUNTER Eip
+#define STACK_POINTER   Esp
+#endif
+
+
 long *g_pEndScene;
 HANDLE g_hHookHit, g_hAbortHook;
 LPDIRECT3DDEVICE9 g_pDevice;
@@ -9,7 +21,7 @@ LPDIRECT3DDEVICE9 g_pDevice;
 LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc);
 
 
-IDirect3DDevice9 *D3DDeviceFetcher::GetDeviceStealth(int timeout)
+IDirect3DDevice9 *D3DDeviceFetcher::GetD3D9Device(int timeout)
 {
     // clean globals
     g_pEndScene = NULL;
@@ -80,9 +92,9 @@ LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
         if (WaitForSingleObject(g_hAbortHook, 0) == WAIT_OBJECT_0) {
             // abort event was sent
             // dont do anything so guard page protection and single-step flag are gone
-        } else if (g_pEndScene == reinterpret_cast<long*>(exc->ContextRecord->Eip)) {
+        } else if (g_pEndScene == reinterpret_cast<long*>(exc->ContextRecord->PROGRAM_COUNTER)) {
             // hook was hit, catch device ptr from stack (first parameter of endscene function)
-            g_pDevice = *reinterpret_cast<LPDIRECT3DDEVICE9*>(exc->ContextRecord->Esp + 0x4);
+            g_pDevice = *reinterpret_cast<LPDIRECT3DDEVICE9*>(exc->ContextRecord->STACK_POINTER + sizeof(void*));
             SetEvent(g_hHookHit);
         } else {
             // hook was not hit and has to be refreshed. set single-step flag

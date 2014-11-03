@@ -12,16 +12,17 @@ SET(FILES_H
     include/hacklib/Injector.h
     include/hacklib/Hooker.h
     include/hacklib/ForeignClass.h
+    include/hacklib/PatternScanner.h
     )
 
 # windows specific
 IF(WIN32)
     SET(FILES_CPP ${FILES_CPP}
-        src/MessageBox_WIN32.cpp
-        src/D3DDeviceFetcher_WIN32.cpp
-        src/Drawer_WIN32.cpp
-        src/GfxOverlay_WIN32.cpp
-        src/WindowOverlay_WIN32.cpp
+        src/MessageBox.cpp
+        src/D3DDeviceFetcher.cpp
+        src/Drawer.cpp
+        src/GfxOverlay.cpp
+        src/WindowOverlay.cpp
         src/PatternScanner.cpp  # TODO this is not really windows specific
         src/ConsoleEx.cpp
         )
@@ -43,5 +44,5 @@ SET_TARGET_PROPERTIES(${PROJ_NAME} PROPERTIES FOLDER ${PROJ_NAME})
 TARGET_INCLUDE_DIRECTORIES(${PROJ_NAME} PUBLIC include)
 
 IF(WIN32)
-    TARGET_LINK_LIBRARIES(${PROJ_NAME} d3d9.lib d3dx9.lib)
+    TARGET_LINK_LIBRARIES(${PROJ_NAME} d3d9.lib d3dx9.lib dwmapi.lib)
 ENDIF()

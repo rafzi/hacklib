@@ -2,6 +2,9 @@
 #include <dwmapi.h>
 
 
+using namespace hl;
+
+
 static int g_wndClassRefCount = 0;
 
 static const char WNDCLASS_OVERLAY[] = "GFXOVERLAY_1232";

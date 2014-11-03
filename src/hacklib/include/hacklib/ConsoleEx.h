@@ -1,16 +1,14 @@
-// ConsoleEx
-// console with simultanous output and input for windows
-// (c) Rafael S.
-// v2.0 - last edit 11.06.2013
-
-#ifndef CONSOLEEX_H
-#define CONSOLEEX_H
+#ifndef HACKLIB_CONSOLEEX_H
+#define HACKLIB_CONSOLEEX_H
 
 #include <Windows.h>
 #include <string>
 #include <thread>
 #include <future>
 #include <functional>
+
+
+namespace hl {
 
 
 struct CONSOLEEX_PARAMETERS {
@@ -29,6 +27,9 @@ struct CONSOLEEX_PARAMETERS {
 };
 
 
+/*
+ * A console with simultaneous input and output for Windows.
+ */
 class ConsoleEx
 {
     ConsoleEx(const ConsoleEx &) = delete;
@@ -85,7 +86,7 @@ private:
     HBRUSH m_hbrBackGround = NULL;
     std::string m_title;
     CONSOLEEX_PARAMETERS m_parameters = GetDefaultParameters();
-    std::function <void(std::string)> m_cbInput;
+    std::function<void(std::string)> m_cbInput;
     bool m_isOpen = false;
 
 
@@ -125,5 +126,7 @@ private:
     } m_rawBuffer;
 
 };
+
+}
 
 #endif
