@@ -13,6 +13,7 @@ SET(FILES_H
     include/hacklib/Hooker.h
     include/hacklib/ForeignClass.h
     include/hacklib/PatternScanner.h
+    include/hacklib/ImplementMember.h
     )
 
 # windows specific
