@@ -194,3 +194,11 @@ The project is using CMake and CMake 2.8.11.2 or newer is required to build.
 ## Contribute ##
 
 Please use the issue tracker and submit pull requests to contribute.
+
+## License ##
+
+Free to use for any purpose. Don't claim you wrote the code or modified versions. If you release code or binaries give credit and link to this repository.
+
+If you are making money with this code or have some spare money, please give me some!
+
+[Paypal Donate Link](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EW66GFAYT9K9C)
