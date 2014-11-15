@@ -32,6 +32,8 @@ namespace hl
 
 #ifdef _WIN32
 
+    HMODULE GetCurrentModule();
+
     template <typename T>
     class StaticInit
     {
@@ -81,18 +83,6 @@ namespace hl
                     hl::MsgBox("Main Error", "Unhandled SEH exception");
                 }();
             }
-        }
-
-        static HMODULE GetCurrentModule()
-        {
-            HMODULE hModule = NULL;
-            GetModuleHandleEx(
-                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
-                GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                (LPCTSTR)GetCurrentModule,
-                &hModule);
-
-            return hModule;
         }
 
     private:

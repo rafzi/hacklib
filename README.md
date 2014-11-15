@@ -146,6 +146,40 @@ class CPlayer
 ```
 
 
+### Utility ###
+
+These are not really related to the topic of this library, but might often be used in a program built from this library.
+
+Rng.h:
+
+```
+#!c++
+
+hl::Rng rng;
+
+while (true)
+{
+    // From 0 to 99
+    int a = rng.nextInt(100);
+    // From 7.1 to 10.3
+    auto b = rng.nextReal(7.1, 10.3);
+}
+```
+
+Timer.h:
+
+```
+#!c++
+
+hl::Timer t;
+// Some computation.
+std::cout << t.diff() << std::endl;
+t.reset();
+// Another computation.
+std::cout << t.diff() << std::endl;
+```
+
+
 ## Dependencies ##
 
 Hacklib is written in modern C++ and requires a recent compiler like Visual Studio 2013, GCC 4.8 or Clang 3.3 with C++11 support enabled.

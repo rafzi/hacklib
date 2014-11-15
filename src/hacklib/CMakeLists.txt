@@ -14,6 +14,8 @@ SET(FILES_H
     include/hacklib/ForeignClass.h
     include/hacklib/PatternScanner.h
     include/hacklib/ImplementMember.h
+    include/hacklib/Rng.h
+    include/hacklib/Timer.h
     )
 
 # windows specific
