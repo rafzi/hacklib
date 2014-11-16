@@ -158,28 +158,27 @@ bool hl::Inject(int pid, const std::string& libFileName, std::string *error)
     return inj.findFile(libFileName) && inj.findApi() && inj.openProc(pid) && inj.remoteStoreFileName() && inj.runRemoteThread();
 }
 
-//bool Injector::Inject(std::string pname, std::string file)
-//{
-//    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-//    if (hSnapshot == INVALID_HANDLE_VALUE) {
-//        message("Fatal: Could not get process snapshot");
-//        return false;
-//    }
-//
-//    bool ret = true;
-//
-//    PROCESSENTRY32 entry;
-//    entry.dwSize = sizeof(PROCESSENTRY32);
-//
-//    if (Process32First(hSnapshot, &entry)) {
-//        do {
-//            if (pname == entry.szExeFile) {
-//                if (!Injector::Inject(entry.th32ProcessID, file)) {
-//                    ret = false;
-//                }
-//            }
-//        } while (Process32Next(hSnapshot, &entry));
-//    }
-//
-//    return ret;
-//}
+std::vector<int> hl::GetPIDsByProcName(std::string pname)
+{
+    std::vector<int> result;
+
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE)
+        return result;
+
+    PROCESSENTRY32 entry;
+    entry.dwSize = sizeof(PROCESSENTRY32);
+
+    if (Process32First(hSnapshot, &entry))
+    {
+        do
+        {
+            if (pname == entry.szExeFile)
+            {
+                result.push_back(entry.th32ProcessID);
+            }
+        } while (Process32Next(hSnapshot, &entry));
+    }
+
+    return result;
+}
