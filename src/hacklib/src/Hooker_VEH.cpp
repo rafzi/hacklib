@@ -1,0 +1,292 @@
+#include "hacklib/Hooker.h"
+#include <Windows.h>
+
+
+using namespace hl;
+
+
+#ifdef ARCH_64BIT
+#define REG_INSTRUCTIONPTR Rip
+#else
+#define REG_INSTRUCTIONPTR Eip
+#endif
+
+
+static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc);
+
+
+static PVOID g_pExHandler = nullptr;
+
+
+struct Page
+{
+    Page(uintptr_t begin, uintptr_t end) :
+        m_begin(begin),
+        m_end(end),
+        m_refs(1)
+    {
+    }
+    uintptr_t m_begin;
+    uintptr_t m_end;
+    int m_refs;
+};
+
+class VEHHookManager
+{
+public:
+    VEHHookManager()
+    {
+        m_pages[0] = nullptr;
+        if (!s_pageSize)
+        {
+            SYSTEM_INFO sys_info;
+            GetSystemInfo(&sys_info);
+            s_pageSize = sys_info.dwPageSize;
+        }
+    }
+    hl::Hooker::HookCallback_t getHook(uintptr_t adr) const
+    {
+        auto it = m_hooks.find(adr);
+        if (it != m_hooks.end())
+            return it->second;
+
+        return nullptr;
+    }
+    Page *getPage(uintptr_t adr)
+    {
+        auto it = m_pages.upper_bound(adr);
+        if (it != m_pages.end())
+            return (--it)->second.get();
+
+        return nullptr;
+    }
+    void addHook(uintptr_t adr, hl::Hooker::HookCallback_t cbHook)
+    {
+        m_hooks[adr] = cbHook;
+
+        auto page = getPage(adr);
+        if (page)
+        {
+            page->m_refs++;
+        }
+        else
+        {
+            MEMORY_BASIC_INFORMATION info;
+            if (!VirtualQuery((LPVOID)adr, &info, sizeof(info)))
+                throw std::runtime_error("VirtualQuery failed\n");
+
+            uintptr_t lowerBound = (uintptr_t)info.BaseAddress;
+            uintptr_t upperBound = lowerBound + s_pageSize;
+            m_pages[lowerBound] = std::make_unique<Page>(lowerBound, upperBound);
+            m_pages[upperBound] = nullptr;
+        }
+    }
+    void removeHook(uintptr_t adr)
+    {
+        m_hooks.erase(adr);
+
+        auto page = getPage(adr);
+        if (page)
+        {
+            if (page->m_refs == 1)
+            {
+                m_pages.erase(page->m_end);
+                m_pages.erase(page->m_begin);
+            }
+            else
+            {
+                page->m_refs--;
+            }
+        }
+    }
+private:
+    static uintptr_t s_pageSize;
+    std::map<uintptr_t, hl::Hooker::HookCallback_t> m_hooks;
+    std::map<uintptr_t, std::unique_ptr<Page>> m_pages;
+};
+
+
+uintptr_t VEHHookManager::s_pageSize;
+static VEHHookManager g_vehHookManager;
+
+
+class VEHHook : public IHook
+{
+public:
+    VEHHook(uintptr_t location, hl::Hooker::HookCallback_t cbHook) :
+        location(location)
+    {
+        g_vehHookManager.addHook(location, cbHook);
+    }
+    ~VEHHook() override
+    {
+        g_vehHookManager.removeHook(location);
+    }
+
+    uintptr_t getLocation() const override
+    {
+        return location;
+    }
+
+    uintptr_t location;
+};
+
+
+const IHook *Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
+{
+    // Check for invalid parameters.
+    if (!location || !cbHook)
+        return nullptr;
+
+    auto pHook = std::make_unique<VEHHook>(location, cbHook);
+
+    // Set up a VEH if we have none yet.
+    if (!g_pExHandler)
+    {
+        g_pExHandler = AddVectoredExceptionHandler(1, VectoredHandler);
+        if (!g_pExHandler)
+        {
+            return nullptr;
+        }
+    }
+
+    // Apply hook.
+    DWORD dwOldProt;
+    if (!VirtualProtect((LPVOID)location, 1, PAGE_EXECUTE_READ|PAGE_GUARD, &dwOldProt))
+    {
+        return nullptr;
+    }
+
+    auto result = pHook.get();
+    m_hooks.push_back(std::move(pHook));
+    return result;
+}
+
+
+static void checkForHookAndCall(uintptr_t adr, CONTEXT *pCtx)
+{
+    // Check for hooks and call them.
+    auto cbHook = g_vehHookManager.getHook(adr);
+    if (cbHook)
+    {
+        hl::CpuContext ctx;
+#ifdef ARCH_64BIT
+        ctx.RIP = pCtx->Rip;
+        ctx.EFLAGS = pCtx->EFlags;
+        ctx.R15 = pCtx->R15;
+        ctx.R14 = pCtx->R14;
+        ctx.R13 = pCtx->R13;
+        ctx.R12 = pCtx->R12;
+        ctx.R11 = pCtx->R11;
+        ctx.R10 = pCtx->R10;
+        ctx.R9 = pCtx->R9;
+        ctx.R8 = pCtx->R8;
+        ctx.RDI = pCtx->Rdi;
+        ctx.RSI = pCtx->Rsi;
+        ctx.RBP = pCtx->Rbp;
+        ctx.RSP = pCtx->Rsp;
+        ctx.RBX = pCtx->Rbx;
+        ctx.RDX = pCtx->Rdx;
+        ctx.RCX = pCtx->Rcx;
+        ctx.RAX = pCtx->Rax;
+#else
+        ctx.EIP = pCtx->Eip;
+        ctx.EFLAGS = pCtx->EFlags;
+        ctx.EDI = pCtx->Edi;
+        ctx.ESI = pCtx->Esi;
+        ctx.EBP = pCtx->Ebp;
+        ctx.ESP = pCtx->Esp;
+        ctx.EBX = pCtx->Ebx;
+        ctx.EDX = pCtx->Edx;
+        ctx.ECX = pCtx->Ecx;
+        ctx.EAX = pCtx->Eax;
+#endif
+        cbHook(&ctx);
+#ifdef ARCH_64BIT
+        pCtx->Rip = ctx.RIP;
+        pCtx->EFlags = ctx.EFLAGS;
+        pCtx->R15 = ctx.R15;
+        pCtx->R14 = ctx.R14;
+        pCtx->R13 = ctx.R13;
+        pCtx->R12 = ctx.R12;
+        pCtx->R11 = ctx.R11;
+        pCtx->R10 = ctx.R10;
+        pCtx->R9 = ctx.R9;
+        pCtx->R8 = ctx.R8;
+        pCtx->Rdi = ctx.RDI;
+        pCtx->Rsi = ctx.RSI;
+        pCtx->Rbp = ctx.RBP;
+        pCtx->Rsp = ctx.RSP;
+        pCtx->Rbx = ctx.RBX;
+        pCtx->Rdx = ctx.RDX;
+        pCtx->Rcx = ctx.RCX;
+        pCtx->Rax = ctx.RAX;
+#else
+        pCtx->Eip = ctx.EIP;
+        pCtx->EFlags = ctx.EFLAGS;
+        pCtx->Edi = ctx.EDI;
+        pCtx->Esi = ctx.ESI;
+        pCtx->Ebp = ctx.EBP;
+        pCtx->Esp = ctx.ESP;
+        pCtx->Ebx = ctx.EBX;
+        pCtx->Edx = ctx.EDX;
+        pCtx->Ecx = ctx.ECX;
+        pCtx->Eax = ctx.EAX;
+#endif
+    }
+}
+
+static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
+{
+    static uintptr_t guardFaultAdr;
+
+    CONTEXT *pCtx = exc->ContextRecord;
+
+    if (exc->ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION)
+    {
+        // Guard page exeption occured. Guard page protection is gone now.
+        // Parameters: [0]: access type that caused the fault, [1]: address that was accessed
+
+        // Save the address that was accessed to reprotect it at the single-step exception.
+        guardFaultAdr = exc->ExceptionRecord->ExceptionInformation[1];
+
+        // Set single-step flag to advance one instruction.
+        pCtx->EFlags |= 0x100;
+
+        // Only hook for execute access. Not if someone tries to read the hooked memory.
+        if (exc->ExceptionRecord->ExceptionInformation[0] == EXCEPTION_EXECUTE_FAULT)
+        {
+            checkForHookAndCall(guardFaultAdr, pCtx);
+        }
+
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+    else if (exc->ExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP)
+    {
+        // Single-step exeption occured. Single-step flag is cleared now.
+
+        // Check if we are within a page that contains hooks.
+        if (g_vehHookManager.getPage(pCtx->REG_INSTRUCTIONPTR))
+        {
+            // We are still on a hooked page. Continue single-stepping.
+            pCtx->EFlags |= 0x100;
+
+            checkForHookAndCall(pCtx->REG_INSTRUCTIONPTR, pCtx);
+        }
+        else
+        {
+            // We stepped out of a hooked page.
+            // Check if the page that was last guarded still contains a hook.
+            if (g_vehHookManager.getPage(guardFaultAdr))
+            {
+                // Restore guard page protection.
+                DWORD oldProt;
+                VirtualProtect((LPVOID)guardFaultAdr, 1, PAGE_EXECUTE_READ|PAGE_GUARD, &oldProt);
+            }
+        }
+
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}

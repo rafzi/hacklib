@@ -4,49 +4,88 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <map>
 
 
 namespace hl {
 
 
-class VTHook
+class Hooker;
+
+
+class IHook
 {
-    friend class Hooker;
 public:
-    VTHook(int vtSize);
-    ~VTHook();
-    std::uintptr_t getOrgFunc(int functionIndex) const;
-private:
-    std::uintptr_t **pVT; // location of virtual table pointer
-    std::uintptr_t *pOrgVT; // pointer to original virtual table
-    std::vector<std::uintptr_t> fakeVT; // fake virtual table
+    virtual ~IHook() {}
+    virtual uintptr_t getLocation() const = 0;
 };
-class JMPHook
+
+
+struct CpuContext_x86
 {
-    friend class Hooker;
-public:
-    JMPHook(int offset);
-    ~JMPHook();
-    std::uintptr_t getLocation() const;
-    int getOffset() const;
-private:
-    std::uintptr_t location;
-    int offset;
-    std::vector<unsigned char> opcodeDetour;
+    uintptr_t EIP;
+    uintptr_t EFLAGS;
+    uintptr_t EDI;
+    uintptr_t ESI;
+    uintptr_t EBP;
+    uintptr_t ESP;
+    uintptr_t EBX;
+    uintptr_t EDX;
+    uintptr_t ECX;
+    uintptr_t EAX;
 };
+
+struct CpuContext_x86_64
+{
+    uintptr_t RIP;
+    uint32_t EFLAGS;
+    uintptr_t R15;
+    uintptr_t R14;
+    uintptr_t R13;
+    uintptr_t R12;
+    uintptr_t R11;
+    uintptr_t R10;
+    uintptr_t R9;
+    uintptr_t R8;
+    uintptr_t RDI;
+    uintptr_t RSI;
+    uintptr_t RBP;
+    uintptr_t RSP;
+    uintptr_t RBX;
+    uintptr_t RDX;
+    uintptr_t RCX;
+    uintptr_t RAX;
+};
+
+#ifdef ARCH_64BIT
+typedef CpuContext_x86_64 CpuContext;
+#else
+typedef CpuContext_x86 CpuContext;
+#endif
+
 
 class Hooker
 {
 public:
-    const VTHook *hookVT(std::uintptr_t classInstance, int functionIndex, std::uintptr_t cbHook, int vtBackupSize = 1024);
-    void unhookVT(const VTHook *pHook);
+    typedef void(__cdecl* HookCallback_t)(CpuContext *);
 
-    const JMPHook *hookJMP(std::uintptr_t location, int nextInstructionOffset, std::uintptr_t cbHook, std::uintptr_t *jmpBackAdr);
-    void unhookJMP(const JMPHook *pHook);
+    const IHook *hookVT(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize = 1024);
+
+    const IHook *hookJMP(uintptr_t location, int nextInstructionOffset, void(*cbHook)());
+
+    const IHook *hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook);
+
+    const IHook *hookVEH(uintptr_t location, HookCallback_t cbHook);
+
+    void unhook(const IHook *pHook);
+
+
+    std::map<uintptr_t, HookCallback_t> m_vehCallbacks;
 
 private:
-    std::vector<std::unique_ptr<VTHook>> m_VTHooks;
-    std::vector<std::unique_ptr<JMPHook>> m_JMPHooks;
+    std::map<uintptr_t, std::vector<uintptr_t>> m_fakeVTs;
+
+    std::vector<std::unique_ptr<IHook>> m_hooks;
 
 };
 

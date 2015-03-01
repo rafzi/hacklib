@@ -2,6 +2,22 @@
 
 Hacklib is a C++ library for building applications that run as a shared library in another application. It provides general purpose functionality like pattern scanning, hooking and laying out foreign classes. Additionally it contains some D3D drawing facilities and a high performance 3D-capable transparent overlay.
 
+Every component in this project can target 32-bit x86 Windows and most of it targets 64-bit x86_64 Windows aswell. Some stuff should work on every platform that has a modern C++ compiler.
+
+## Example projects ##
+
+This repository contains a couple simple examples already:
+
+* `injector`: A command line application to inject shared libraries into processes. This is the tool to get your projects into target applications.
+* `disableGfx`: A simple project that may be able to double your FPS in D3D9 games. But at what cost?
+* `veh_benchmark`: Comparison of VEH hooking implementations.
+
+Bigger examples are located in separate repositories:
+
+* [hacklib_csgo](https://bitbucket.org/rafzi/hacklib_csgo): A minimal example for a real-world target Counter-Strike: Global Offensive.
+* [hacklib_gw2](https://bitbucket.org/rafzi/hacklib_gw2): Graphical information gathering tool for Guild Wars 2.
+* [hacklib_bf](https://bitbucket.org/rafzi/hacklib_bf): A game hack for the Battlefield series.
+
 ## Features ##
 
 ### Main.h ###
@@ -62,7 +78,9 @@ while (pDev->BeginScene() == D3D_OK)
 
 ### Hooker.h ###
 
-Implements various hooking methods like simple JMP redirection, virtual table hooks and vectored exception handler hooking.
+Implements various hooking methods like simple JMP redirection, convenient JMP detours, virtual table hooks and vectored exception handler hooking.
+
+The implemented VEH hooking mechanism is about 3x faster than the conventional `PAGE_NOACCESS` implementation. See the project `veh_benchmark` for a comparison.
 
 ### PatternScanner.h ###
 

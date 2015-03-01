@@ -84,7 +84,7 @@ public:
             if (!IsWow64Process(m_hProc, &isWow64)) {
                 writeErr("Warning: Could not determine bitness of target process\n");
             } else {
-#ifdef _WIN64
+#ifdef ARCH_64BIT
                 if (isWow64) {
                     writeErr("Fatal: Can not inject into 32-bit process from 64-bit injector\n");
                     return false;
