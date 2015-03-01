@@ -15,9 +15,6 @@ using namespace hl;
 static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc);
 
 
-static PVOID g_pExHandler = nullptr;
-
-
 struct Page
 {
     Page(uintptr_t begin, uintptr_t end) :
@@ -37,12 +34,10 @@ public:
     VEHHookManager()
     {
         m_pages[0] = nullptr;
-        if (!s_pageSize)
-        {
-            SYSTEM_INFO sys_info;
-            GetSystemInfo(&sys_info);
-            s_pageSize = sys_info.dwPageSize;
-        }
+
+        SYSTEM_INFO sys_info;
+        GetSystemInfo(&sys_info);
+        m_pageSize = sys_info.dwPageSize;
     }
     hl::Hooker::HookCallback_t getHook(uintptr_t adr) const
     {
@@ -64,6 +59,16 @@ public:
     {
         m_hooks[adr] = cbHook;
 
+        // Set up a VEH if we have none yet.
+        if (!m_pExHandler)
+        {
+            m_pExHandler = AddVectoredExceptionHandler(1, VectoredHandler);
+            if (!m_pExHandler)
+            {
+                throw std::runtime_error("AddVectoredExceptionHandler failed");
+            }
+        }
+
         auto page = getPage(adr);
         if (page)
         {
@@ -73,10 +78,12 @@ public:
         {
             MEMORY_BASIC_INFORMATION info;
             if (!VirtualQuery((LPVOID)adr, &info, sizeof(info)))
-                throw std::runtime_error("VirtualQuery failed\n");
+            {
+                throw std::runtime_error("VirtualQuery failed");
+            }
 
             uintptr_t lowerBound = (uintptr_t)info.BaseAddress;
-            uintptr_t upperBound = lowerBound + s_pageSize;
+            uintptr_t upperBound = lowerBound + m_pageSize;
             m_pages[lowerBound] = std::make_unique<Page>(lowerBound, upperBound);
             m_pages[upperBound] = nullptr;
         }
@@ -98,15 +105,22 @@ public:
                 page->m_refs--;
             }
         }
+
+        // Remove the VEH if all hooks are gone.
+        if (m_hooks.empty() && m_pExHandler)
+        {
+            RemoveVectoredExceptionHandler(m_pExHandler);
+            m_pExHandler = nullptr;
+        }
     }
 private:
-    static uintptr_t s_pageSize;
+    uintptr_t m_pageSize = 0;
+    PVOID m_pExHandler = nullptr;
     std::map<uintptr_t, hl::Hooker::HookCallback_t> m_hooks;
     std::map<uintptr_t, std::unique_ptr<Page>> m_pages;
 };
 
 
-uintptr_t VEHHookManager::s_pageSize;
 static VEHHookManager g_vehHookManager;
 
 
@@ -139,16 +153,6 @@ const IHook *Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
         return nullptr;
 
     auto pHook = std::make_unique<VEHHook>(location, cbHook);
-
-    // Set up a VEH if we have none yet.
-    if (!g_pExHandler)
-    {
-        g_pExHandler = AddVectoredExceptionHandler(1, VectoredHandler);
-        if (!g_pExHandler)
-        {
-            return nullptr;
-        }
-    }
 
     // Apply hook.
     DWORD dwOldProt;
