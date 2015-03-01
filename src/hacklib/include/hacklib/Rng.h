@@ -13,9 +13,9 @@ public:
     Rng() : m_rng(std::random_device()()) { }
 
     template <typename T>
-    T nextInt(T modulo)
+    T nextInt(T min, T max)
     {
-        std::uniform_int_distribution<T> distr(0, modulo);
+        std::uniform_int_distribution<T> distr(min, max);
         return distr(m_rng);
     }
 
