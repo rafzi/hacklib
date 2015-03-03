@@ -80,8 +80,6 @@ public:
     void unhook(const IHook *pHook);
 
 
-    std::map<uintptr_t, HookCallback_t> m_vehCallbacks;
-
 private:
     std::map<uintptr_t, std::vector<uintptr_t>> m_fakeVTs;
 
