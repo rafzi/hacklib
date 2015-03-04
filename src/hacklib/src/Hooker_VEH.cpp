@@ -1,4 +1,6 @@
 #include "hacklib/Hooker.h"
+#include <mutex>
+#include <map>
 #include <Windows.h>
 
 
@@ -49,6 +51,8 @@ public:
     }
     Page *getPage(uintptr_t adr)
     {
+        std::lock_guard<std::mutex> lock(m_pagesMutex);
+
         auto it = m_pages.upper_bound(adr);
         if (it != m_pages.end())
             return (--it)->second.get();
@@ -84,6 +88,8 @@ public:
 
             uintptr_t lowerBound = (uintptr_t)info.BaseAddress;
             uintptr_t upperBound = lowerBound + m_pageSize;
+
+            std::lock_guard<std::mutex> lock(m_pagesMutex);
             m_pages[lowerBound] = std::make_unique<Page>(lowerBound, upperBound);
             m_pages[upperBound] = nullptr;
         }
@@ -97,6 +103,7 @@ public:
         {
             if (page->m_refs == 1)
             {
+                std::lock_guard<std::mutex> lock(m_pagesMutex);
                 m_pages.erase(page->m_end);
                 m_pages.erase(page->m_begin);
             }
@@ -118,6 +125,7 @@ private:
     PVOID m_pExHandler = nullptr;
     std::map<uintptr_t, hl::Hooker::HookCallback_t> m_hooks;
     std::map<uintptr_t, std::unique_ptr<Page>> m_pages;
+    std::mutex m_pagesMutex;
 };
 
 

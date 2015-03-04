@@ -8,48 +8,61 @@
 namespace hl {
 
 
-void *ExecutableAlloc(size_t n);
-void ExecutableFree(void *p);
+static const int PROTECTION_READ = 0x1;
+static const int PROTECTION_WRITE = 0x2;
+static const int PROTECTION_EXECUTE = 0x4;
+static const int PROTECTION_GUARD = 0x8; // Only supported on Windows.
 
 
-template <typename T>
-class executable_allocator
+void *PageAlloc(size_t n, int protection);
+void PageFree(void *p);
+void PageProtect(const void *p, size_t n, int protection);
+
+template <typename T, typename A>
+void PageProtectVec(const std::vector<T, A>& vec, int protection)
+{
+    PageProtect(vec.data(), vec.size()*sizeof(T), protection);
+}
+
+
+// This allocator cannot directly be using in standard containers, because
+// of the second template argument.
+template <typename T, int P>
+class page_allocator
 {
 public:
     typedef T value_type;
 
-    executable_allocator()
+    T *allocate(size_t n)
     {
-    }
-    executable_allocator(const executable_allocator<T>& other)
-    {
-    }
-    T *allocate(std::size_t n)
-    {
-        T *adr = (T*)ExecutableAlloc(n * sizeof(T));
+        T *adr = (T*)PageAlloc(n * sizeof(T), P);
         if (!adr)
+        {
             throw std::bad_alloc();
+        }
         return adr;
     }
-    void deallocate(T *p, std::size_t n)
+    void deallocate(T *p, size_t n)
     {
-        ExecutableFree(p);
+        PageFree(p);
     }
 };
 
-template <typename T>
-bool operator==(const executable_allocator<T>& lhs, const executable_allocator<T>& rhs)
-{
-    return true;
-}
-template <typename T>
-bool operator!=(const executable_allocator<T>& lhs, const executable_allocator<T>& rhs)
-{
-    return false;
-}
 
+template <typename T>
+class data_page_allocator : public page_allocator<T, PROTECTION_READ|PROTECTION_WRITE>
+{
+};
 
-typedef std::vector<unsigned char, executable_allocator<unsigned char>> code_vector;
+template <typename T>
+using data_page_vector = std::vector<T, data_page_allocator<T>>;
+
+template <typename T>
+class code_page_allocator : public page_allocator<T, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE>
+{
+};
+
+typedef std::vector<unsigned char, code_page_allocator<unsigned char>> code_page_vector;
 
 
 }

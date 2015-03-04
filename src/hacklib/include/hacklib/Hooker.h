@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
-#include <map>
 
 
 namespace hl {
@@ -69,20 +68,31 @@ class Hooker
 public:
     typedef void(__cdecl* HookCallback_t)(CpuContext *);
 
+    // Hook by replacing an object instances virtual table pointer.
+    // This method can only target virtual functions. It should always
+    // be preferred if possible as it is almost impossible to detect.
+    // No real-only target memory is modified.
     const IHook *hookVT(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize = 1024);
 
+    // Hook by patching the target location with a jump instruction.
+    // Simple but has maximum flexibility. Your code has the responsibility
+    // to resume execution somehow. A simple return will likely crash the target.
     const IHook *hookJMP(uintptr_t location, int nextInstructionOffset, void(*cbHook)());
 
+    // Hook by patching the location with a jump like hookJMP, but jumps to
+    // wrapper code that preserves registers, calls the given hook callback and
+    // executes the overwritten instructions for maximum convenience.
     const IHook *hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook);
 
+    // Hook by using memory protection and a global exception handler.
+    // This method is very slow.
+    // No memory in the target is modified at all.
     const IHook *hookVEH(uintptr_t location, HookCallback_t cbHook);
 
     void unhook(const IHook *pHook);
 
 
 private:
-    std::map<uintptr_t, std::vector<uintptr_t>> m_fakeVTs;
-
     std::vector<std::unique_ptr<IHook>> m_hooks;
 
 };

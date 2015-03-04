@@ -1,34 +1,115 @@
 #include "hacklib/Hooker.h"
 #include "hacklib/ExecutableAllocator.h"
-#include <Windows.h>
 #include <algorithm>
 #include <mutex>
+#include <map>
+#include <Windows.h>
 
 
 using namespace hl;
 
 
+struct FakeVT
+{
+    FakeVT(uintptr_t **instance, int vtBackupSize) :
+        m_data(vtBackupSize),
+        m_orgVT(*instance),
+        m_refs(1)
+    {
+        // Copy original VT.
+        for (int i = 0; i < vtBackupSize; i++)
+        {
+            m_data[i] = m_orgVT[i];
+        }
+    }
+    hl::data_page_vector<uintptr_t> m_data;
+    uintptr_t *m_orgVT;
+    int m_refs;
+};
+
+class VTHookManager
+{
+public:
+    uintptr_t getOrgFunc(uintptr_t **instance, int functionIndex)
+    {
+        return m_fakeVTs[instance]->m_orgVT[functionIndex];
+    }
+    void addHook(uintptr_t **instance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
+    {
+        auto& fakeVT = m_fakeVTs[instance];
+        if (fakeVT)
+        {
+            // The VT of this object was already hooked. Make the fake VT writable again.
+            hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ|PROTECTION_WRITE);
+
+            fakeVT->m_refs++;
+        }
+        else
+        {
+            // Create new fake VT (mirroring the original one).
+            fakeVT = std::make_unique<FakeVT>(instance, vtBackupSize);
+
+            // Replace the VT pointer in the object instance.
+            *instance = fakeVT->m_data.data();
+        }
+
+        // Overwrite the hooked function in VT. This applies the hook.
+        fakeVT->m_data[functionIndex] = cbHook;
+
+        // Make the fake VT read-only like a real VT would be.
+        hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ);
+    }
+    void removeHook(uintptr_t **instance, int functionIndex)
+    {
+        auto& fakeVT = m_fakeVTs[instance];
+        if (fakeVT)
+        {
+            if (fakeVT->m_refs == 1)
+            {
+                // Last reference. Restore pointer to original VT.
+                *instance = fakeVT->m_orgVT;
+
+                m_fakeVTs.erase(instance);
+            }
+            else
+            {
+                // Keep using the fake VT, but restore the unhooked function pointer.
+                hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ|PROTECTION_WRITE);
+                fakeVT->m_data[functionIndex] = fakeVT->m_orgVT[functionIndex];
+                hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ);
+
+                fakeVT->m_refs--;
+            }
+        }
+    }
+private:
+    std::map<uintptr_t**, std::unique_ptr<FakeVT>> m_fakeVTs;
+};
+
+
+static VTHookManager g_vtHookManager;
+
+
 class VTHook : public IHook
 {
 public:
-    VTHook(uintptr_t classInstance, int functionIndex) :
-        pVT((uintptr_t**)classInstance),
-        pOrgVT(*pVT),
+    VTHook(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize) :
+        instance((uintptr_t**)classInstance),
         functionIndex(functionIndex)
     {
+        g_vtHookManager.addHook(instance, functionIndex, cbHook, vtBackupSize);
     }
     ~VTHook() override
     {
-        *pVT = pOrgVT;
+        g_vtHookManager.removeHook(instance, functionIndex);
     }
 
     uintptr_t getLocation() const override
     {
-        return pOrgVT[functionIndex];
+        return g_vtHookManager.getOrgFunc(instance, functionIndex);
     }
 
-    uintptr_t **pVT;
-    uintptr_t *pOrgVT;
+    uintptr_t **instance;
     int functionIndex;
 };
 
@@ -95,7 +176,7 @@ public:
     int offset;
     uintptr_t ipBackup = 0;
     unsigned char *originalCode = nullptr;
-    hl::code_vector wrapperCode;
+    hl::code_page_vector wrapperCode;
     Hooker::HookCallback_t cbHook;
     std::mutex mutex;
 };
@@ -115,25 +196,7 @@ const IHook *Hooker::hookVT(uintptr_t classInstance, int functionIndex, uintptr_
     if (!classInstance || functionIndex < 0 || functionIndex >= vtBackupSize || !cbHook)
         return nullptr;
 
-    auto pHook = std::make_unique<VTHook>(classInstance, functionIndex);
-
-    // Replace the VT if it has not been done yet by a previous hook.
-    auto itVT = m_fakeVTs.find(classInstance);
-    if (itVT == m_fakeVTs.end())
-    {
-        // Copy the original VT.
-        m_fakeVTs[classInstance].resize(vtBackupSize);
-        for (int i = 0; i < vtBackupSize; i++)
-        {
-            m_fakeVTs[classInstance][i] = pHook->pOrgVT[i];
-        }
-
-        // Replace the VT pointer in the object instance.
-        *pHook->pVT = m_fakeVTs[classInstance].data();
-    }
-
-    // Overwrite the hooked function in VT. This applies the hook.
-    m_fakeVTs[classInstance][functionIndex] = cbHook;
+    auto pHook = std::make_unique<VTHook>(classInstance, functionIndex, cbHook, vtBackupSize);
 
     auto result = pHook.get();
     m_hooks.push_back(std::move(pHook));

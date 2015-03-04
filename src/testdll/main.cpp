@@ -17,6 +17,13 @@ void __declspec(naked) hkTest()
 }
 
 
+const hl::IHook *vthk;
+HRESULT __stdcall hkvtEndscene(LPDIRECT3DDEVICE9 pDevice)
+{
+    return ((HRESULT(__thiscall*)(LPDIRECT3DDEVICE9, LPDIRECT3DDEVICE9))(vthk->getLocation()))(pDevice, pDevice);
+}
+
+
 class MyMain : public hl::Main
 {
 public:
@@ -35,11 +42,13 @@ public:
         if (!dev)
             return false;
 
-        uintptr_t endScene = ((uintptr_t**)dev)[0][42];
-        m_con.printf("endscene: %08X\n", endScene);
+        vthk = m_hooker.hookVT((uintptr_t)dev, 42, (uintptr_t)hkvtEndscene);
 
-        MessageBoxA(0, 0, 0, 0);
-        m_hooker.hookDetour(endScene, 7, cbEndScene);
+        //uintptr_t endScene = ((uintptr_t**)dev)[0][42];
+        //m_con.printf("endscene: %08X\n", endScene);
+
+        //MessageBoxA(0, 0, 0, 0);
+        //m_hooker.hookDetour(endScene, 7, cbEndScene);
         //m_hooker.hookJMP(endScene, 7, hkTest);
 
         return true;
