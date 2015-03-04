@@ -1,5 +1,5 @@
 #include "hacklib/Hooker.h"
-#include "hacklib/ExecutableAllocator.h"
+#include "hacklib/PageAllocator.h"
 #include <algorithm>
 #include <mutex>
 #include <map>

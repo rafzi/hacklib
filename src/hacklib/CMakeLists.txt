@@ -16,7 +16,7 @@ SET(FILES_H
     include/hacklib/ImplementMember.h
     include/hacklib/Rng.h
     include/hacklib/Timer.h
-    include/hacklib/ExecutableAllocator.h
+    include/hacklib/PageAllocator.h
     )
 
 # windows specific
@@ -29,7 +29,7 @@ IF(WIN32)
         src/WindowOverlay.cpp
         src/PatternScanner.cpp  # TODO this is not really windows specific
         src/ConsoleEx.cpp
-        src/ExecutableAllocator.cpp
+        src/PageAllocator_WIN32.cpp
         src/Hooker_VEH.cpp
         )
     SET(FILES_H ${FILES_H}
