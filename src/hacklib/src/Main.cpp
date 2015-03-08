@@ -1,9 +1,9 @@
 #include "hacklib/Main.h"
-#include "hacklib/MessageBox.h"
 #include <thread>
 #include <chrono>
 
 
+#ifdef _WIN32
 HMODULE hl::GetCurrentModule()
 {
     static HMODULE hModule = NULL;
@@ -19,6 +19,22 @@ HMODULE hl::GetCurrentModule()
 
     return hModule;
 }
+#else
+#include <dlfcn.h>
+void *hl::GetCurrentModule()
+{
+    static void *hModule = nullptr;
+
+    if (!hModule)
+    {
+        Dl_info info = {0};
+        dladdr((void*)GetCurrentModule, &info);
+        hModule = info.dli_fbase;
+    }
+
+    return hModule;
+}
+#endif
 
 
 bool hl::Main::init()

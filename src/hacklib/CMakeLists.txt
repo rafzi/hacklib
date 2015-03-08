@@ -3,7 +3,6 @@ PROJECT(${PROJ_NAME})
 
 SET(FILES_CPP
     src/Main.cpp
-    src/Injector.cpp
     src/Hooker.cpp
     )
 SET(FILES_H
@@ -31,6 +30,7 @@ IF(WIN32)
         src/ConsoleEx.cpp
         src/PageAllocator_WIN32.cpp
         src/Hooker_VEH.cpp
+        src/Injector.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -38,6 +38,10 @@ IF(WIN32)
         include/hacklib/GfxOverlay.h
         include/hacklib/WindowOverlay.h
         include/hacklib/ConsoleEx.h
+        )
+ELSEIF(UNIX)
+    SET(FILES_CPP ${FILES_CPP}
+        src/PageAllocator_UNIX.cpp
         )
 ENDIF()
 

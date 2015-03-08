@@ -3,13 +3,24 @@
 #include <algorithm>
 #include <mutex>
 #include <map>
-#include <Windows.h>
+#include <cstring>
 
 
 #ifdef ARCH_64BIT
 static const int MINIMUM_JMPHOOKSIZE = 14;
 #else
 static const int MINIMUM_JMPHOOKSIZE = 5;
+#endif
+
+
+#ifndef _WIN32
+namespace std
+{
+    template<typename T, typename... Args>
+    std::unique_ptr<T> make_unique(Args&&... args) {
+        return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+    }
+}
 #endif
 
 
@@ -131,12 +142,9 @@ public:
     }
     ~JMPHook() override
     {
-        DWORD dwOldProt;
-        if (VirtualProtect((LPVOID)location, offset, PAGE_EXECUTE_READWRITE, &dwOldProt))
-        {
-            memcpy((void*)location, backupCode.data(), offset);
-            VirtualProtect((LPVOID)location, offset, dwOldProt, &dwOldProt);
-        }
+        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
+        memcpy((void*)location, backupCode.data(), offset);
+        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_EXECUTE);
     }
 
     uintptr_t getLocation() const override
@@ -160,12 +168,9 @@ public:
     }
     ~DetourHook() override
     {
-        DWORD dwOldProt;
-        if (VirtualProtect((LPVOID)location, offset, PAGE_EXECUTE_READWRITE, &dwOldProt))
-        {
-            memcpy((void*)location, originalCode, offset);
-            VirtualProtect((LPVOID)location, offset, dwOldProt, &dwOldProt);
-        }
+        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
+        memcpy((void*)location, originalCode, offset);
+        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_EXECUTE);
 
         // In case the hook is currently executing, wait for it to end before releasing the wrapper code.
         std::lock_guard<std::mutex> lock(mutex);
@@ -258,12 +263,9 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 #endif
 
     // Apply the hook by writing the jump.
-    DWORD dwOldProt;
-    if (!VirtualProtect((LPVOID)location, nextInstructionOffset, PAGE_EXECUTE_READWRITE, &dwOldProt))
-        return nullptr;
-
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
     memcpy((void*)location, jmpPatch.data(), nextInstructionOffset);
-    VirtualProtect((LPVOID)location, nextInstructionOffset, dwOldProt, &dwOldProt);
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_EXECUTE);
 
     auto result = pHook.get();
     m_hooks.push_back(std::move(pHook));
@@ -494,12 +496,9 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
 #endif
 
     // Apply the hook by writing the jump.
-    DWORD dwOldProt;
-    if (!VirtualProtect((LPVOID)location, nextInstructionOffset, PAGE_EXECUTE_READWRITE, &dwOldProt))
-        return nullptr;
-
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
     memcpy((void*)location, jmpPatch.data(), nextInstructionOffset);
-    VirtualProtect((LPVOID)location, nextInstructionOffset, dwOldProt, &dwOldProt);
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_EXECUTE);
 
     auto result = pHook.get();
     m_hooks.push_back(std::move(pHook));

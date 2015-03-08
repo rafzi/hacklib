@@ -90,6 +90,11 @@ namespace hl
 
     };
 
+#else
+
+    void *GetCurrentModule();
+
+
 #endif
 }
 

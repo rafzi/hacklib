@@ -1,4 +1,5 @@
 #include "hacklib/Hooker.h"
+#include "hacklib/PageAllocator.h"
 #include <mutex>
 #include <map>
 #include <Windows.h>
@@ -36,10 +37,6 @@ public:
     VEHHookManager()
     {
         m_pages[0] = nullptr;
-
-        SYSTEM_INFO sys_info;
-        GetSystemInfo(&sys_info);
-        m_pageSize = sys_info.dwPageSize;
     }
     hl::Hooker::HookCallback_t getHook(uintptr_t adr) const
     {
@@ -87,7 +84,7 @@ public:
             }
 
             uintptr_t lowerBound = (uintptr_t)info.BaseAddress;
-            uintptr_t upperBound = lowerBound + m_pageSize;
+            uintptr_t upperBound = lowerBound + hl::GetPageSize();
 
             std::lock_guard<std::mutex> lock(m_pagesMutex);
             m_pages[lowerBound] = std::make_unique<Page>(lowerBound, upperBound);
@@ -121,7 +118,6 @@ public:
         }
     }
 private:
-    uintptr_t m_pageSize = 0;
     PVOID m_pExHandler = nullptr;
     std::map<uintptr_t, hl::Hooker::HookCallback_t> m_hooks;
     std::map<uintptr_t, std::unique_ptr<Page>> m_pages;

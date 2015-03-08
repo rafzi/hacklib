@@ -1,4 +1,5 @@
 #include "hacklib/PageAllocator.h"
+#include <stdexcept>
 #include <Windows.h>
 
 
@@ -37,12 +38,27 @@ static DWORD toWindowsProt(int protection)
 }
 
 
+uintptr_t hl::GetPageSize()
+{
+    static uintptr_t pageSize = 0;
+
+    if (!pageSize)
+    {
+        SYSTEM_INFO sys_info;
+        GetSystemInfo(&sys_info);
+        pageSize = (uintptr_t)sys_info.dwPageSize;
+    }
+
+    return pageSize;
+}
+
+
 void *hl::PageAlloc(size_t n, int protection)
 {
     return VirtualAlloc(NULL, n, MEM_COMMIT, toWindowsProt(protection));
 }
 
-void hl::PageFree(void *p)
+void hl::PageFree(void *p, size_t n)
 {
     VirtualFree(p, 0, MEM_RELEASE);
 }

@@ -66,7 +66,7 @@ typedef CpuContext_x86 CpuContext;
 class Hooker
 {
 public:
-    typedef void(__cdecl* HookCallback_t)(CpuContext *);
+    typedef void(*HookCallback_t)(CpuContext *);
 
     // Hook by replacing an object instances virtual table pointer.
     // This method can only target virtual functions. It should always

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <cstddef>
 
 
 namespace hl {
@@ -14,8 +15,10 @@ static const int PROTECTION_EXECUTE = 0x4;
 static const int PROTECTION_GUARD = 0x8; // Only supported on Windows.
 
 
+uintptr_t GetPageSize();
+
 void *PageAlloc(size_t n, int protection);
-void PageFree(void *p);
+void PageFree(void *p, size_t n = 0);
 void PageProtect(const void *p, size_t n, int protection);
 
 template <typename T, typename A>
@@ -44,7 +47,7 @@ public:
     }
     void deallocate(T *p, size_t n)
     {
-        PageFree(p);
+        PageFree(p, n * sizeof(T));
     }
 };
 
