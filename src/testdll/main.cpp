@@ -11,7 +11,7 @@ hl::StaticInit<class MyMain> g_main;
 static void cbEndScene(hl::CpuContext *ctx);
 
 
-void __declspec(naked) hkTest()
+void hkTest()
 {
     for (;;);
 }

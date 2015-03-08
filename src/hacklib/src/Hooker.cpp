@@ -6,6 +6,13 @@
 #include <Windows.h>
 
 
+#ifdef ARCH_64BIT
+static const int MINIMUM_JMPHOOKSIZE = 14;
+#else
+static const int MINIMUM_JMPHOOKSIZE = 5;
+#endif
+
+
 using namespace hl;
 
 
@@ -148,7 +155,7 @@ public:
     DetourHook(uintptr_t location, int offset) :
         location(location),
         offset(offset),
-        wrapperCode(0x100, 0xcc)
+        wrapperCode(0x1000, 0xcc)
     {
     }
     ~DetourHook() override
@@ -204,25 +211,51 @@ const IHook *Hooker::hookVT(uintptr_t classInstance, int functionIndex, uintptr_
 }
 
 
+static std::vector<unsigned char> GenJumpOverwrite_x86_64(uintptr_t target, int nextInstructionOffset)
+{
+    uint32_t target_lo = (uint32_t)target;
+    uint32_t target_hi = (uint32_t)(target >> 32);
+
+    // Generate patch. Fill with NOPs.
+    std::vector<unsigned char> jmpPatch(nextInstructionOffset, 0x90);
+    jmpPatch[0] = 0x68; // PUSH cbHook@lo
+    *(uint32_t*)&jmpPatch[1] = target_lo;
+    jmpPatch[5] = 0xc7; // MOV [RSP+4], cbHook@hi
+    jmpPatch[6] = 0x44;
+    jmpPatch[7] = 0x24;
+    jmpPatch[8] = 0x04;
+    *(uint32_t*)&jmpPatch[9] = target_hi;
+    jmpPatch[13] = 0xc3; // RETN
+
+    return jmpPatch;
+}
+
+static std::vector<unsigned char> GenJumpOverwrite_x86(uintptr_t target, uintptr_t location, int nextInstructionOffset)
+{
+    // Calculate delta.
+    uintptr_t jmpFromLocToTarget = (uintptr_t)target - location - 5;
+
+    // Generate patch. Fill with NOPs.
+    std::vector<unsigned char> jmpPatch(nextInstructionOffset, 0x90);
+    jmpPatch[0] = 0xe9; // JMP target
+    *(uintptr_t*)&jmpPatch[1] = jmpFromLocToTarget;
+
+    return jmpPatch;
+}
+
 const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, void(*cbHook)())
 {
     // Check for invalid parameters.
-    if (!location || nextInstructionOffset < 5 || !cbHook)
+    if (!location || nextInstructionOffset < MINIMUM_JMPHOOKSIZE || !cbHook)
         return nullptr;
 
     auto pHook = std::make_unique<JMPHook>(location, nextInstructionOffset);
 
-    // Calculate delta.
-    uintptr_t jmpFromLocToHook = (uintptr_t)cbHook - location - 5;
-
-    // Generate patch.
-    std::vector<unsigned char> jmpPatch(nextInstructionOffset, 0xcc);
-    jmpPatch[0] = 0xe9; // JMP cbHook
-    *(uintptr_t*)&jmpPatch[1] = jmpFromLocToHook;
-    for (int i = 5; i < nextInstructionOffset; i++)
-    {
-        jmpPatch[i] = 0x90; // NOP
-    }
+#ifdef ARCH_64BIT
+    auto jmpPatch = GenJumpOverwrite_x86_64((uintptr_t)cbHook, nextInstructionOffset);
+#else
+    auto jmpPatch = GenJumpOverwrite_x86((uintptr_t)cbHook, location, nextInstructionOffset);
+#endif
 
     // Apply the hook by writing the jump.
     DWORD dwOldProt;
@@ -238,60 +271,227 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, void
 }
 
 
+static void GenWrapper_x86_64(uintptr_t location, int nextInstructionOffset, DetourHook *pHook)
+{
+    uintptr_t returnAdr = location + nextInstructionOffset;
+    uint32_t return_lo = (uint32_t)returnAdr;
+    uint32_t return_hi = (uint32_t)(returnAdr >> 32);
+
+    unsigned char *buffer = pHook->wrapperCode.data();
+
+    // TODO: Respect red zone for System V ABI! 128 bytes above rsp may not be clobbered!
+    // I think this must be done in the overwrite code
+    // or use this weird trick for jumping: jmp [rip+0]; dq adr
+
+    // Push context to the stack. General purpose, flags and instruction pointer.
+    buffer[0] = 0x50; // PUSH RAX
+    buffer[1] = 0x51; // PUSH RCX
+    buffer[2] = 0x52; // PUSH RDX
+    buffer[3] = 0x53; // PUSH RBX
+    buffer[4] = 0x54; // PUSH RSP
+    buffer[5] = 0x55; // PUSH RBP
+    buffer[6] = 0x56; // PUSH RSI
+    buffer[7] = 0x57; // PUSH RDI
+    buffer[8] = 0x41; // PUSH R8
+    buffer[9] = 0x50;
+    buffer[10] = 0x41; // PUSH R9
+    buffer[11] = 0x51;
+    buffer[12] = 0x41; // PUSH R10
+    buffer[13] = 0x52;
+    buffer[14] = 0x41; // PUSH R11
+    buffer[15] = 0x53;
+    buffer[16] = 0x41; // PUSH R12
+    buffer[17] = 0x54;
+    buffer[18] = 0x41; // PUSH R13
+    buffer[19] = 0x55;
+    buffer[20] = 0x41; // PUSH R14
+    buffer[21] = 0x56;
+    buffer[22] = 0x41; // PUSH R15
+    buffer[23] = 0x57;
+    buffer[24] = 0x9c; // PUSHFQ
+    buffer[25] = 0x68; // PUSH returnAdr@lo
+    *(uint32_t*)&buffer[26] = return_lo;
+    buffer[30] = 0xc7; // MOV [RSP+4], returnAdr@hi
+    buffer[31] = 0x44;
+    buffer[32] = 0x24;
+    buffer[33] = 0x04;
+    *(uint32_t*)&buffer[34] = return_hi;
+
+    buffer += 38;
+
+    // Backup RSP to RBX and align it on 16 byte boundary.
+    buffer[0] = 0x48; // MOV RBX, RSP
+    buffer[1] = 0x89;
+    buffer[2] = 0xe3;
+    buffer[3] = 0x48; // AND RSP, 0xffffffff_fffffff0
+    buffer[4] = 0x83;
+    buffer[5] = 0xe4;
+    buffer[6] = 0xf0;
+
+    buffer += 7;
+
+    // Call the locker function.
+#if defined(_WIN64) // Microsoft x64 calling convention
+    // Second parameter: CpuContext*
+    buffer[0] = 0x48; // MOV RDX, RBX
+    buffer[1] = 0x89;
+    buffer[2] = 0xda;
+    // First parameter: DetourHook*
+    buffer[3] = 0x48; // MOV RCX, pHook
+    buffer[4] = 0xb9;
+    *(uintptr_t*)&buffer[5] = (uintptr_t)pHook;
+    // Shadow space for callee.
+    buffer[13] = 0x48; // SUB RSP, 0x20
+    buffer[14] = 0x83;
+    buffer[15] = 0xec;
+    buffer[16] = 0x20;
+    buffer[17] = 0x48; // MOV RAX, JMPHookLocker
+    buffer[18] = 0xb8;
+    *(uintptr_t*)&buffer[19] = (uintptr_t)JMPHookLocker;
+    buffer[27] = 0xff; // CALL RAX
+    buffer[28] = 0xd0;
+
+    buffer += 29;
+#elif defined(unix) || defined(__unix__) || defined(__unix) // System V AMD64 ABI
+    // Second parameter: CpuContext*
+    buffer[0] = 0x48; // MOV RSI, RBP
+    buffer[1] = 0x89;
+    buffer[2] = 0xde;
+    // First parameter: DetourHook*
+    buffer[3] = 0x48; // MOV RDI, pHook
+    buffer[4] = 0xbf;
+    *(uintptr_t*)&buffer[5] = (uintptr_t)pHook;
+    buffer[13] = 0x48; // MOV RAX, JMPHookLocker
+    buffer[14] = 0xb8;
+    *(uintptr_t*)&buffer[15] = (uintptr_t)JMPHookLocker;
+    buffer[23] = 0xff; // CALL RAX
+    buffer[24] = 0xd0;
+
+    buffer += 25;
+#endif
+
+    // Restore RSP.
+    buffer[0] = 0x48; // MOV RSP, RBX
+    buffer[1] = 0x89;
+    buffer[2] = 0xdc;
+
+    // Backup the instruction pointer that may have been modified by the callback.
+    buffer[3] = 0x58; // POP EAX
+    buffer[4] = 0x48; // MOV [ipBackup], RAX
+    buffer[5] = 0xa3;
+    *(uintptr_t**)&buffer[6] = &pHook->ipBackup;
+
+    buffer += 14;
+
+    // Restore general purpose and flags registers.
+    buffer[0] = 0x9d; // POPFQ
+    buffer[1] = 0x41; // POP R15
+    buffer[2] = 0x5f;
+    buffer[3] = 0x41; // POP R14
+    buffer[4] = 0x5e;
+    buffer[5] = 0x41; // POP R13
+    buffer[6] = 0x5d;
+    buffer[7] = 0x41; // POP R12
+    buffer[8] = 0x5c;
+    buffer[9] = 0x41; // POP R11
+    buffer[10] = 0x5b;
+    buffer[11] = 0x41; // POP R10
+    buffer[12] = 0x5a;
+    buffer[13] = 0x41; // POP R9
+    buffer[14] = 0x59;
+    buffer[15] = 0x41; // POP R8
+    buffer[16] = 0x58;
+    buffer[17] = 0x5f; // POP RDI
+    buffer[18] = 0x5e; // POP RSI
+    buffer[19] = 0x5d; // POP RBP
+    buffer[20] = 0x5c; // POP RSP
+    buffer[21] = 0x5b; // POP RBX
+    buffer[22] = 0x5a; // POP RDX
+    buffer[23] = 0x59; // POP RCX
+    buffer[24] = 0x58; // POP RAX
+
+    buffer += 25;
+
+    pHook->originalCode = buffer;
+    // Copy originally overwritten code.
+    memcpy(buffer, (void*)location, nextInstructionOffset);
+
+    buffer += nextInstructionOffset;
+
+    // Jump to the backed up instruction pointer.
+    buffer[0] = 0x50; // PUSH RAX
+    buffer[1] = 0x48; // MOV RAX, [ipBackup]
+    buffer[2] = 0xa1;
+    *(uintptr_t**)&buffer[3] = &pHook->ipBackup;
+    buffer[11] = 0x48; // XCHG [RSP], RAX
+    buffer[12] = 0x87;
+    buffer[13] = 0x04;
+    buffer[14] = 0x24;
+    buffer[15] = 0xc3; // RETN
+}
+
+static void GenWrapper_x86(uintptr_t location, int nextInstructionOffset, DetourHook *pHook)
+{
+    unsigned char *buffer = pHook->wrapperCode.data();
+
+    // Calculate delta.
+    uintptr_t callFromWrapperToLocker = (uintptr_t)JMPHookLocker - (uintptr_t)buffer - 13 - 5;
+
+    // Push context to the stack. General purpose, flags and instruction pointer.
+    buffer[0] = 0x60; // PUSHAD
+    buffer[1] = 0x9c; // PUSHFD
+    buffer[2] = 0x68; // PUSH jumpBack
+    *(uintptr_t*)&buffer[3] = location + nextInstructionOffset;
+    // Push stack pointer to stack as second argument to the locker function. Pointing to the context.
+    buffer[7] = 0x54; // PUSH ESP
+    // Push pHook instance pointer as first argument to the locker function.
+    buffer[8] = 0x68; // PUSH pHook
+    *(uintptr_t*)&buffer[9] = (uintptr_t)pHook;
+    // Call the hook callback.
+    buffer[13] = 0xe8; // CALL cbHook
+    *(uintptr_t*)&buffer[14] = callFromWrapperToLocker;
+    // Cleanup parameters from cdecl call.
+    buffer[18] = 0x58; // POP EAX
+    buffer[19] = 0x58; // POP EAX
+    // Backup the instruction pointer that may have been modified by the callback.
+    buffer[20] = 0x8f; // POP [ipBackup]
+    buffer[21] = 0x05;
+    *(uintptr_t**)&buffer[22] = &pHook->ipBackup;
+    // Restore general purpose and flags registers.
+    buffer[26] = 0x9d; // POPFD
+    buffer[27] = 0x61; // POPAD
+
+    buffer += 28;
+    pHook->originalCode = buffer;
+
+    // Copy originally overwritten code.
+    memcpy(buffer, (void*)location, nextInstructionOffset);
+
+    buffer += nextInstructionOffset;
+
+    // Jump to the backed up instruction pointer.
+    buffer[0] = 0xff; // JMP [ipBackup]
+    buffer[1] = 0x25;
+    *(uintptr_t**)&buffer[2] = &pHook->ipBackup;
+}
+
 const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook)
 {
     // Check for invalid parameters.
-    if (!location || nextInstructionOffset < 5 || !cbHook)
+    if (!location || nextInstructionOffset < MINIMUM_JMPHOOKSIZE || !cbHook)
         return nullptr;
 
     auto pHook = std::make_unique<DetourHook>(location, nextInstructionOffset);
 
     pHook->cbHook = cbHook;
 
-    // Calculate deltas.
-    uintptr_t jmpFromLocToWrapper = (uintptr_t)pHook->wrapperCode.data() - location - 5;
-    uintptr_t callFromWrapperToLocker = (uintptr_t)JMPHookLocker - (uintptr_t)pHook->wrapperCode.data() - 13 - 5;
-
-    // Generate wrapper code.
-    // Push context to the stack. General purpose, flags and instruction pointer.
-    pHook->wrapperCode[0] = 0x60; // PUSHAD
-    pHook->wrapperCode[1] = 0x9c; // PUSHFD
-    pHook->wrapperCode[2] = 0x68; // PUSH jumpBack
-    *(uintptr_t*)&pHook->wrapperCode[3] = location + nextInstructionOffset;
-    // Push stack pointer to stack as second argument to the locker function. Pointing to the context.
-    pHook->wrapperCode[7] = 0x54; // PUSH ESP
-    // Push pHook instance pointer as first argument to the locker function.
-    pHook->wrapperCode[8] = 0x68; // PUSH pHook
-    *(uintptr_t*)&pHook->wrapperCode[9] = (uintptr_t)pHook.get();
-    // Call the hook callback.
-    pHook->wrapperCode[13] = 0xe8; // CALL cbHook
-    *(uintptr_t*)&pHook->wrapperCode[14] = callFromWrapperToLocker;
-    // Cleanup parameters from cdecl call.
-    pHook->wrapperCode[18] = 0x58; // POP EAX
-    pHook->wrapperCode[19] = 0x58; // POP EAX
-    // Backup the instruction pointer that may have been overwritten by the callback.
-    pHook->wrapperCode[20] = 0x8f; // POP [ipBackup]
-    pHook->wrapperCode[21] = 0x05;
-    *(uintptr_t**)&pHook->wrapperCode[22] = &pHook->ipBackup;
-    // Restore general purpose and flags registers.
-    pHook->wrapperCode[26] = 0x9d; // POPFD
-    pHook->wrapperCode[27] = 0x61; // POPAD
-    pHook->originalCode = pHook->wrapperCode.data() + 28;
-    // Execute original overwritten code.
-    memcpy(pHook->originalCode, (void*)location, nextInstructionOffset);
-    // Jump to the backed up instruction pointer.
-    pHook->originalCode[nextInstructionOffset] = 0xff; // JMP [ipBackup]
-    pHook->originalCode[1 + nextInstructionOffset] = 0x25;
-    *(uintptr_t**)&pHook->originalCode[2 + nextInstructionOffset] = &pHook->ipBackup;
-
-    // Generate patch.
-    std::vector<unsigned char> jmpPatch(nextInstructionOffset, 0xcc);
-    jmpPatch[0] = 0xe9; // JMP wrapper
-    *(uintptr_t*)&jmpPatch[1] = jmpFromLocToWrapper;
-    for (int i = 5; i < nextInstructionOffset; i++)
-    {
-        jmpPatch[i] = 0x90; // NOP
-    }
+#ifdef ARCH_64BIT
+    GenWrapper_x86_64(location, nextInstructionOffset, pHook.get());
+    auto jmpPatch = GenJumpOverwrite_x86_64((uintptr_t)pHook->wrapperCode.data(), nextInstructionOffset);
+#else
+    GenWrapper_x86(location, nextInstructionOffset, pHook.get());
+    auto jmpPatch = GenJumpOverwrite_x86((uintptr_t)pHook->wrapperCode.data(), location, nextInstructionOffset);
+#endif
 
     // Apply the hook by writing the jump.
     DWORD dwOldProt;

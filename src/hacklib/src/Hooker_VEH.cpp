@@ -184,7 +184,7 @@ static void checkForHookAndCall(uintptr_t adr, CONTEXT *pCtx)
         hl::CpuContext ctx;
 #ifdef ARCH_64BIT
         ctx.RIP = pCtx->Rip;
-        ctx.EFLAGS = pCtx->EFlags;
+        ctx.RFLAGS = (uintptr_t)pCtx->EFlags;
         ctx.R15 = pCtx->R15;
         ctx.R14 = pCtx->R14;
         ctx.R13 = pCtx->R13;
@@ -216,7 +216,7 @@ static void checkForHookAndCall(uintptr_t adr, CONTEXT *pCtx)
         cbHook(&ctx);
 #ifdef ARCH_64BIT
         pCtx->Rip = ctx.RIP;
-        pCtx->EFlags = ctx.EFLAGS;
+        pCtx->EFlags = (uint32_t)ctx.RFLAGS;
         pCtx->R15 = ctx.R15;
         pCtx->R14 = ctx.R14;
         pCtx->R13 = ctx.R13;

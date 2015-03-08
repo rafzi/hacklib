@@ -37,7 +37,7 @@ struct CpuContext_x86
 struct CpuContext_x86_64
 {
     uintptr_t RIP;
-    uint32_t EFLAGS;
+    uintptr_t RFLAGS;
     uintptr_t R15;
     uintptr_t R14;
     uintptr_t R13;
