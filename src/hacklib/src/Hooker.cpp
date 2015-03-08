@@ -243,7 +243,7 @@ static std::vector<unsigned char> GenJumpOverwrite_x86(uintptr_t target, uintptr
     return jmpPatch;
 }
 
-const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, void(*cbHook)())
+const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook)
 {
     // Check for invalid parameters.
     if (!location || nextInstructionOffset < MINIMUM_JMPHOOKSIZE || !cbHook)
@@ -252,9 +252,9 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, void
     auto pHook = std::make_unique<JMPHook>(location, nextInstructionOffset);
 
 #ifdef ARCH_64BIT
-    auto jmpPatch = GenJumpOverwrite_x86_64((uintptr_t)cbHook, nextInstructionOffset);
+    auto jmpPatch = GenJumpOverwrite_x86_64(cbHook, nextInstructionOffset);
 #else
-    auto jmpPatch = GenJumpOverwrite_x86((uintptr_t)cbHook, location, nextInstructionOffset);
+    auto jmpPatch = GenJumpOverwrite_x86(cbHook, location, nextInstructionOffset);
 #endif
 
     // Apply the hook by writing the jump.

@@ -39,8 +39,10 @@ WindowOverlay::WindowOverlay(HINSTANCE hModule) : GfxOverlay(hModule)
 }
 
 
-GfxOverlay::Error WindowOverlay::create()
+GfxOverlay::Error WindowOverlay::create(bool alwaysOnTop)
 {
+    m_alwaysOnTop = alwaysOnTop;
+
     // get window that belongs to current process
     m_targetWindow = NULL;
     if (!EnumWindows(EnumWindowsProc, (LPARAM)&m_targetWindow) || !m_targetWindow)
@@ -88,7 +90,7 @@ void WindowOverlay::cbWindowLoop()
     // window visibility changes
     HWND zOrderChange = NULL;
     bool isForeground = m_targetWindow == GetForegroundWindow();
-    if (m_visible != isForeground)
+    if (m_visible != isForeground && !m_alwaysOnTop)
     {
         m_visible = isForeground;
         changeFound = true;

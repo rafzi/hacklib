@@ -77,7 +77,7 @@ public:
     // Hook by patching the target location with a jump instruction.
     // Simple but has maximum flexibility. Your code has the responsibility
     // to resume execution somehow. A simple return will likely crash the target.
-    const IHook *hookJMP(uintptr_t location, int nextInstructionOffset, void(*cbHook)());
+    const IHook *hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook);
 
     // Hook by patching the location with a jump like hookJMP, but jumps to
     // wrapper code that preserves registers, calls the given hook callback and
