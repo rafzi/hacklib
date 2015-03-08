@@ -16,7 +16,7 @@ public:
     WindowOverlay(HINSTANCE hModule = NULL);
 
     // Create the overlay.
-    // The overlay dissapears of the target window loses focus. Set
+    // The overlay dissapears if the target window loses focus. Set
     // the parameter to true to prevent this.
     GfxOverlay::Error create(bool alwaysOnTop = false);
 
