@@ -3,6 +3,7 @@
 
 // requires dxsdk linked
 #include "d3d9.h"
+#include "d3d11.h"
 
 namespace hl {
 
@@ -14,7 +15,14 @@ namespace D3DDeviceFetcher
     // Uses VEH hooking, so it is very likely that this will not work while the process
     // is being debugged.
     IDirect3DDevice9 *GetD3D9Device(int timeout = 20000);
-    
+
+    struct D3D11COMs
+    {
+        IDXGISwapChain *pSwapChain = NULL;
+        ID3D11Device *pDevice = NULL;
+        ID3D11DeviceContext *pDeviceContext = NULL;
+    };
+    D3D11COMs GetD3D11Device(int timeout = 20000);
 }
 
 }

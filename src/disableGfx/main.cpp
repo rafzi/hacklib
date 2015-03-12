@@ -1,4 +1,5 @@
 #include "hacklib/Main.h"
+#include "hacklib/ConsoleEx.h"
 #include "hacklib/D3DDeviceFetcher.h"
 #include "hacklib/Hooker.h"
 #include <cstdio>
@@ -21,12 +22,31 @@ long __stdcall cbDrawIndexed(uintptr_t pInst, long a1, long a2, long a3, long a4
     }
 }
 
+long __stdcall cbDrawIndexed11(uintptr_t pInst, long a1, long a2, long a3)
+{
+    return 0;
+}
+long __stdcall cbDraw11(uintptr_t pInst, long a1, long a2)
+{
+    return 0;
+}
+
 
 class MyMain : public hl::Main
 {
 public:
     bool init() override
     {
+        m_con.create("disabler");
+
+        auto coms = hl::D3DDeviceFetcher::GetD3D11Device(3000);
+
+        m_hooker.hookVT((uintptr_t)coms.pDeviceContext, 13, (uintptr_t)cbDraw11);
+
+        m_con.printf("sc: %p\ndev: %p\ndc: %p\n", coms.pSwapChain, coms.pDevice, coms.pDeviceContext);
+
+        return true;
+
         auto dev = hl::D3DDeviceFetcher::GetD3D9Device(3000);
 
         // Hook IDirect3DDevice9::DrawIndexedPrimitive. This is usually the most used draw API.
@@ -44,5 +64,6 @@ public:
     }
 
     hl::Hooker m_hooker;
+    hl::ConsoleEx m_con;
 
 };

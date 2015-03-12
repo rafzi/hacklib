@@ -1,5 +1,6 @@
 #include "hacklib/Hooker.h"
 #include "hacklib/PageAllocator.h"
+#include "hacklib/Main.h"
 #include <mutex>
 #include <map>
 #include <Windows.h>
@@ -100,6 +101,19 @@ public:
         {
             if (page->m_refs == 1)
             {
+                // Trigger the guard page violation to remove it. VEH will not handle the
+                // exception so we can be sure the guard page protection was removed.
+                [&]{
+                    __try
+                    {
+                        while (true)
+                        {
+                            auto x = *(volatile int*)adr;
+                        }
+                    } __except (EXCEPTION_EXECUTE_HANDLER) {
+                    }
+                }();
+
                 std::lock_guard<std::mutex> lock(m_pagesMutex);
                 m_pages.erase(page->m_end);
                 m_pages.erase(page->m_begin);
@@ -255,13 +269,30 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
         // Guard page exeption occured. Guard page protection is gone now.
         // Parameters: [0]: access type that caused the fault, [1]: address that was accessed
 
+        if (exc->ExceptionRecord->ExceptionInformation[0] == EXCEPTION_READ_FAULT)
+        {
+            HMODULE hModule;
+            GetModuleHandleEx(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
+                GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                (LPCTSTR)exc->ContextRecord->REG_INSTRUCTIONPTR,
+                &hModule);
+
+            if (hModule == hl::GetCurrentModule())
+            {
+                // The read is from VEHHookManager::removeHook. Return without continuing
+                // with a single-step. Do not handle the exception to signal success to removeHook.
+                return EXCEPTION_CONTINUE_SEARCH;
+            }
+        }
+
         // Save the address that was accessed to reprotect it at the single-step exception.
         guardFaultAdr = exc->ExceptionRecord->ExceptionInformation[1];
 
         // Set single-step flag to advance one instruction.
         pCtx->EFlags |= 0x100;
 
-        // Only hook for execute access. Not if someone tries to read the hooked memory.
+        // Only hook for execute access. Not if someone tries to read or write the hooked memory.
         if (exc->ExceptionRecord->ExceptionInformation[0] == EXCEPTION_EXECUTE_FAULT)
         {
             checkForHookAndCall(guardFaultAdr, pCtx);
@@ -296,5 +327,6 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
         return EXCEPTION_CONTINUE_EXECUTION;
     }
 
+    // Do not handle any other exceptions.
     return EXCEPTION_CONTINUE_SEARCH;
 }
