@@ -7,9 +7,9 @@
 
 
 #ifdef ARCH_64BIT
-static const int MINIMUM_JMPHOOKSIZE = 14;
+static const int JMPHOOKSIZE = 14;
 #else
-static const int MINIMUM_JMPHOOKSIZE = 5;
+static const int JMPHOOKSIZE = 5;
 #endif
 
 
@@ -137,13 +137,14 @@ public:
     JMPHook(uintptr_t location, int offset) :
         location(location),
         offset(offset),
-        backupCode(offset, 0xcc)
+        wrapperCode(offset, 0xcc)
     {
+        memcpy(wrapperCode.data(), (void*)location, offset);
     }
     ~JMPHook() override
     {
         hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
-        memcpy((void*)location, backupCode.data(), offset);
+        memcpy((void*)location, wrapperCode.data(), offset);
         hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_EXECUTE);
     }
 
@@ -154,7 +155,7 @@ public:
 
     uintptr_t location;
     int offset;
-    std::vector<unsigned char> backupCode;
+    hl::code_page_vector wrapperCode;
 };
 
 class DetourHook : public IHook
@@ -230,7 +231,7 @@ static std::vector<unsigned char> GenJumpOverwrite_x86(uintptr_t target, uintptr
     return jmpPatch;
 }
 
-static void GenWrapper_x86(uintptr_t location, int nextInstructionOffset, DetourHook *pHook)
+static void GenWrapper_x86(DetourHook *pHook)
 {
     unsigned char *buffer = pHook->wrapperCode.data();
 
@@ -241,7 +242,7 @@ static void GenWrapper_x86(uintptr_t location, int nextInstructionOffset, Detour
     buffer[0] = 0x60; // PUSHAD
     buffer[1] = 0x9c; // PUSHFD
     buffer[2] = 0x68; // PUSH jumpBack
-    *(uintptr_t*)&buffer[3] = location + nextInstructionOffset;
+    *(uintptr_t*)&buffer[3] = pHook->location + pHook->offset;
     // Push stack pointer to stack as second argument to the locker function. Pointing to the context.
     buffer[7] = 0x54; // PUSH ESP
     // Push pHook instance pointer as first argument to the locker function.
@@ -265,9 +266,9 @@ static void GenWrapper_x86(uintptr_t location, int nextInstructionOffset, Detour
     pHook->originalCode = buffer;
 
     // Copy originally overwritten code.
-    memcpy(buffer, (void*)location, nextInstructionOffset);
+    memcpy(buffer, (void*)pHook->location, pHook->offset);
 
-    buffer += nextInstructionOffset;
+    buffer += pHook->offset;
 
     // Jump to the backed up instruction pointer.
     buffer[0] = 0xff; // JMP [ipBackup]
@@ -296,9 +297,9 @@ static std::vector<unsigned char> GenJumpOverwrite_x86_64(uintptr_t target, int 
     return jmpPatch;
 }
 
-static void GenWrapper_x86_64(uintptr_t location, int nextInstructionOffset, DetourHook *pHook)
+static void GenWrapper_x86_64(DetourHook *pHook)
 {
-    uintptr_t returnAdr = location + nextInstructionOffset;
+    uintptr_t returnAdr = pHook->location + pHook->offset;
     uint32_t return_lo = (uint32_t)returnAdr;
     uint32_t return_hi = (uint32_t)(returnAdr >> 32);
 
@@ -309,11 +310,11 @@ static void GenWrapper_x86_64(uintptr_t location, int nextInstructionOffset, Det
     // or use this weird trick for jumping: jmp [rip+0]; dq adr
 
     // Push context to the stack. General purpose, flags and instruction pointer.
-    buffer[0] = 0x50; // PUSH RAX
-    buffer[1] = 0x51; // PUSH RCX
-    buffer[2] = 0x52; // PUSH RDX
-    buffer[3] = 0x53; // PUSH RBX
-    buffer[4] = 0x54; // PUSH RSP
+    buffer[0] = 0x54; // PUSH RSP
+    buffer[1] = 0x50; // PUSH RAX
+    buffer[2] = 0x51; // PUSH RCX
+    buffer[3] = 0x52; // PUSH RDX
+    buffer[4] = 0x53; // PUSH RBX
     buffer[5] = 0x55; // PUSH RBP
     buffer[6] = 0x56; // PUSH RSI
     buffer[7] = 0x57; // PUSH RDI
@@ -429,19 +430,19 @@ static void GenWrapper_x86_64(uintptr_t location, int nextInstructionOffset, Det
     buffer[17] = 0x5f; // POP RDI
     buffer[18] = 0x5e; // POP RSI
     buffer[19] = 0x5d; // POP RBP
-    buffer[20] = 0x5c; // POP RSP
-    buffer[21] = 0x5b; // POP RBX
-    buffer[22] = 0x5a; // POP RDX
-    buffer[23] = 0x59; // POP RCX
-    buffer[24] = 0x58; // POP RAX
+    buffer[20] = 0x5b; // POP RBX
+    buffer[21] = 0x5a; // POP RDX
+    buffer[22] = 0x59; // POP RCX
+    buffer[23] = 0x58; // POP RAX
+    buffer[24] = 0x5c; // POP RSP
 
     buffer += 25;
 
     pHook->originalCode = buffer;
     // Copy originally overwritten code.
-    memcpy(buffer, (void*)location, nextInstructionOffset);
+    memcpy(buffer, (void*)pHook->location, pHook->offset);
 
-    buffer += nextInstructionOffset;
+    buffer += pHook->offset;
 
     // Jump to the backed up instruction pointer.
     buffer[0] = 0x50; // PUSH RAX
@@ -458,13 +459,25 @@ static void GenWrapper_x86_64(uintptr_t location, int nextInstructionOffset, Det
 #endif
 
 
-const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook)
+const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook, uintptr_t *jmpBack)
 {
     // Check for invalid parameters.
-    if (!location || nextInstructionOffset < MINIMUM_JMPHOOKSIZE || !cbHook)
+    if (!location || nextInstructionOffset < JMPHOOKSIZE || !cbHook)
         return nullptr;
 
     auto pHook = std::make_unique<JMPHook>(location, nextInstructionOffset);
+
+    // The jump back must only be written if used.
+    if (jmpBack)
+    {
+#ifdef ARCH_64BIT
+        auto jmpBackPatch = GenJumpOverwrite_x86_64(location + nextInstructionOffset, JMPHOOKSIZE);
+#else
+        auto jmpBackPatch = GenJumpOverwrite_x86(location + nextInstructionOffset, cbHook + nextInstructionOffset, JMPHOOKSIZE);
+#endif
+        memcpy(pHook->wrapperCode.data() + nextInstructionOffset, jmpBackPatch.data(), JMPHOOKSIZE);
+        *jmpBack = (uintptr_t)pHook->wrapperCode.data();
+    }
 
 #ifdef ARCH_64BIT
     auto jmpPatch = GenJumpOverwrite_x86_64(cbHook, nextInstructionOffset);
@@ -486,7 +499,7 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook)
 {
     // Check for invalid parameters.
-    if (!location || nextInstructionOffset < MINIMUM_JMPHOOKSIZE || !cbHook)
+    if (!location || nextInstructionOffset < JMPHOOKSIZE || !cbHook)
         return nullptr;
 
     auto pHook = std::make_unique<DetourHook>(location, nextInstructionOffset);
@@ -494,10 +507,10 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
     pHook->cbHook = cbHook;
 
 #ifdef ARCH_64BIT
-    GenWrapper_x86_64(location, nextInstructionOffset, pHook.get());
+    GenWrapper_x86_64(pHook.get());
     auto jmpPatch = GenJumpOverwrite_x86_64((uintptr_t)pHook->wrapperCode.data(), nextInstructionOffset);
 #else
-    GenWrapper_x86(location, nextInstructionOffset, pHook.get());
+    GenWrapper_x86(pHook.get());
     auto jmpPatch = GenJumpOverwrite_x86((uintptr_t)pHook->wrapperCode.data(), location, nextInstructionOffset);
 #endif
 
