@@ -20,14 +20,15 @@ public:
 class TempColor
 {
     IDirect3DDevice9 *dev;
-    DWORD colorOP, alphaOP, colorArg, alphaArg, constant;
+    DWORD colorOP, alphaOP, colorArg, alphaArg1, alphaArg2, constant;
 public:
     TempColor(IDirect3DDevice9 *pDevice, D3DCOLOR color) {
         dev = pDevice;
         dev->GetTextureStageState(0, D3DTSS_COLOROP, &colorOP);
         dev->GetTextureStageState(0, D3DTSS_ALPHAOP, &alphaOP);
         dev->GetTextureStageState(0, D3DTSS_COLORARG1, &colorArg);
-        dev->GetTextureStageState(0, D3DTSS_ALPHAARG1, &alphaArg);
+        dev->GetTextureStageState(0, D3DTSS_ALPHAARG1, &alphaArg1);
+        dev->GetTextureStageState(0, D3DTSS_ALPHAARG2, &alphaArg2);
         dev->GetTextureStageState(0, D3DTSS_CONSTANT, &constant);
         dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
         dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
@@ -40,7 +41,8 @@ public:
         dev->SetTextureStageState(0, D3DTSS_COLOROP, colorOP);
         dev->SetTextureStageState(0, D3DTSS_ALPHAOP, alphaOP);
         dev->SetTextureStageState(0, D3DTSS_COLORARG1, colorArg);
-        dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, alphaArg);
+        dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, alphaArg1);
+        dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, alphaArg2);
         dev->SetTextureStageState(0, D3DTSS_CONSTANT, constant);
     }
 };
@@ -369,7 +371,7 @@ void Drawer::DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pInd
     case D3DPT_LINELIST:        numPrimitives = numVertices/2;  break;
     case D3DPT_LINESTRIP:       numPrimitives = numVertices-1;  break;
     case D3DPT_TRIANGLELIST:    numPrimitives = numVertices/3;  break;
-    case D3DPT_TRIANGLESTRIP:   numPrimitives = numVertices-2;  break;
+    case D3DPT_TRIANGLESTRIP:
     case D3DPT_TRIANGLEFAN:     numPrimitives = numVertices-2;  break;
     }
 
