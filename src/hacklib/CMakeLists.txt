@@ -31,6 +31,7 @@ IF(WIN32)
         src/PageAllocator_WIN32.cpp
         src/Hooker_VEH.cpp
         src/Injector.cpp
+        src/Input.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -38,6 +39,7 @@ IF(WIN32)
         include/hacklib/GfxOverlay.h
         include/hacklib/WindowOverlay.h
         include/hacklib/ConsoleEx.h
+        include/hacklib/Input.h
         )
 ELSEIF(UNIX)
     SET(FILES_CPP ${FILES_CPP}

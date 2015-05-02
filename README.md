@@ -197,6 +197,26 @@ t.reset();
 std::cout << t.diff() << std::endl;
 ```
 
+Input.h:
+
+```
+#!c++
+
+hl::Input input;
+
+while (true)
+{
+    input.update();
+    if (input.isDown(VK_SHIFT))
+    {
+        if (input.wentDown('F'))
+        {
+            // Shift was held and F changed state from not pressed to pressed.
+        }
+    }
+}
+```
+
 
 ## Dependencies ##
 
