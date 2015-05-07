@@ -473,7 +473,7 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 #ifdef ARCH_64BIT
         auto jmpBackPatch = GenJumpOverwrite_x86_64(location + nextInstructionOffset, JMPHOOKSIZE);
 #else
-        auto jmpBackPatch = GenJumpOverwrite_x86(location + nextInstructionOffset, cbHook + nextInstructionOffset, JMPHOOKSIZE);
+        auto jmpBackPatch = GenJumpOverwrite_x86(location + nextInstructionOffset, (uintptr_t)pHook->wrapperCode.data() + nextInstructionOffset, JMPHOOKSIZE);
 #endif
         memcpy(pHook->wrapperCode.data() + nextInstructionOffset, jmpBackPatch.data(), JMPHOOKSIZE);
         *jmpBack = (uintptr_t)pHook->wrapperCode.data();
