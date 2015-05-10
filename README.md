@@ -30,7 +30,7 @@ A helper / framework for implementing a DLL that runs by itself after it is load
 
 class MyMain : public hl::Main
 {
-public
+public:
     bool init() override
     {
         // Your init code here. Return true to loop on step member function afterwards.

@@ -46,7 +46,7 @@ public:
 
     // opens console and starts handling of all events
     // waits for private thread to run (eg. will deadlock when called in DllMain)
-    bool create(std::string windowTitle, CONSOLEEX_PARAMETERS *parameters = nullptr);
+    bool create(const std::string& windowTitle, CONSOLEEX_PARAMETERS *parameters = nullptr);
 
     // registers a callback that will be called on input
     void registerInputCallback(void(*cbInput)(std::string));
@@ -58,6 +58,7 @@ public:
 
     void close();
     bool isOpen() const;
+    HWND getWindowHandle() const;
 
     // member functions to send output to console
     void vprintf(const char *format, va_list valist);

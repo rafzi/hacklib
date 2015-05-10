@@ -64,7 +64,7 @@ ConsoleEx::~ConsoleEx()
 }
 
 
-bool ConsoleEx::create(std::string windowTitle, CONSOLEEX_PARAMETERS *parameters)
+bool ConsoleEx::create(const std::string& windowTitle, CONSOLEEX_PARAMETERS *parameters)
 {
     // dont allow displaying twice
     close();
@@ -106,6 +106,11 @@ void ConsoleEx::close()
 bool ConsoleEx::isOpen() const
 {
     return m_isOpen;
+}
+
+HWND ConsoleEx::getWindowHandle() const
+{
+    return m_hWnd;
 }
 
 
@@ -310,6 +315,7 @@ void ConsoleEx::threadProc(std::promise<bool> &p)
     }
 
     m_isOpen = false;
+    m_hWnd = NULL;
 }
 
 
