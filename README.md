@@ -105,6 +105,19 @@ void *pAgentSelectionCtx = *(void**)(hl::FollowRelativeAddress(results[1] + 0xa)
 ```
 
 
+### Patch.h ###
+
+Object wrapper around a simple code patch. Takes care of memory protection and restores everything on destruction.
+
+```
+#!c++
+
+hl::Patch p1, p2;
+p1.apply(0x00111111, (uint8_t)0xeb);
+p2.apply(0x00222222, "\x90\x90\x90", 3);
+```
+
+
 ### Injector.h ###
 
 A way to forcibly get your shared library into the target process.

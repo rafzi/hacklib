@@ -58,7 +58,7 @@ public:
         if (fakeVT)
         {
             // The VT of this object was already hooked. Make the fake VT writable again.
-            hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ|PROTECTION_WRITE);
+            hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ_WRITE);
 
             fakeVT->m_refs++;
         }
@@ -92,7 +92,7 @@ public:
             else
             {
                 // Keep using the fake VT, but restore the unhooked function pointer.
-                hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ|PROTECTION_WRITE);
+                hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ_WRITE);
                 fakeVT->m_data[functionIndex] = fakeVT->m_orgVT[functionIndex];
                 hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ);
 
@@ -143,9 +143,9 @@ public:
     }
     ~JMPHook() override
     {
-        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
+        hl::PageProtect((void*)location, offset, PROTECTION_READ_WRITE_EXECUTE);
         memcpy((void*)location, wrapperCode.data(), offset);
-        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_EXECUTE);
+        hl::PageProtect((void*)location, offset, PROTECTION_READ_EXECUTE);
     }
 
     uintptr_t getLocation() const override
@@ -169,9 +169,9 @@ public:
     }
     ~DetourHook() override
     {
-        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
+        hl::PageProtect((void*)location, offset, PROTECTION_READ_WRITE_EXECUTE);
         memcpy((void*)location, originalCode, offset);
-        hl::PageProtect((void*)location, offset, PROTECTION_READ|PROTECTION_EXECUTE);
+        hl::PageProtect((void*)location, offset, PROTECTION_READ_EXECUTE);
 
         // In case the hook is currently executing, wait for it to end before releasing the wrapper code.
         std::lock_guard<std::mutex> lock(mutex);
@@ -475,6 +475,7 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 #else
         auto jmpBackPatch = GenJumpOverwrite_x86(location + nextInstructionOffset, (uintptr_t)pHook->wrapperCode.data() + nextInstructionOffset, JMPHOOKSIZE);
 #endif
+        // It is save to write out of bounds here, because we allocated a whole page.
         memcpy(pHook->wrapperCode.data() + nextInstructionOffset, jmpBackPatch.data(), JMPHOOKSIZE);
         *jmpBack = (uintptr_t)pHook->wrapperCode.data();
     }
@@ -486,9 +487,9 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 #endif
 
     // Apply the hook by writing the jump.
-    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ_WRITE_EXECUTE);
     memcpy((void*)location, jmpPatch.data(), nextInstructionOffset);
-    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_EXECUTE);
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ_EXECUTE);
 
     auto result = pHook.get();
     m_hooks.push_back(std::move(pHook));
@@ -515,9 +516,9 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
 #endif
 
     // Apply the hook by writing the jump.
-    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE);
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ_WRITE_EXECUTE);
     memcpy((void*)location, jmpPatch.data(), nextInstructionOffset);
-    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ|PROTECTION_EXECUTE);
+    hl::PageProtect((void*)location, nextInstructionOffset, PROTECTION_READ_EXECUTE);
 
     auto result = pHook.get();
     m_hooks.push_back(std::move(pHook));

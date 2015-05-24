@@ -21,13 +21,13 @@ static DWORD toWindowsProt(int protection)
     case hl::PROTECTION_READ:
         windows_prot |= PAGE_READONLY;
         break;
-    case hl::PROTECTION_READ|hl::PROTECTION_WRITE:
+    case hl::PROTECTION_READ_WRITE:
         windows_prot |= PAGE_READWRITE;
         break;
-    case hl::PROTECTION_READ|hl::PROTECTION_EXECUTE:
+    case hl::PROTECTION_READ_EXECUTE:
         windows_prot |= PAGE_EXECUTE_READ;
         break;
-    case hl::PROTECTION_READ|hl::PROTECTION_WRITE|hl::PROTECTION_EXECUTE:
+    case hl::PROTECTION_READ_WRITE_EXECUTE:
         windows_prot |= PAGE_EXECUTE_READWRITE;
         break;
     default:

@@ -4,6 +4,7 @@ PROJECT(${PROJ_NAME})
 SET(FILES_CPP
     src/Main.cpp
     src/Hooker.cpp
+    src/Patch.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
@@ -16,6 +17,7 @@ SET(FILES_H
     include/hacklib/Rng.h
     include/hacklib/Timer.h
     include/hacklib/PageAllocator.h
+    include/hacklib/Patch.h
     )
 
 # windows specific

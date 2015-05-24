@@ -13,6 +13,9 @@ static const int PROTECTION_READ = 0x1;
 static const int PROTECTION_WRITE = 0x2;
 static const int PROTECTION_EXECUTE = 0x4;
 static const int PROTECTION_GUARD = 0x8; // Only supported on Windows.
+static const int PROTECTION_READ_WRITE = PROTECTION_READ|PROTECTION_WRITE;
+static const int PROTECTION_READ_EXECUTE = PROTECTION_READ|PROTECTION_EXECUTE;
+static const int PROTECTION_READ_WRITE_EXECUTE = PROTECTION_READ_WRITE|PROTECTION_EXECUTE;
 
 
 uintptr_t GetPageSize();
@@ -53,7 +56,7 @@ public:
 
 
 template <typename T>
-class data_page_allocator : public page_allocator<T, PROTECTION_READ|PROTECTION_WRITE>
+class data_page_allocator : public page_allocator<T, PROTECTION_READ_WRITE>
 {
 };
 
@@ -61,7 +64,7 @@ template <typename T>
 using data_page_vector = std::vector<T, data_page_allocator<T>>;
 
 template <typename T>
-class code_page_allocator : public page_allocator<T, PROTECTION_READ|PROTECTION_WRITE|PROTECTION_EXECUTE>
+class code_page_allocator : public page_allocator<T, PROTECTION_READ_WRITE_EXECUTE>
 {
 };
 
