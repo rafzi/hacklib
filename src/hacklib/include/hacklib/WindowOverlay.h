@@ -13,6 +13,10 @@ namespace hl {
 class WindowOverlay : public GfxOverlay
 {
 public:
+    // Returns the window that will be covered by the overlay.
+    static HWND GetTargetWindow();
+
+public:
     WindowOverlay(HINSTANCE hModule = NULL);
 
     // Create the overlay.

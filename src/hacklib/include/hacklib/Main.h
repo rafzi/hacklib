@@ -11,21 +11,19 @@
 namespace hl
 {
     /*
-     * This class can be used to do start and stop a dynamic library inside a foreign process.
-     *
-     * If you derive from this class and use it for static initialization,
-     * make sure that the constructor and destructor are safe for execution
-     * while in a loader lock. If initialization or cleanup requires synchronization,
-     * override the init and shutdown member functions.
+     * This class can be used to start and stop a dynamic library inside a foreign process.
      */
     class Main
     {
     public:
         // Is called on initialization. If returning false, the dll will detach.
+        // The default implementation just returns true.
         virtual bool init();
         // Is called continuously sequenially while running. If returning false, the dll will detach.
+        // The default implementation sleeps for 10 milliseconds and returns true.
         virtual bool step();
         // Is called on shutdown.
+        // The default implementation does nothing.
         virtual void shutdown();
 
     };
@@ -41,10 +39,21 @@ namespace hl
         StaticInit()
         {
             HANDLE hThread = CreateThread(NULL, 0, ThreadFunc, (LPVOID)this, 0, NULL);
-            CloseHandle(hThread);
+            if (hThread == NULL)
+            {
+                hl::MsgBox("StaticInit Error", "CreateThread failed with code " + std::to_string(GetLastError()));
+            }
+            else
+            {
+                CloseHandle(hThread);
+            }
         }
 
         T *getMain()
+        {
+            return m_pMain;
+        }
+        const T *getMain() const
         {
             return m_pMain;
         }

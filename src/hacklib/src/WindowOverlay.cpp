@@ -32,6 +32,13 @@ static BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
     return TRUE;
 }
 
+HWND WindowOverlay::GetTargetWindow()
+{
+    HWND hWnd = NULL;
+    EnumWindows(EnumWindowsProc, (LPARAM)&hWnd);
+    return hWnd;
+}
+
 
 
 WindowOverlay::WindowOverlay(HINSTANCE hModule) : GfxOverlay(hModule)
@@ -44,8 +51,8 @@ GfxOverlay::Error WindowOverlay::create(bool alwaysOnTop)
     m_alwaysOnTop = alwaysOnTop;
 
     // get window that belongs to current process
-    m_targetWindow = NULL;
-    if (!EnumWindows(EnumWindowsProc, (LPARAM)&m_targetWindow) || !m_targetWindow)
+    m_targetWindow = GetTargetWindow();
+    if (!m_targetWindow)
         return Error::Other;
 
     // adjust metrics
