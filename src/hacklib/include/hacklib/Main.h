@@ -73,7 +73,7 @@ namespace hl
             }
             catch (...)
             {
-                hl::MsgBox("Main Error", "Unhandled C++ exception");
+                hl::MsgBox("Main Error", "Unhandled C++ exception on Main construction");
             }
 
             FreeLibraryAndExitThread(hModule, 0);
@@ -81,13 +81,25 @@ namespace hl
 
         static void UserCode(T& main)
         {
-            __try {
-                if (main.init())
-                {
-                    while (main.step()) { }
-                }
-                main.shutdown();
-            } __except (EXCEPTION_EXECUTE_HANDLER) {
+            __try
+            {
+                [&]{
+                    try
+                    {
+                        if (main.init())
+                        {
+                            while (main.step()) { }
+                        }
+                        main.shutdown();
+                    }
+                    catch (...)
+                    {
+                        hl::MsgBox("Main Error", "Unhandled C++ exception");
+                    }
+                }();
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
                 []{
                     hl::MsgBox("Main Error", "Unhandled SEH exception");
                 }();

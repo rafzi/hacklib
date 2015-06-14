@@ -190,8 +190,8 @@ hl::Rng rng;
 
 while (true)
 {
-    // From 0 to 99
-    int a = rng.nextInt(100);
+    // From 0 to 100
+    int a = rng.nextInt(0, 100);
     // From 7.1 to 10.3
     auto b = rng.nextReal(7.1, 10.3);
 }

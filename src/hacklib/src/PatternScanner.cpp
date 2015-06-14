@@ -70,15 +70,20 @@ static const uint8_t *boyermoore(const uint8_t *txt, const int n, const uint8_t 
         will become -1 after the above loop */
         if (j < 0)
         {
+            // HACKLIB EDIT BEGIN
+            // We only want the first occurence of the pattern, so return immediatly.
             return txt + s;
-            printf("\n pattern occurs at shift = %d", s);
+
+            //printf("\n pattern occurs at shift = %d", s);
 
             /* Shift the pattern so that the next character in text
             aligns with the last occurrence of it in pattern.
             The condition s+m < n is necessary for the case when
             pattern occurs at the end of text */
-            s += (s + m < n) ? m-badchar[txt[s + m]] : 1;
-        } else
+            //s += (s + m < n) ? m-badchar[txt[s + m]] : 1;
+            // HACKLIB EDIT END
+        }
+        else
         {
             /* Shift the pattern so that the bad character in text
             aligns with the last occurrence of it in pattern. The
@@ -92,6 +97,8 @@ static const uint8_t *boyermoore(const uint8_t *txt, const int n, const uint8_t 
 
     return nullptr;
 }
+
+// End of third party code.
 
 
 std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const char *moduleName)
