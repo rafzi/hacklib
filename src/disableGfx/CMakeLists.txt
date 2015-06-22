@@ -1,3 +1,8 @@
+IF(UNIX)
+    RETURN()
+ENDIF()
+
+
 SET(PROJ_NAME disableGfx)
 PROJECT(${PROJ_NAME})
 

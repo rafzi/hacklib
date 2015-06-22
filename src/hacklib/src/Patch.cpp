@@ -1,5 +1,6 @@
 #include "hacklib/Patch.h"
 #include "hacklib/PageAllocator.h"
+#include <cstring>
 
 
 using namespace hl;

@@ -1,3 +1,8 @@
+IF(UNIX)
+    RETURN()
+ENDIF()
+
+
 SET(PROJ_NAME veh_benchmark)
 PROJECT(${PROJ_NAME})
 
