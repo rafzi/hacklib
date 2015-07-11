@@ -46,10 +46,8 @@ WindowOverlay::WindowOverlay(HINSTANCE hModule) : GfxOverlay(hModule)
 }
 
 
-GfxOverlay::Error WindowOverlay::create(bool alwaysOnTop)
+GfxOverlay::Error WindowOverlay::create()
 {
-    m_alwaysOnTop = alwaysOnTop;
-
     // get window that belongs to current process
     m_targetWindow = GetTargetWindow();
     if (!m_targetWindow)
@@ -57,7 +55,7 @@ GfxOverlay::Error WindowOverlay::create(bool alwaysOnTop)
 
     // adjust metrics
     cbWindowLoop();
-    m_visible = true;
+    m_isTargetForeground = true;
 
     return GfxOverlay::create(m_posX, m_posY, m_width, m_height);
 }
@@ -68,7 +66,7 @@ void WindowOverlay::cbWindowLoop()
     // this method makes sure that the overlay is always matching the target window
 
     bool changeFound = false;
-    UINT setWndPosFlags = 0;
+    UINT setWndPosFlags = SWP_NOACTIVATE;
 
     // window position changes
     POINT pt = { 0, 0 };
@@ -76,7 +74,9 @@ void WindowOverlay::cbWindowLoop()
         (m_posX == pt.x && m_posY == pt.y))
     {
         setWndPosFlags |= SWP_NOMOVE;
-    } else {
+    }
+    else
+    {
         m_posX = pt.x;
         m_posY = pt.y;
         changeFound = true;
@@ -88,32 +88,46 @@ void WindowOverlay::cbWindowLoop()
         (m_width == rect.right && m_height == rect.bottom))
     {
         setWndPosFlags |= SWP_NOSIZE;
-    } else {
+    }
+    else
+    {
         m_width = rect.right;
         m_height = rect.bottom;
         changeFound = true;
     }
 
     // window visibility changes
-    HWND zOrderChange = NULL;
-    bool isForeground = m_targetWindow == GetForegroundWindow();
-    if (m_visible != isForeground && !m_alwaysOnTop)
+    HWND insertAfter = NULL;
+    HWND foregroundWindow = GetForegroundWindow();
+    bool isForeground = m_targetWindow == foregroundWindow;
+    if (m_isTargetForeground == isForeground)
     {
-        m_visible = isForeground;
+        setWndPosFlags |= SWP_NOZORDER;
+    }
+    else
+    {
+        m_isTargetForeground = isForeground;
         changeFound = true;
 
-        if (m_visible)
-            setWndPosFlags |= SWP_SHOWWINDOW;
+        if (m_isTargetForeground)
+        {
+            // Set to topmost so the target can keep being the foreground window.
+            insertAfter = HWND_TOPMOST;
+        }
         else
-            setWndPosFlags |= SWP_HIDEWINDOW;
-
-        zOrderChange = HWND_TOP;
-    } else {
-        setWndPosFlags |= SWP_NOZORDER;
+        {
+            // Get the window above the target so we can insert after that one.
+            insertAfter = GetWindow(m_targetWindow, GW_HWNDPREV);
+            if (!insertAfter)
+            {
+                // Nothing above the target. Just make the overlay no longer topmost.
+                insertAfter = HWND_NOTOPMOST;
+            }
+        }
     }
 
     if (changeFound && m_hWnd)
-        SetWindowPos(m_hWnd, zOrderChange, m_posX, m_posY, m_width, m_height, setWndPosFlags);
+        SetWindowPos(m_hWnd, insertAfter, m_posX, m_posY, m_width, m_height, setWndPosFlags);
 
     // if size has changed, reset the overlay
     if (m_pDevice && !(setWndPosFlags & SWP_NOSIZE))

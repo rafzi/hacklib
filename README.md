@@ -63,7 +63,7 @@ if (overlay.create() != hl::WindowOverlay::Error::Success)
     return false;
 
 auto pDev = overlay.getDev();
-overlay.registerResetHandlers(std::bind(&hl::Drawer::OnLostDevice, &drawer), std::bind(&hl::Drawer::OnResetDevice, &drawer));
+overlay.registerResetHandlers([&]{ drawer.OnLostDevice(); }, [&]{ drawer.OnResetDevice(); });
 drawer.SetDevice(pDev);
 
 while (pDev->BeginScene() == D3D_OK)

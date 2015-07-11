@@ -22,7 +22,7 @@ public:
     // Create the overlay.
     // The overlay dissapears if the target window loses focus. Set
     // the parameter to true to prevent this.
-    GfxOverlay::Error create(bool alwaysOnTop = false);
+    GfxOverlay::Error create();
 
     // When the host window is resized, the device must be reset.
     // This function registers hooks before and after the Reset operation.
@@ -39,8 +39,7 @@ private:
 
 private:
     HWND m_targetWindow = NULL;
-    bool m_visible = false;
-    bool m_alwaysOnTop = false;
+    bool m_isTargetForeground = false;
     std::function <void()> m_cbPreReset;
     std::function <void()> m_cbPostReset;
 
