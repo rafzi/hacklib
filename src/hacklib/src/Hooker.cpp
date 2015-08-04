@@ -528,7 +528,7 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
 
 void Hooker::unhook(const IHook *pHook)
 {
-    auto cond = [&](const std::unique_ptr<IHook>& uptr) {
+    auto cond = [pHook](const auto& uptr) {
         return uptr.get() == pHook;
     };
 

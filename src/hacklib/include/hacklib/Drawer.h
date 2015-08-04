@@ -204,7 +204,7 @@ const T *Drawer::Alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs)
 template <typename T>
 void Drawer::Release(std::vector<std::unique_ptr<T>>& container, const T *instance)
 {
-    container.erase(std::remove_if(container.begin(), container.end(), [instance](const std::unique_ptr<T>& uptr){
+    container.erase(std::remove_if(container.begin(), container.end(), [instance](const auto& uptr){
         return uptr.get() == instance;
     }), container.end());
 }
