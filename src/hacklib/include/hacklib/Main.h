@@ -59,7 +59,7 @@ namespace hl
         }
 
     private:
-        static DWORD WINAPI ThreadFunc(LPVOID param)
+        [[noreturn]] static DWORD WINAPI ThreadFunc(LPVOID param)
         {
             HMODULE hModule = GetCurrentModule();
             StaticInit *self = (StaticInit*)param;
