@@ -18,6 +18,7 @@ SET(FILES_H
     include/hacklib/Timer.h
     include/hacklib/PageAllocator.h
     include/hacklib/Patch.h
+    include/hacklib/ExeFile.h
     )
 
 # windows specific
@@ -34,6 +35,7 @@ IF(WIN32)
         src/Hooker_VEH.cpp
         src/Injector.cpp
         src/Input.cpp
+        src/ExeFile_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h

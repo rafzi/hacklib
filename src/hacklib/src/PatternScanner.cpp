@@ -1,4 +1,5 @@
 #include "hacklib/PatternScanner.h"
+#include "hacklib/ExeFile.h"
 #include <algorithm>
 
 
@@ -155,6 +156,9 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     if (stringsFound != strings.size())
         throw std::runtime_error("One or more patterns not found");
 
+    ExeFile exeFile;
+    bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hMod) && exeFile.hasRelocs();
+
     std::vector<uintptr_t> results(strings.size());
     stringsFound = 0;
 
@@ -166,15 +170,34 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
             int i = 0;
             for (const auto& strAddr : strAddrs)
             {
-                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, (int)mbi.RegionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
+                const uint8_t *baseAdr = (const uint8_t*)mbi.BaseAddress;
+                int regionSize = (int)mbi.RegionSize;
 
-                if (found)
+                do
                 {
-                    results[i] = (uintptr_t)found;
-                    stringsFound++;
-                    if (stringsFound == strings.size())
-                        break;
-                }
+                    auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
+                    if (found)
+                    {
+                        // prevent false positives by checking if the reference is relocated
+                        if (verifyWithRelocs)
+                        {
+                            if (!exeFile.isReloc((uintptr_t)found - (uintptr_t)hMod))
+                            {
+                                // continue searching
+                                baseAdr = found + 1;
+                                regionSize -= found - baseAdr + 1;
+                                continue;
+                            }
+                        }
+
+                        results[i] = (uintptr_t)found;
+                        stringsFound++;
+                    }
+                } while (false);
+
+                if (stringsFound == strings.size())
+                    break;
+
                 i++;
             }
             if (stringsFound == strings.size())
