@@ -1,10 +1,10 @@
-SET(PROJ_NAME hacklib)
-PROJECT(${PROJ_NAME})
+PROJECT(hacklib)
 
 SET(FILES_CPP
     src/Main.cpp
     src/Hooker.cpp
     src/Patch.cpp
+    src/GfxOverlay.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
@@ -21,7 +21,6 @@ SET(FILES_H
     include/hacklib/ExeFile.h
     )
 
-# windows specific
 IF(WIN32)
     SET(FILES_CPP ${FILES_CPP}
         src/MessageBox.cpp
@@ -29,13 +28,14 @@ IF(WIN32)
         src/Drawer.cpp
         src/GfxOverlay.cpp
         src/WindowOverlay.cpp
-        src/PatternScanner.cpp  # TODO this is not really windows specific
+        src/PatternScanner.cpp
         src/ConsoleEx.cpp
         src/PageAllocator_WIN32.cpp
         src/Hooker_VEH.cpp
         src/Injector.cpp
         src/Input.cpp
         src/ExeFile_WIN32.cpp
+        src/GfxOverlay_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -48,17 +48,22 @@ IF(WIN32)
 ELSEIF(UNIX)
     SET(FILES_CPP ${FILES_CPP}
         src/PageAllocator_UNIX.cpp
+        src/GfxOverlay_UNIX.cpp
         )
 ENDIF()
 
-ADD_LIBRARY(${PROJ_NAME} STATIC
+ADD_LIBRARY(${PROJECT_NAME} STATIC
     ${FILES_CPP}
     ${FILES_H})
 
-SET_TARGET_PROPERTIES(${PROJ_NAME} PROPERTIES FOLDER ${PROJ_NAME})
+SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES FOLDER ${PROJECT_NAME})
 
-TARGET_INCLUDE_DIRECTORIES(${PROJ_NAME} PUBLIC include)
+TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} PUBLIC include)
 
 IF(WIN32)
-    TARGET_LINK_LIBRARIES(${PROJ_NAME} d3d9.lib d3dx9.lib d3d11.lib dwmapi.lib)
+    TARGET_LINK_LIBRARIES(${PROJECT_NAME} d3d9.lib d3dx9.lib d3d11.lib dwmapi.lib)
+ELSEIF(UNIX)
+    FIND_PACKAGE(Threads REQUIRED)
+    TARGET_LINK_LIBRARIES(${PROJECT_NAME} X11 Xrender Xfixes GL ${CMAKE_THREAD_LIBS_INIT})
+    TARGET_COMPILE_OPTIONS(${PROJECT_NAME} PUBLIC "-pthread")
 ENDIF()

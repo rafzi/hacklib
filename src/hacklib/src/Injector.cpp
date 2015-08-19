@@ -122,7 +122,7 @@ public:
             writeErr("Fatal: Could not write to remote memory\n");
             return false;
         }
-        if (!WriteProcessMemory(m_hProc, (LPVOID)((char*)m_remoteMem + m_fileNameSize), m_currentDir, m_currentDirSize, &written) ||written != m_currentDirSize) {
+        if (!WriteProcessMemory(m_hProc, (LPVOID)((char*)m_remoteMem + m_fileNameSize), m_currentDir, m_currentDirSize, &written) || written != m_currentDirSize) {
             writeErr("Fatal: Could not write to remote memory\n");
         }
         return true;

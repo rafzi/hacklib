@@ -9,21 +9,22 @@ namespace hl {
 
 class Timer
 {
+    typedef std::chrono::high_resolution_clock Clock;
 public:
     void reset()
     {
-        m_timestamp = std::chrono::high_resolution_clock::now();
+        m_timestamp = Clock::now();
     }
 
     template <typename T = float>
     T diff()
     {
-        std::chrono::duration<T> fs = std::chrono::high_resolution_clock::now() - m_timestamp;
+        std::chrono::duration<T> fs = Clock::now() - m_timestamp;
         return fs.count();
     }
 
 private:
-    std::chrono::high_resolution_clock::time_point m_timestamp = std::chrono::high_resolution_clock::now();
+    Clock::time_point m_timestamp = Clock::now();
 
 };
 

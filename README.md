@@ -237,6 +237,8 @@ Hacklib is written in modern C++ and requires a recent compiler like Visual Stud
 
 The project is using CMake and CMake 2.8.11.2 or newer is required to build.
 
+Graphics related components require the DirectX SDK June 2010 on Windows or X11, OpenGL libraries on Linux. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: libx11-dev, mesa-common-dev, libglu1-mesa-dev, libxrender-dev and libxfixes-dev.
+
 ## How to build ##
 
 * Run CMake
