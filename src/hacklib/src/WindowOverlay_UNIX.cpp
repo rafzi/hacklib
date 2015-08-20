@@ -2,6 +2,7 @@
 #include "hacklib/GfxOverlay_UNIX.h"
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#include <unistd.h>
 #include <stack>
 
 
@@ -32,7 +33,7 @@ WindowHandle WindowOverlay::GetTargetWindow()
         auto result = XGetWindowProperty(display, hWnd, atomPID, 0, 1, False, XA_CARDINAL, &type, &format, &numitems, &bytesafter, &propPID);
         if (result == Success && propPID != nullptr)
         {
-            if (*(unsigned long*)propPID == 5376)
+            if (*(unsigned long*)propPID == getpid())
             {
                 XWindowAttributes attrs = { };
                 XGetWindowAttributes(display, hWnd, &attrs);
