@@ -202,14 +202,14 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     // the SetLayeredWindowAttributes or UpdateLayeredWindow function has been called for this window.
 
     // set the layered window to be fully opaque and not use a transparency key.
-    // it still has a alphablendable frontbuffer though.
+    // it still has an alphablendable frontbuffer though.
 
     if (!SetLayeredWindowAttributes(m_hWnd, 0, 255, LWA_ALPHA)) {
         p.set_value(Error::Other);
         return;
     }
 
-    // create a usual d3d9 device. only special is the alphablendable backbuffer, see getPresentParams
+    // create a usual d3d9 device, but with alphablendable backbuffer, see getPresentParams
     m_impl->d3d = Direct3DCreate9(D3D_SDK_VERSION);
     if (!m_impl->d3d) {
         p.set_value(Error::Device);

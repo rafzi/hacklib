@@ -1,25 +1,12 @@
 #ifndef HACKLIB_GFXOVERLAY_H
 #define HACKLIB_GFXOVERLAY_H
 
+#include "hacklib/Handles.h"
 #include <thread>
 #include <future>
 
 
 namespace hl {
-
-
-#ifdef _WIN32
-#include <Windows.h>
-#include <d3d9.h>
-typedef HINSTANCE ModuleHandle;
-typedef HWND WindowHandle;
-typedef IDirect3DDevice9* GraphicsContext;
-#else
-typedef void* ModuleHandle;
-// Must be compatible with X11 Window type.
-typedef long unsigned int WindowHandle;
-typedef void* GraphicsContext;
-#endif
 
 
 class GfxOverlay
@@ -66,12 +53,6 @@ public:
     void resetRequiredSettings() const;
 
 private:
-    //static LRESULT CALLBACK s_WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
-
-private:
-    // member functions to process window and thread callbacks
-    //LRESULT wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
-
     void impl_construct();
     void impl_destruct();
     void impl_close();

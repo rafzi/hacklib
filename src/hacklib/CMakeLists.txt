@@ -19,6 +19,7 @@ SET(FILES_H
     include/hacklib/PageAllocator.h
     include/hacklib/Patch.h
     include/hacklib/ExeFile.h
+    include/hacklib/Handles.h
     )
 
 IF(WIN32)

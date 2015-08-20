@@ -20,10 +20,59 @@ using namespace hl;
 class hl::GfxOverlayImpl
 {
 public:
+    GLXFBConfig getFBConfig(int depthBits) const;
+
+public:
     Display *display = nullptr;
+    int screen = 0;
     GLXWindow hWndGL = 0;
     GLXContext context = 0;
 };
+
+
+GLXFBConfig GfxOverlayImpl::getFBConfig(int depthBits) const
+{
+    // Look for a config with R8G8B8A8 and alpha mask.
+
+    GLXFBConfig chosenConfig = 0;
+
+    int fbAttributes[] = {
+        GLX_RENDER_TYPE, GLX_RGBA_BIT,
+        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+        GLX_DOUBLEBUFFER, True,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_ALPHA_SIZE, 8,
+        GLX_DEPTH_SIZE, depthBits,
+        None
+    };
+
+    int numfbconfigs = 0;
+    auto fbconfigs = glXChooseFBConfig(display, screen, fbAttributes, &numfbconfigs);
+    for (int i = 0; i < numfbconfigs; i++)
+    {
+        auto visual = glXGetVisualFromFBConfig(display, fbconfigs[i]);
+        if (!visual)
+        {
+            continue;
+        }
+
+        auto pictFormat = XRenderFindVisualFormat(display, visual->visual);
+        if (!pictFormat)
+        {
+            continue;
+        }
+
+        if (pictFormat->direct.alphaMask > 0)
+        {
+            chosenConfig = fbconfigs[i];
+            break;
+        }
+    }
+
+    return chosenConfig;
+}
 
 
 bool GfxOverlay::IsCompositionEnabled()
@@ -48,8 +97,6 @@ void GfxOverlay::resetContext()
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
-    //glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
 }
 
 void GfxOverlay::beginDraw()
@@ -103,51 +150,21 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
 {
     auto display = m_impl->display;
 
-    auto screen = DefaultScreen(display);
-    auto root = RootWindow(display, screen);
+    m_impl->screen = DefaultScreen(display);
+    auto root = RootWindow(display, m_impl->screen);
 
-    static int fbAtributes[] = {
-        GLX_RENDER_TYPE, GLX_RGBA_BIT,
-        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-        GLX_DOUBLEBUFFER, True,
-        GLX_RED_SIZE, 8,
-        GLX_GREEN_SIZE, 8,
-        GLX_BLUE_SIZE, 8,
-        GLX_ALPHA_SIZE, 8,
-        GLX_DEPTH_SIZE, 16, // < look for 24 bit depth first?
-        None
-    };
-
-    XVisualInfo *visual = nullptr;
-    GLXFBConfig fbconfig = 0;
-    int numfbconfigs = 0;
-    auto fbconfigs = glXChooseFBConfig(display, screen, fbAtributes, &numfbconfigs);
-    printf("num: %i\n", numfbconfigs);
-    for (int i = 0; i < numfbconfigs; i++)
-    {
-        visual = glXGetVisualFromFBConfig(display, fbconfigs[i]);
-        if (!visual)
-        {
-            continue;
-        }
-
-        auto pict_format = XRenderFindVisualFormat(display, visual->visual);
-        if (!pict_format)
-        {
-            continue;
-        }
-
-        fbconfig = fbconfigs[i];
-        if (pict_format->direct.alphaMask > 0)
-        {
-            break;
-        }
-    }
+    // Try to get a 24-bit depth buffer.
+    GLXFBConfig fbconfig = m_impl->getFBConfig(24);
     if (!fbconfig)
     {
-        p.set_value(Error::Other);
-        return;
+        fbconfig = m_impl->getFBConfig(16);
+        if (!fbconfig)
+        {
+            p.set_value(Error::Other);
+            return;
+        }
     }
+    auto visual = glXGetVisualFromFBConfig(display, fbconfig);
 
     auto cmap = XCreateColormap(display, root, visual->visual, AllocNone);
     if (!cmap)
@@ -224,11 +241,12 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     XSetWMProtocols(display, m_hWnd, &deleteAtom, 1);
 
 
-    // remove title bar and border
+    // Remove title bar and window border. Also any other decoration like shadows.
     auto windowType = XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
     auto typeDock = XInternAtom(display, "_NET_WM_WINDOW_TYPE_DOCK", False);
     XChangeProperty(display, m_hWnd, windowType, XA_ATOM, 32, PropModeReplace, (unsigned char*)&typeDock, 1);
 
+    // Set always-on-top.
     auto windowState = XInternAtom(display, "_NET_WM_STATE", False);
     auto stateAbove = XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
     XClientMessageEvent topEvent = { };
@@ -242,18 +260,12 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     topEvent.data.l[3] = 0;
     topEvent.data.l[4] = 0;
     XSendEvent(display, root, False, SubstructureRedirectMask | SubstructureNotifyMask, (XEvent*)&topEvent);
-    //XChangeProperty(display, hWnd, windowState, XA_ATOM, 32, PropModeReplace, (unsigned char*)&stateAbove, 1);
-    //XFlush(display);
 
-
-    // click through
+    // Make the window click-through.
     auto region = XFixesCreateRegion(display, NULL, 0);
     XFixesSetWindowShapeRegion(display, m_hWnd, ShapeBounding, 0, 0, 0);
     XFixesSetWindowShapeRegion(display, m_hWnd, ShapeInput, 0, 0, region);
     XFixesDestroyRegion(display, region);
-
-
-    // glXQeuryExtension
 
     m_impl->context = glXCreateNewContext(display, fbconfig, GLX_RGBA_TYPE, 0, True);
     if (!m_impl->context)
@@ -262,18 +274,13 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
         return;
     }
 
-    if (!glXMakeContextCurrent(display, m_impl->hWndGL, m_impl->hWndGL, m_impl->context))
-    {
-        p.set_value(Error::Context);
-        return;
-    }
-
     resetContext();
-
-    p.set_value(Error::Okay);
     glXMakeCurrent(display, 0, 0);
 
+    p.set_value(Error::Okay);
 
+
+    // Window message loop.
     typedef std::chrono::high_resolution_clock Clock;
     auto timestamp = Clock::now();
     bool running = true;
@@ -297,7 +304,9 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
         std::this_thread::sleep_until(until);
     }
 
-    XDestroyWindow(display, m_hWnd);
+    // Easiest way to free all ressources.
+    XCloseDisplay(m_impl->display);
+    m_impl->display = XOpenDisplay(NULL);
 
     m_isOpen = false;
 }
