@@ -5,6 +5,7 @@ SET(FILES_CPP
     src/Hooker.cpp
     src/Patch.cpp
     src/GfxOverlay.cpp
+    src/WindowOverlay.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
@@ -27,8 +28,6 @@ IF(WIN32)
         src/MessageBox.cpp
         src/D3DDeviceFetcher.cpp
         src/Drawer.cpp
-        src/GfxOverlay.cpp
-        src/WindowOverlay.cpp
         src/PatternScanner.cpp
         src/ConsoleEx.cpp
         src/PageAllocator_WIN32.cpp
@@ -37,6 +36,7 @@ IF(WIN32)
         src/Input.cpp
         src/ExeFile_WIN32.cpp
         src/GfxOverlay_WIN32.cpp
+        src/WindowOverlay_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -50,6 +50,10 @@ ELSEIF(UNIX)
     SET(FILES_CPP ${FILES_CPP}
         src/PageAllocator_UNIX.cpp
         src/GfxOverlay_UNIX.cpp
+        src/WindowOverlay_UNIX.cpp
+        )
+    SET(FILES_H ${FILES_H}
+        include/hacklib/GfxOverlay_UNIX.h
         )
 ENDIF()
 

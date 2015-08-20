@@ -1,4 +1,5 @@
 #include "hacklib/GfxOverlay.h"
+#include "hacklib/GfxOverlay_UNIX.h"
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glxext.h>
@@ -11,23 +12,6 @@
 
 
 using namespace hl;
-
-
-#include <stdio.h>
-#include "hacklib/Timer.h"
-
-
-class hl::GfxOverlayImpl
-{
-public:
-    GLXFBConfig getFBConfig(int depthBits) const;
-
-public:
-    Display *display = nullptr;
-    int screen = 0;
-    GLXWindow hWndGL = 0;
-    GLXContext context = 0;
-};
 
 
 GLXFBConfig GfxOverlayImpl::getFBConfig(int depthBits) const
@@ -93,7 +77,6 @@ void GfxOverlay::resetContext()
     glXMakeCurrent(m_impl->display, m_impl->hWndGL, m_impl->context);
 
     glDrawBuffer(GL_BACK);
-    glViewport(0, 0, m_width, m_height);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
