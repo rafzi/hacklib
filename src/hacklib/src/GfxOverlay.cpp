@@ -55,6 +55,11 @@ void GfxOverlay::close()
     }
 }
 
+void GfxOverlay::setTargetRefreshRate(int rate)
+{
+    m_frameTime = std::chrono::nanoseconds(1000000000ull / rate);
+}
+
 bool GfxOverlay::isOpen() const
 {
     return m_isOpen;

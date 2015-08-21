@@ -131,7 +131,10 @@ void GfxOverlay::swapBuffers()
 {
     m_impl->device->EndScene();
     m_impl->device->Present(NULL, NULL, NULL, NULL);
-    // TODO sleep rest of targeted frame time.
+
+    auto until = m_lastSwap + m_frameTime;
+    m_lastSwap = Clock::now();
+    std::this_thread::sleep_until(until);
 }
 
 

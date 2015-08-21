@@ -4,6 +4,7 @@
 #include "hacklib/Handles.h"
 #include <thread>
 #include <future>
+#include <chrono>
 
 
 namespace hl {
@@ -35,6 +36,8 @@ public:
     Error create(int posX, int posY, int width, int height);
 
     void close();
+    // Has no effect on OpenGL implementation as it will always use monitor refresh rate.
+    void setTargetRefreshRate(int rate);
     bool isOpen() const;
 
     int getPosX() const;
@@ -70,6 +73,10 @@ protected:
     int m_posY = 0;
     int m_width = 0;
     int m_height = 0;
+
+    typedef std::chrono::high_resolution_clock Clock;
+    Clock::time_point m_lastSwap;
+    std::chrono::nanoseconds m_frameTime{ 1000000000ull / 60 };
 
 };
 
