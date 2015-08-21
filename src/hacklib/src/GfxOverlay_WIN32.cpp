@@ -1,5 +1,6 @@
 #include "hacklib/GfxOverlay.h"
 #include <Windows.h>
+#include <dwmapi.h>
 #include <atomic>
 #include <chrono>
 
@@ -212,16 +213,16 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     // create a usual d3d9 device, but with alphablendable backbuffer, see getPresentParams
     m_impl->d3d = Direct3DCreate9(D3D_SDK_VERSION);
     if (!m_impl->d3d) {
-        p.set_value(Error::Device);
+        p.set_value(Error::Context);
         return;
     }
 
-    D3DPRESENT_PARAMETERS D3Dparams = getPresentParams();
+    D3DPRESENT_PARAMETERS D3Dparams = m_impl->getPresentParams();
 
     if (m_impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd, D3DCREATE_MULTITHREADED|D3DCREATE_HARDWARE_VERTEXPROCESSING, &D3Dparams, &m_impl->device) != D3D_OK &&
         m_impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd, D3DCREATE_MULTITHREADED|D3DCREATE_SOFTWARE_VERTEXPROCESSING, &D3Dparams, &m_impl->device) != D3D_OK)
     {
-        p.set_value(Error::Device);
+        p.set_value(Error::Context);
         return;
     }
 

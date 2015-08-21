@@ -110,7 +110,7 @@ void WindowOverlay::cbWindowLoop()
     }
 
     // if size has changed, reset the overlay
-    if (m_pDevice && !(setWndPosFlags & SWP_NOSIZE))
+    if (getContext() && !(setWndPosFlags & SWP_NOSIZE))
     {
         if (m_cbPreReset)
             m_cbPreReset();

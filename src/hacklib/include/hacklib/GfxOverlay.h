@@ -48,9 +48,6 @@ public:
     void beginDraw();
     // Helper for finishing to draw by swapping backbuffer and frontbuffer.
     void swapBuffers();
-    // If the window manager on a system prior to windows 8 switches to stacking mode,
-    // this function must be called to get the overlay working again.
-    void resetRequiredSettings() const;
 
 private:
     void impl_construct();
