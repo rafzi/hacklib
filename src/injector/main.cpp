@@ -92,9 +92,11 @@ int main(int argc, char *argv[])
             }
             for (auto p : pids)
             {
-                if (!hl::Inject(p, lib, &errorMsg))
+                bool result = hl::Inject(p, lib, &errorMsg);
+
+                std::cout << "Injection into " << p << (result ? " succeeded: " : " failed: ") << errorMsg << std::endl;
+                if (!result)
                 {
-                    std::cout << "Injection into " << p << " failed: " << errorMsg << std::endl;
                     std::cin.ignore();
                 }
             }

@@ -1,6 +1,8 @@
 #include "hacklib/Injector.h"
 #include <Windows.h>
 #include <TlHelp32.h>
+#include <Psapi.h>
+#include <algorithm>
 
 
 class Injection
@@ -80,32 +82,70 @@ public:
     }
     bool openProc(int pid)
     {
-        m_hProc = OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_CREATE_THREAD|PROCESS_VM_OPERATION|PROCESS_VM_WRITE, FALSE, pid);
-        if (m_hProc == NULL) {
+        m_hProc = OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_CREATE_THREAD|PROCESS_VM_OPERATION|PROCESS_VM_WRITE|PROCESS_VM_READ, FALSE, pid);
+        if (m_hProc == NULL)
+        {
             writeErr("Fatal: Could not open process\n");
             return false;
         }
+
+        // Verify matching bitness of injector and target.
         SYSTEM_INFO info;
         GetNativeSystemInfo(&info);
         if (info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
         {
             BOOL isWow64;
-            if (!IsWow64Process(m_hProc, &isWow64)) {
+            if (!IsWow64Process(m_hProc, &isWow64))
+            {
                 writeErr("Warning: Could not determine bitness of target process\n");
-            } else {
+            }
+            else
+            {
 #ifdef ARCH_64BIT
-                if (isWow64) {
+                if (isWow64)
+                {
                     writeErr("Fatal: Can not inject into 32-bit process from 64-bit injector\n");
                     return false;
                 }
 #else
-                if (!isWow64) {
+                if (!isWow64)
+                {
                     writeErr("Fatal: Can not inject into 64-bit process from 32-bit injector\n");
                     return false;
                 }
 #endif
             }
         }
+
+        // Verify that the module is not already loaded.
+        HMODULE hModules[1024];
+        DWORD resultSize;
+        if (!EnumProcessModules(m_hProc, hModules, sizeof(hModules), &resultSize))
+        {
+            writeErr("Warning: Could not enumerate modules in target process\n");
+        }
+        else
+        {
+            int numModules = resultSize / sizeof(HMODULE);
+            for (int i = 0; i < numModules; i++)
+            {
+                CHAR moduleName[MAX_PATH+1];
+                DWORD written = GetModuleFileNameEx(m_hProc, hModules[i], moduleName, MAX_PATH);
+                if (written == 0)
+                {
+                    writeErr("Warning: Could not get the full file name of a module\n");
+                }
+                else
+                {
+                    if (std::equal(moduleName, moduleName+written, m_fileName))
+                    {
+                        writeErr("Fatal: The specified module is already loaded\n");
+                        return false;
+                    }
+                }
+            }
+        }
+
         return true;
     }
     bool remoteStoreFileName()
@@ -182,7 +222,7 @@ bool hl::Inject(int pid, const std::string& libFileName, std::string *error)
     return inj.findFile(libFileName) && inj.findApi() && inj.openProc(pid) && inj.remoteStoreFileName() && inj.runRemoteThreads();
 }
 
-std::vector<int> hl::GetPIDsByProcName(std::string pname)
+std::vector<int> hl::GetPIDsByProcName(const std::string& pname)
 {
     std::vector<int> result;
 

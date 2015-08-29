@@ -8,7 +8,7 @@
 namespace hl
 {
     bool Inject(int pid, const std::string& libFileName, std::string *error);
-    std::vector<int> GetPIDsByProcName(std::string pname);
+    std::vector<int> GetPIDsByProcName(const std::string& pname);
 }
 
 #endif
