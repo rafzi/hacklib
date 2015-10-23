@@ -50,17 +50,21 @@
 
 #define IMPLMEMBER(type, name, offset) \
     protected: \
-    static const int o##name = offset; \
-    static type const t##name; \
+        static const int o##name = offset; \
+        static type const t##name; \
     public: \
-    type get##name() const \
-    { \
-    return *(type*)((std::uintptr_t)this + o##name); \
-    } \
-    void set##name(type value) \
-    { \
-    *(type*)((std::uintptr_t)this + o##name) = value; \
-    }
+        type const& get##name() const \
+        { \
+            return *(type*)((std::uintptr_t)this + o##name); \
+        } \
+        type& get##name() \
+        { \
+            return *(type*)((std::uintptr_t)this + o##name); \
+        } \
+        void set##name(type value) \
+        { \
+            *(type*)((std::uintptr_t)this + o##name) = value; \
+        }
 
 
 #define IMPLMEMBER_REL(type, name, offset, from) \

@@ -2,7 +2,7 @@
 #include "hacklib/PageAllocator.h"
 #include <algorithm>
 #include <mutex>
-#include <map>
+#include <unordered_map>
 #include <cstring>
 
 
@@ -101,7 +101,7 @@ public:
         }
     }
 private:
-    std::map<uintptr_t**, std::unique_ptr<FakeVT>> m_fakeVTs;
+    std::unordered_map<uintptr_t**, std::unique_ptr<FakeVT>> m_fakeVTs;
 };
 
 
