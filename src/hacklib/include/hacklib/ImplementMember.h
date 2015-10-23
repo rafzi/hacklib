@@ -51,7 +51,7 @@
 #define IMPLMEMBER(type, name, offset) \
     protected: \
         static const int o##name = offset; \
-        static type const t##name; \
+        typedef type t##name; \
     public: \
         type const& get##name() const \
         { \
