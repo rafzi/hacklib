@@ -208,6 +208,18 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     return results;
 }
 
+std::map<std::string, uintptr_t> PatternScanner::findMap(const std::vector<std::string>& strings, const char *moduleName)
+{
+    auto results = find(strings, moduleName);
+
+    std::map<std::string, uintptr_t> resultMap;
+    for (size_t i = 0; i < results.size(); i++)
+    {
+        resultMap[strings[i]] = results[i];
+    }
+    return resultMap;
+}
+
 
 
 static bool compareData(uintptr_t address, const char *byteMask, const char *checkMask)
@@ -221,21 +233,15 @@ static bool compareData(uintptr_t address, const char *byteMask, const char *che
 
 uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const char *moduleName)
 {
-    uintptr_t& address = (uintptr_t&)s_mbi[moduleName].BaseAddress;
+    auto mbi = GetMemoryInfo(moduleName);
+    uintptr_t address = (uintptr_t)mbi.BaseAddress;
 
-    if (!address)
-    {
-        HMODULE modBase = GetModuleHandle(moduleName);
-        if (!modBase)
-            return 0;
+    return FindPattern(byteMask, checkMask, address, mbi.RegionSize);
+}
 
-        uintptr_t codeSectionBase = (uintptr_t)modBase + 0x1000;
-
-        if (!VirtualQuery((LPCVOID)codeSectionBase, &s_mbi[moduleName], sizeof(MEMORY_BASIC_INFORMATION)))
-            return 0;
-    }
-
-    uintptr_t end = address + s_mbi[moduleName].RegionSize;
+uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
+{
+    uintptr_t end = address + len;
     for (uintptr_t i = address; i < end; i++) {
         if (compareData(i, byteMask, checkMask)) {
             return i;
@@ -244,8 +250,66 @@ uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const cha
     return 0;
 }
 
+uintptr_t hl::FindPattern(const std::vector<MaskChar>& pattern, const char *moduleName)
+{
+    auto mbi = GetMemoryInfo(moduleName);
+    uintptr_t address = (uintptr_t)mbi.BaseAddress;
 
-std::uintptr_t hl::FollowRelativeAddress(std::uintptr_t adr)
+    return FindPattern(pattern, address, mbi.RegionSize);
+}
+
+uintptr_t hl::FindPattern(const std::vector<MaskChar>& pattern, uintptr_t address, size_t len)
+{
+    std::vector<char> byteMask;
+    std::vector<char> checkMask;
+
+    for (auto& maskChar : pattern)
+    {
+        uint8_t value = maskChar.getValue();
+        if (maskChar.isMask())
+        {
+            byteMask.insert(byteMask.end(), value, 0);
+            checkMask.insert(checkMask.end(), value, '?');
+        }
+        else
+        {
+            byteMask.push_back((char)value);
+            checkMask.push_back('x');
+        }
+    }
+
+    return FindPattern(byteMask.data(), checkMask.data(), address, len);
+}
+
+
+uintptr_t hl::FollowRelativeAddress(uintptr_t adr)
 {
     return *(uintptr_t*)adr + adr + 4;
+}
+
+
+MEMORY_BASIC_INFORMATION hl::GetMemoryInfo(const char *moduleName)
+{
+    static std::map<const char*, MEMORY_BASIC_INFORMATION> mbi;
+
+    auto it = mbi.find(moduleName);
+    if (it != mbi.end())
+    {
+        return it->second;
+    }
+
+    HMODULE modBase = GetModuleHandle(moduleName);
+    if (!modBase)
+    {
+        throw std::runtime_error("no such module");
+    }
+
+    uintptr_t codeSectionBase = (uintptr_t)modBase + 0x1000;
+
+    if (!VirtualQuery((LPCVOID)codeSectionBase, &mbi[moduleName], sizeof(MEMORY_BASIC_INFORMATION)))
+    {
+        throw std::runtime_error("failed to get mbi");
+    }
+
+    return mbi[moduleName];
 }
