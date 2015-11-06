@@ -185,7 +185,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                             {
                                 // continue searching
                                 baseAdr = found + 1;
-                                regionSize -= found - baseAdr + 1;
+                                regionSize -= (int)(found - baseAdr + 1);
                                 continue;
                             }
                         }
@@ -281,10 +281,55 @@ uintptr_t hl::FindPattern(const std::vector<MaskChar>& pattern, uintptr_t addres
     return FindPattern(byteMask.data(), checkMask.data(), address, len);
 }
 
+uintptr_t hl::FindPattern(const std::string& pattern, const char *moduleName)
+{
+    auto mbi = GetMemoryInfo(moduleName);
+    uintptr_t address = (uintptr_t)mbi.BaseAddress;
+
+    return FindPattern(pattern, address, mbi.RegionSize);
+}
+
+uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t len)
+{
+    std::vector<char> byteMask;
+    std::vector<char> checkMask;
+
+    std::string lowPattern = pattern;
+    std::transform(lowPattern.begin(), lowPattern.end(), lowPattern.begin(), ::tolower);
+    lowPattern += " ";
+
+    for (size_t i = 0; i < lowPattern.size()/3; i++)
+    {
+        if (lowPattern[3*i+2] == ' ' && lowPattern[3*i] == '?' && lowPattern[3*i+1] == '?')
+        {
+            byteMask.push_back(0);
+            checkMask.push_back('?');
+        }
+        else if (lowPattern[3*i+2] == ' ' &&
+            ((lowPattern[3*i] >= '0' && lowPattern[3*i] <= '9') ||
+                (lowPattern[3*i] >= 'a' && lowPattern[3*i] <= 'z')) &&
+            ((lowPattern[3*i+1] >= '0' && lowPattern[3*i+1] <= '9') ||
+                (lowPattern[3*i+1] >= 'a' && lowPattern[3*i+1] <= 'z')))
+
+        {
+            auto value = strtol(lowPattern.data()+3*i, nullptr, 16);
+            byteMask.push_back((char)value);
+            checkMask.push_back('x');
+        }
+        else
+        {
+            throw std::runtime_error("invalid format of pattern string");
+        }
+    }
+
+    return FindPattern(byteMask.data(), checkMask.data(), address, len);
+}
+
 
 uintptr_t hl::FollowRelativeAddress(uintptr_t adr)
 {
-    return *(uintptr_t*)adr + adr + 4;
+    // Hardcoded 32-bit dereference to make it work with 64-bit code.
+    return *(uint32_t*)adr + adr + 4;
 }
 
 

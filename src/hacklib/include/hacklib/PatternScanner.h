@@ -62,6 +62,10 @@ uintptr_t FindPattern(const char *byteMask, const char *checkMask, uintptr_t add
 uintptr_t FindPattern(const std::vector<MaskChar>& pattern, const char *moduleName = nullptr);
 // Variant for arbitrary memory.
 uintptr_t FindPattern(const std::vector<MaskChar>& pattern, uintptr_t address, size_t len);
+// Another alternative.
+// Example: "12 45 ?? 89 ?? ?? ?? cd ef"
+uintptr_t FindPattern(const std::string& pattern, const char *moduleName = nullptr);
+uintptr_t FindPattern(const std::string& pattern, uintptr_t address, size_t len);
 
 // Helper to follow relative addresses in instructions.
 // Instruction is assumed to end after the relative address. for example jmp, call
