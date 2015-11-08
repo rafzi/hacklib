@@ -250,37 +250,6 @@ uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, uintptr_t
     return 0;
 }
 
-uintptr_t hl::FindPattern(const std::vector<MaskChar>& pattern, const char *moduleName)
-{
-    auto mbi = GetMemoryInfo(moduleName);
-    uintptr_t address = (uintptr_t)mbi.BaseAddress;
-
-    return FindPattern(pattern, address, mbi.RegionSize);
-}
-
-uintptr_t hl::FindPattern(const std::vector<MaskChar>& pattern, uintptr_t address, size_t len)
-{
-    std::vector<char> byteMask;
-    std::vector<char> checkMask;
-
-    for (auto& maskChar : pattern)
-    {
-        uint8_t value = maskChar.getValue();
-        if (maskChar.isMask())
-        {
-            byteMask.insert(byteMask.end(), value, 0);
-            checkMask.insert(checkMask.end(), value, '?');
-        }
-        else
-        {
-            byteMask.push_back((char)value);
-            checkMask.push_back('x');
-        }
-    }
-
-    return FindPattern(byteMask.data(), checkMask.data(), address, len);
-}
-
 uintptr_t hl::FindPattern(const std::string& pattern, const char *moduleName)
 {
     auto mbi = GetMemoryInfo(moduleName);
@@ -321,6 +290,9 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
             throw std::runtime_error("invalid format of pattern string");
         }
     }
+
+    // Terminate mask string, because it is used to determine length.
+    checkMask.push_back('\0');
 
     return FindPattern(byteMask.data(), checkMask.data(), address, len);
 }
