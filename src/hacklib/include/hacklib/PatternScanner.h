@@ -1,5 +1,5 @@
-#ifndef PATTERNSCANNER_H
-#define PATTERNSCANNER_H
+#ifndef HACKLIB_PATTERNSCANNER_H
+#define HACKLIB_PATTERNSCANNER_H
 
 #include <string>
 #include <vector>

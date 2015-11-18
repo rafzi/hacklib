@@ -6,6 +6,7 @@ SET(FILES_CPP
     src/Patch.cpp
     src/GfxOverlay.cpp
     src/WindowOverlay.cpp
+    src/Logging.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
@@ -21,6 +22,7 @@ SET(FILES_H
     include/hacklib/Patch.h
     include/hacklib/ExeFile.h
     include/hacklib/Handles.h
+    include/hacklib/Logging.h
     )
 
 IF(WIN32)

@@ -127,7 +127,7 @@ public:
     // Projects a position in world coordiantes to screen coordinates.
     void Project(const D3DXVECTOR3 &worldPos, D3DXVECTOR3 &screenPos, const D3DXMATRIX *worldMatrix = nullptr) const;
     // Returns true if the screen position is in front of the camera.
-    bool IsInfrontCam(const D3DXVECTOR3 &screenPos) const;
+    virtual bool IsInfrontCam(const D3DXVECTOR3 &screenPos) const;
     // Checks if a screen position would be visible on the viewport. The offScreenTolerance is measured in pixels.
     // Returns true if the position is behind the camera, but on the viewport.
     bool IsOnScreen(const D3DXVECTOR3 &screenPos, float offScreenTolerance = 0) const;

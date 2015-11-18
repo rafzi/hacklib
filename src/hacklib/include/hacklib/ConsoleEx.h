@@ -11,7 +11,8 @@
 namespace hl {
 
 
-struct CONSOLEEX_PARAMETERS {
+struct CONSOLEEX_PARAMETERS
+{
     // width of console buffer in characters
     int cellsX;
     // height of visible console buffer in characters
