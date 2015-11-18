@@ -33,9 +33,9 @@ static HMODULE GetModuleFromAddress(uintptr_t adr)
 #define NO_OF_CHARS 256
 
 // The preprocessing function for Boyer Moore's bad character heuristic
-static void badCharHeuristic(const uint8_t *str, int size, int badchar[NO_OF_CHARS])
+static void badCharHeuristic(const uint8_t *str, size_t size, int badchar[NO_OF_CHARS])
 {
-    int i;
+    size_t i;
 
     // Initialize all occurrences as -1
     for (i = 0; i < NO_OF_CHARS; i++)
@@ -48,8 +48,11 @@ static void badCharHeuristic(const uint8_t *str, int size, int badchar[NO_OF_CHA
 
 /* A pattern searching function that uses Bad Character Heuristic of
 Boyer Moore Algorithm */
-static const uint8_t *boyermoore(const uint8_t *txt, const int n, const uint8_t *pat, const int m)
+static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8_t *pat, const size_t m)
 {
+    if (m > n || m < 1)
+        return nullptr;
+
     int badchar[NO_OF_CHARS];
 
     /* Fill the bad character array by calling the preprocessing
@@ -57,7 +60,7 @@ static const uint8_t *boyermoore(const uint8_t *txt, const int n, const uint8_t 
     badCharHeuristic(pat, m, badchar);
 
     int s = 0;  // s is shift of the pattern with respect to text
-    int end = n - m;
+    int end = (int)(n - m);
     while (s <= end)
     {
         int j = m - 1;
@@ -109,11 +112,8 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
 
     m_mem.clear();
 
-    while (adr < 0x7FFF0000)
+    while (VirtualQuery((LPCVOID)adr, &mbi, sizeof(mbi)) == sizeof(mbi))
     {
-        if (!VirtualQuery((LPCVOID)adr, &mbi, sizeof(mbi)))
-            throw std::runtime_error("VirtualQuery failed");
-
         if (mbi.State == MEM_COMMIT && mbi.Type == MEM_IMAGE)
         {
             HMODULE mod = GetModuleFromAddress(adr);
@@ -137,7 +137,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
             int i = 0;
             for (const auto& str : strings)
             {
-                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, (int)mbi.RegionSize, (const uint8_t*)str.data(), (int)str.size());
+                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, mbi.RegionSize, (const uint8_t*)str.data(), str.size());
 
                 if (found)
                 {
@@ -171,8 +171,9 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
             for (const auto& strAddr : strAddrs)
             {
                 const uint8_t *baseAdr = (const uint8_t*)mbi.BaseAddress;
-                int regionSize = (int)mbi.RegionSize;
+                size_t regionSize = mbi.RegionSize;
 
+#ifdef WIN32
                 do
                 {
                     auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
@@ -185,7 +186,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                             {
                                 // continue searching
                                 baseAdr = found + 1;
-                                regionSize -= (int)(found - baseAdr + 1);
+                                regionSize -= (size_t)(found - baseAdr + 1);
                                 continue;
                             }
                         }
@@ -194,6 +195,18 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                         stringsFound++;
                     }
                 } while (false);
+#else
+                uintptr_t endAdr = (uintptr_t)(baseAdr + regionSize);
+                for (uintptr_t adr = (uintptr_t)baseAdr; adr < endAdr; adr++)
+                {
+                    if (FollowRelativeAddress(adr) == strAddr)
+                    {
+                        results[i] = adr;
+                        stringsFound++;
+                        break;
+                    }
+                }
+#endif
 
                 if (stringsFound == strings.size())
                     break;
@@ -301,7 +314,7 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
 uintptr_t hl::FollowRelativeAddress(uintptr_t adr)
 {
     // Hardcoded 32-bit dereference to make it work with 64-bit code.
-    return *(uint32_t*)adr + adr + 4;
+    return *(int32_t*)adr + adr + 4;
 }
 
 
