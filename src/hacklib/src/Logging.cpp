@@ -82,14 +82,7 @@ void hl::ConfigLog(const LogConfig& config)
 
     if (g_cfg.fileName == "")
     {
-#ifdef WIN32
-        char path[MAX_PATH];
-        GetModuleFileName(hl::GetCurrentModule(), path, MAX_PATH);
-        g_cfg.fileName = std::string(path) + "_log.txt";
-#else
-        // TODO: Any equivalent to get module path?
-        g_cfg.fileName = "hacklib_log.txt";
-#endif
+        g_cfg.fileName = hl::GetModulePath() + "_log.txt";
     }
 }
 

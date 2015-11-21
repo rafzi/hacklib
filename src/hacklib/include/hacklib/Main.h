@@ -32,6 +32,8 @@ namespace hl
 
     HMODULE GetCurrentModule();
 
+    std::string GetModulePath();
+
     template <typename T>
     class StaticInit
     {
