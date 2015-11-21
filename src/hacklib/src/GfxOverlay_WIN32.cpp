@@ -46,7 +46,11 @@ D3DPRESENT_PARAMETERS GfxOverlayImpl::getPresentParams() const
     if (d3d->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &D3Ddm) == D3D_OK)
     {
         // use best multisampling available
-        d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, TRUE, D3DMULTISAMPLE_NONMASKABLE, &multiSampleQuality);
+        if (d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, TRUE, D3DMULTISAMPLE_NONMASKABLE, &multiSampleQuality) != D3D_OK)
+        {
+            // D3D may set this value even on failure, so reset it.
+            multiSampleQuality = 0;
+        }
 
         // use a better depth buffer if available and compatible with our backbuffer
         if (d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_SURFACE, D3DFMT_D24S8) == D3D_OK &&
@@ -63,10 +67,10 @@ D3DPRESENT_PARAMETERS GfxOverlayImpl::getPresentParams() const
     D3DPRESENT_PARAMETERS D3Dparams = { };
     D3Dparams.BackBufferWidth = 0;
     D3Dparams.BackBufferHeight = 0;
-    D3Dparams.BackBufferFormat = D3DFMT_A8R8G8B8; // alpha is needed in the backbuffer
+    D3Dparams.BackBufferFormat = D3DFMT_A8R8G8B8; // Alpha is needed in the backbuffer.
     D3Dparams.BackBufferCount = 0;
     D3Dparams.MultiSampleType = multiSampleQuality ? D3DMULTISAMPLE_NONMASKABLE : D3DMULTISAMPLE_NONE;
-    D3Dparams.MultiSampleQuality = multiSampleQuality-1;
+    D3Dparams.MultiSampleQuality = multiSampleQuality ? multiSampleQuality-1 : 0; // Must be valid even if not used.
     D3Dparams.SwapEffect = D3DSWAPEFFECT_DISCARD;
     D3Dparams.hDeviceWindow = overlay->m_hWnd;
     D3Dparams.Windowed = TRUE;
