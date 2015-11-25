@@ -43,7 +43,7 @@ static void badCharHeuristic(const uint8_t *str, size_t size, int badchar[NO_OF_
 
     // Fill the actual value of last occurrence of a character
     for (i = 0; i < size; i++)
-        badchar[(int)str[i]] = i;
+        badchar[(int)str[i]] = (int)i;
 }
 
 /* A pattern searching function that uses Bad Character Heuristic of
@@ -63,7 +63,7 @@ static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8
     int end = (int)(n - m);
     while (s <= end)
     {
-        int j = m - 1;
+        int j = (int)m - 1;
 
         /* Keep reducing index j of pattern while characters of
         pattern and text are matching at this shift s */
@@ -173,7 +173,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                 const uint8_t *baseAdr = (const uint8_t*)mbi.BaseAddress;
                 size_t regionSize = mbi.RegionSize;
 
-#ifdef WIN32
+#ifndef ARCH_64BIT
                 do
                 {
                     auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
