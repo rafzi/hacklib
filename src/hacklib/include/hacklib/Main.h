@@ -96,6 +96,10 @@ namespace hl
                         }
                         main.shutdown();
                     }
+                    catch (std::exception& e)
+                    {
+                        hl::MsgBox("Main Error", std::string("Unhandled C++ exception: ") + e.what());
+                    }
                     catch (...)
                     {
                         hl::MsgBox("Main Error", "Unhandled C++ exception");
@@ -104,8 +108,10 @@ namespace hl
             }
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
-                []{
-                    hl::MsgBox("Main Error", "Unhandled SEH exception");
+                char buf[16];
+                sprintf(buf, "0x%08X", GetExceptionCode());
+                [&]{
+                    hl::MsgBox("Main Error", std::string("Unhandled SEH exception: ") + buf);
                 }();
             }
         }
