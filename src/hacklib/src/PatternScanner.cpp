@@ -137,7 +137,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
             int i = 0;
             for (const auto& str : strings)
             {
-                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, mbi.RegionSize, (const uint8_t*)str.data(), str.size());
+                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, mbi.RegionSize, (const uint8_t*)str.data(), str.size() + 1);
 
                 if (found)
                 {
