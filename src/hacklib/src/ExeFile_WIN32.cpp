@@ -1,18 +1,13 @@
 #include "hacklib/ExeFile.h"
-#include <algorithm>
 #include <Windows.h>
 
 
 class hl::ExeFileImpl
 {
 public:
-    bool valid = false;
-
     IMAGE_DOS_HEADER *dosHeader = nullptr;
     IMAGE_NT_HEADERS *peHeader = nullptr;
     std::vector<IMAGE_SECTION_HEADER*> sectionHeaders;
-
-    std::vector<uintptr_t> relocs;
 };
 
 
@@ -54,7 +49,6 @@ static std::vector<uintptr_t> LoadRelocs(uintptr_t relocData)
 }
 
 
-
 hl::ExeFile::ExeFile()
 {
     m_impl = std::make_unique<ExeFileImpl>();
@@ -67,7 +61,7 @@ hl::ExeFile::~ExeFile()
 
 bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
 {
-    m_impl->valid = false;
+    m_valid = false;
 
     // Load DOS header and verify "MZ" signature.
     m_impl->dosHeader = (IMAGE_DOS_HEADER*)moduleBase;
@@ -103,31 +97,9 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
     auto relocDir = &m_impl->peHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
     if (relocDir->VirtualAddress != 0)
     {
-        m_impl->relocs = LoadRelocs(moduleBase + relocDir->VirtualAddress);
+        m_relocs = LoadRelocs(moduleBase + relocDir->VirtualAddress);
     }
 
-    m_impl->valid = true;
+    m_valid = true;
     return true;
-}
-
-
-bool hl::ExeFile::hasRelocs() const
-{
-    if (!m_impl->valid)
-    {
-        throw std::runtime_error("no exe file loaded");
-    }
-
-    return !m_impl->relocs.empty();
-}
-
-bool hl::ExeFile::isReloc(uintptr_t rva) const
-{
-    if (!m_impl->valid)
-    {
-        throw std::runtime_error("no exe file loaded");
-    }
-
-    auto it = std::find(m_impl->relocs.begin(), m_impl->relocs.end(), rva);
-    return it != m_impl->relocs.end();
 }

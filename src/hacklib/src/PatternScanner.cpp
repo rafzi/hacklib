@@ -6,9 +6,6 @@
 using namespace hl;
 
 
-static std::map<const char*, MEMORY_BASIC_INFORMATION> s_mbi;
-
-
 
 static HMODULE GetModuleFromAddress(uintptr_t adr)
 {

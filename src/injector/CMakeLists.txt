@@ -1,8 +1,3 @@
-IF(UNIX)
-    RETURN()
-ENDIF()
-
-
 SET(PROJ_NAME ldr)
 PROJECT(${PROJ_NAME})
 
