@@ -73,6 +73,17 @@ std::string hl::GetModulePath()
 
     return modulePath;
 }
+
+void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
+{
+    // This can not be executed from inside the module.
+    // Don't generate any code that uses relative addressing to the IP.
+    adr_dlclose(hModule);
+    adr_pthread_exit((void*)0);
+}
+void FreeLibAndExitThread_after()
+{
+}
 #endif
 
 

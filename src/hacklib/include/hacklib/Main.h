@@ -3,10 +3,19 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include "hacklib/PageAllocator.h"
+#include <dlfcn.h>
+#include <pthread.h>
+#include <cstring>
+#include <thread>
 
-#include "hacklib/MessageBox.h"
+void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*));
+void FreeLibAndExitThread_after();
 #endif
 
+
+#include "hacklib/MessageBox.h"
 #include <string>
 
 
@@ -125,6 +134,92 @@ namespace hl
 
     void *GetCurrentModule();
 
+    template <typename T>
+    class StaticInit
+    {
+    public:
+        StaticInit()
+        {
+            try
+            {
+                std::thread th(&StaticInit<T>::threadFunc, this);
+                th.detach();
+            }
+            catch (std::exception& e)
+            {
+                hl::MsgBox("StaticInit error", std::string("Could not start thread: ") + e.what());
+            }
+        }
+
+        T *getMain()
+        {
+            return m_pMain;
+        }
+        const T *getMain() const
+        {
+            return m_pMain;
+        }
+
+    private:
+        void threadFunc()
+        {
+            try
+            {
+                T main;
+                m_pMain = &main;
+                userCode(main);
+                m_pMain = nullptr;
+            }
+            catch (...)
+            {
+                hl::MsgBox("Main Error", "Unhandled C++ exception on Main construction");
+            }
+
+            // Get own module handle by path name. The dlclose just restores the refcount.
+            auto modName = hl::GetModulePath();
+            auto hModule = dlopen(modName.c_str(), RTLD_LAZY);
+            dlclose(hModule);
+
+            /*
+            Linux does not have an equivalent to FreeLibraryAndExitThread, so a race between
+            dlclose and pthread_exit would exist and lead to crashes.
+
+            The following method of detaching leaks a page = 4KiB each time, but is 100% reliable.
+            Alternative: Start a thread on dlclose. => Too unreliable, even with priority adjustments.
+            Alternative: Let the injector do dlclose. => Signaling mechanism needed; injector might die or be killed.
+            */
+
+            size_t codeSize = (size_t)((uintptr_t)&FreeLibAndExitThread_after - (uintptr_t)&FreeLibAndExitThread);
+            hl::code_page_vector code(codeSize);
+            memcpy(code.data(), (void*)&FreeLibAndExitThread, codeSize);
+            decltype(&FreeLibAndExitThread)(code.data())(hModule, &dlclose, &pthread_exit);
+        }
+
+        void userCode(T& main)
+        {
+            // TODO: sigsegv handler
+            try
+            {
+                if (main.init())
+                {
+                    while (main.step()) { }
+                }
+                main.shutdown();
+            }
+            catch (std::exception& e)
+            {
+                hl::MsgBox("Main Error", std::string("Unhandled C++ exception: ") + e.what());
+            }
+            catch (...)
+            {
+                hl::MsgBox("Main Error", "Unhandled C++ exception");
+            }
+        }
+
+    private:
+        T *m_pMain = nullptr;
+
+    };
 
 #endif
 }

@@ -28,7 +28,7 @@ SET(FILES_H
 
 IF(WIN32)
     SET(FILES_CPP ${FILES_CPP}
-        src/MessageBox.cpp
+        src/MessageBox_WIN32.cpp
         src/D3DDeviceFetcher.cpp
         src/Drawer.cpp
         src/PatternScanner.cpp
@@ -56,6 +56,7 @@ ELSEIF(UNIX)
         src/WindowOverlay_UNIX.cpp
         src/Injector_UNIX.cpp
         src/ExeFile_UNIX.cpp
+        src/MessageBox_UNIX.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/GfxOverlay_UNIX.h
@@ -74,6 +75,6 @@ IF(WIN32)
     TARGET_LINK_LIBRARIES(${PROJECT_NAME} d3d9.lib d3dx9.lib d3d11.lib dwmapi.lib psapi.lib)
 ELSEIF(UNIX)
     FIND_PACKAGE(Threads REQUIRED)
-    TARGET_LINK_LIBRARIES(${PROJECT_NAME} X11 Xrender Xfixes GL ${CMAKE_THREAD_LIBS_INIT})
+    TARGET_LINK_LIBRARIES(${PROJECT_NAME} X11 Xrender Xfixes GL dl ${CMAKE_THREAD_LIBS_INIT})
     TARGET_COMPILE_OPTIONS(${PROJECT_NAME} PUBLIC "-pthread")
 ENDIF()
