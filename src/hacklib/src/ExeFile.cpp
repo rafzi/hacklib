@@ -6,7 +6,7 @@
 bool hl::ExeFile::loadFromFile(const std::string& path)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
-    size_t size = file.tellg();
+    size_t size = (size_t)file.tellg();
     file.seekg(0, std::ios::beg);
     if (size == -1)
     {

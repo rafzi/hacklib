@@ -42,7 +42,7 @@ std::string hl::GetModulePath()
 
 static DWORD WINAPI ThreadFunc(LPVOID param)
 {
-    auto self = (StaticInitImpl*)param;
+    auto self = (hl::StaticInitImpl*)param;
     self->mainThread();
     return 0;
 }
