@@ -40,6 +40,7 @@ IF(WIN32)
         src/ExeFile_WIN32.cpp
         src/GfxOverlay_WIN32.cpp
         src/WindowOverlay_WIN32.cpp
+        src/Main_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -57,6 +58,7 @@ ELSEIF(UNIX)
         src/Injector_UNIX.cpp
         src/ExeFile_UNIX.cpp
         src/MessageBox_UNIX.cpp
+        src/Main_UNIX.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/GfxOverlay_UNIX.h

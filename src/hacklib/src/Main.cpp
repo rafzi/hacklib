@@ -1,90 +1,8 @@
 #include "hacklib/Main.h"
+#include "hacklib/MessageBox.h"
 #include <thread>
 #include <chrono>
 #include <stdexcept>
-
-
-#ifdef _WIN32
-HMODULE hl::GetCurrentModule()
-{
-    static HMODULE hModule = NULL;
-
-    if (!hModule)
-    {
-        if (GetModuleHandleEx(
-            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
-            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            (LPCTSTR)GetCurrentModule,
-            &hModule) == 0)
-        {
-            throw std::runtime_error("GetModuleHandleEx failed");
-        }
-    }
-
-    return hModule;
-}
-std::string hl::GetModulePath()
-{
-    static std::string modulePath;
-
-    if (modulePath == "")
-    {
-        char path[MAX_PATH];
-        if (GetModuleFileNameA(hl::GetCurrentModule(), path, MAX_PATH) == 0)
-        {
-            throw std::runtime_error("GetModuleFileName failed");
-        }
-        modulePath = path;
-    }
-
-    return modulePath;
-}
-#else
-#include <dlfcn.h>
-void *hl::GetCurrentModule()
-{
-    static void *hModule = nullptr;
-
-    if (!hModule)
-    {
-        Dl_info info = {0};
-        if (dladdr((void*)GetCurrentModule, &info) == 0)
-        {
-            throw std::runtime_error("dladdr failed");
-        }
-        hModule = info.dli_fbase;
-    }
-
-    return hModule;
-}
-std::string hl::GetModulePath()
-{
-    static std::string modulePath;
-
-    if (modulePath == "")
-    {
-        Dl_info info = { 0 };
-        if (dladdr((void*)GetModulePath, &info) == 0)
-        {
-            throw std::runtime_error("dladdr failed");
-        }
-        modulePath = info.dli_fname;
-    }
-
-    return modulePath;
-}
-
-void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
-{
-    // This can not be executed from inside the module.
-    // Don't generate any code that uses relative addressing to the IP.
-    adr_dlclose(hModule);
-    adr_pthread_exit((void*)0);
-}
-void FreeLibAndExitThread_after()
-{
-}
-#endif
 
 
 bool hl::Main::init()
@@ -100,5 +18,59 @@ bool hl::Main::step()
 
 void hl::Main::shutdown()
 {
+}
 
+
+hl::StaticInitImpl::StaticInitImpl()
+{
+    try
+    {
+        createThread();
+    }
+    catch (std::exception& e)
+    {
+        hl::MsgBox("StaticInit error", std::string("Could not start thread: ") + e.what());
+    }
+}
+
+void hl::StaticInitImpl::mainThread()
+{
+    try
+    {
+        constructAndRun();
+    }
+    catch (std::exception& e)
+    {
+        hl::MsgBox("Main Error", std::string("Unhandled C++ exception on Main construction: ") + e.what());
+    }
+    catch (...)
+    {
+        hl::MsgBox("Main Error", "Unhandled C++ exception on Main construction");
+    }
+
+    unloadSelf();
+}
+
+void hl::StaticInitImpl::runMain(hl::Main& main)
+{
+    m_pMain = &main;
+
+    try
+    {
+        if (main.init())
+        {
+            while (main.step()) { }
+        }
+        main.shutdown();
+    }
+    catch (std::exception& e)
+    {
+        hl::MsgBox("Main Error", std::string("Unhandled C++ exception: ") + e.what());
+    }
+    catch (...)
+    {
+        hl::MsgBox("Main Error", "Unhandled C++ exception");
+    }
+
+    m_pMain = nullptr;
 }
