@@ -33,7 +33,7 @@ WindowHandle WindowOverlay::GetTargetWindow()
         auto result = XGetWindowProperty(display, hWnd, atomPID, 0, 1, False, XA_CARDINAL, &type, &format, &numitems, &bytesafter, &propPID);
         if (result == Success && propPID != nullptr)
         {
-            if (*(unsigned long*)propPID == getpid())
+            if (*(pid_t*)propPID == getpid())
             {
                 XWindowAttributes attrs = { };
                 XGetWindowAttributes(display, hWnd, &attrs);

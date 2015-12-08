@@ -85,7 +85,6 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         return false;
     }
 
-    size_t sectionHeaderSize = m_impl->elfHeader->e_shnum * m_impl->elfHeader->e_shentsize;
     size_t strTableSectionIndex = m_impl->elfHeader->e_shstrndx;
     m_impl->sectionHeaders = (Elf_Shdr*)(moduleBase + m_impl->elfHeader->e_shoff);
     m_impl->strTableHeader = &m_impl->sectionHeaders[strTableSectionIndex];
@@ -96,7 +95,6 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
     for (size_t i = 0; i < numSections; i++)
     {
         auto section = &m_impl->sectionHeaders[i];
-        const char *name = &m_impl->strTable[section->sh_name];
 
         switch (section->sh_type)
         {
@@ -106,7 +104,7 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
             break;
 
         case SHT_STRTAB:
-            if (i != strTableSectionIndex && symTableSectionIndex != -1)
+            if (i != strTableSectionIndex && symTableSectionIndex != (size_t)-1)
             {
                 char *strTable = (char*)(moduleBase + m_impl->sectionHeaders[i].sh_offset);
                 Elf_Shdr *symTableSectionHeader = &m_impl->sectionHeaders[symTableSectionIndex];

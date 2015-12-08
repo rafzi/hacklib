@@ -126,7 +126,7 @@ void GfxOverlay::impl_close()
     event.xclient.format = 32;
     event.xclient.data.l[0] = XInternAtom(display, "WM_DELETE_WINDOW", False);
     event.xclient.data.l[1] = CurrentTime;
-    auto ret = XSendEvent(display, m_hWnd, False, NoEventMask, &event);
+    XSendEvent(display, m_hWnd, False, NoEventMask, &event);
 }
 
 void GfxOverlay::impl_windowThread(std::promise<Error>& p)
@@ -274,7 +274,7 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
             XEvent event;
             XNextEvent(display, &event);
             if (event.type == ClientMessage &&
-                event.xclient.data.l[0] == deleteAtom)
+                (Atom)event.xclient.data.l[0] == deleteAtom)
             {
                 running = false;
             }
