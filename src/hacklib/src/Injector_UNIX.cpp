@@ -83,11 +83,7 @@ public:
             if (m_remoteLibName)
             {
                 // Free the remote memory for the library name.
-                if (passArgs(m_free, m_remoteLibName))
-                {
-                    if (resume())
-                        wait(m_pid);
-                }
+                call(m_free, m_remoteLibName);
             }
 
             if (m_restoreBackup)
@@ -139,13 +135,7 @@ public:
 
         m_pid = pid;
 
-        if (!wait(-1))
-            return false;
-
-        // Resolve weird state after syscall.
-        if (!singlestep())
-            return false;
-        if (!wait(m_pid))
+        if (!wait())
             return false;
         if (!getRegs())
             return false;
@@ -157,13 +147,6 @@ public:
         USER_REG_SP(m_regs) -= 256;
 
         m_restoreBackup = true;
-
-        // Write zero to top of stack, so that a return from a called function will trigger SIGSEGV.
-        if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs), (void*)0) < 0)
-        {
-            writeErr("Fatal: ptrace POKEDATA failed\n");
-            return false;
-        }
 
         return true;
     }
@@ -234,14 +217,12 @@ public:
         size_t libNameLen = strlen(m_fileName) + 1;
         size_t paddedLibNameLen = ((libNameLen - 1) & ~(sizeof(uintptr_t) - 1)) + sizeof(uintptr_t);
 
+        // Resolve weird state after syscall.
+        if (!call(0, 0, 0))
+            return false;
+
         // Allocate memory in the target process.
-        if (!passArgs(m_malloc, paddedLibNameLen))
-            return false;
-        if (!resume())
-            return false;
-        if (!wait(m_pid))
-            return false;
-        if (!getRegs())
+        if (!call(m_malloc, paddedLibNameLen))
             return false;
 
         m_remoteLibName = USER_REG_AX(m_regs);
@@ -263,13 +244,7 @@ public:
         }
 
         // Load the library from the target process.
-        if (!passArgs(m_dlopen, m_remoteLibName, RTLD_LAZY | RTLD_GLOBAL))
-            return false;
-        if (!resume())
-            return false;
-        if (!wait(m_pid))
-            return false;
-        if (!getRegs())
+        if (!call(m_dlopen, m_remoteLibName, RTLD_NOW | RTLD_GLOBAL))
             return false;
 
         // Check whether dlopen succeeded.
@@ -303,8 +278,20 @@ private:
 
         return true;
     }
-    bool passArgs(uintptr_t function, uintptr_t arg1, uintptr_t arg2 = 0)
+    bool call(uintptr_t function, uintptr_t arg1, uintptr_t arg2 = 0)
     {
+        // The stack must be aligned on 16 byte boundary when a CALL is done.
+        // Since no CALL is executed and a CALL pushes the return value, add 8.
+        USER_REG_SP(m_regs) &= ~0x10;
+        USER_REG_SP(m_regs) += 0x8;
+
+        // Write zero to top of stack, so that a return from a called function will trigger SIGSEGV.
+        if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs), (void*)0) < 0)
+        {
+            writeErr("Fatal: ptrace POKEDATA failed\n");
+            return false;
+        }
+
         USER_REG_IP(m_regs) = function;
 #ifdef ARCH_64BIT
         m_regs.regs.rdi = arg1;
@@ -323,6 +310,12 @@ private:
 #endif
 
         if (!setRegs())
+            return false;
+        if (!resume())
+            return false;
+        if (!wait())
+            return false;
+        if (!getRegs())
             return false;
 
         return true;
@@ -347,10 +340,10 @@ private:
 
         return true;
     }
-    bool wait(int pid)
+    bool wait()
     {
         int status = 0;
-        if (waitpid(pid, &status, 0) < 0)
+        if (waitpid(m_pid, &status, 0) < 0)
         {
             writeErr("Fatal: waitpid failed\n");
             return false;
