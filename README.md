@@ -67,9 +67,8 @@ drawer.SetDevice(overlay.getContext());
 
 while (true)
 {
-    overlay.clearRenderTarget();
-    drawer.DrawCircle(100, 100, 30, 0xaacc6633);
     overlay.beginDraw();
+    drawer.DrawCircle(100, 100, 30, 0xaacc6633);
     overlay.swapBuffers();
 }
 ```
