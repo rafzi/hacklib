@@ -244,7 +244,7 @@ public:
         }
 
         // Load the library from the target process.
-        if (!call(m_dlopen, m_remoteLibName, RTLD_NOW | RTLD_GLOBAL))
+        if (!call(m_dlopen, m_remoteLibName, RTLD_NOW | RTLD_LOCAL))
             return false;
 
         // Check whether dlopen succeeded.
