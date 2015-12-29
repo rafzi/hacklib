@@ -281,9 +281,9 @@ private:
     bool call(uintptr_t function, uintptr_t arg1, uintptr_t arg2 = 0)
     {
         // The stack must be aligned on 16 byte boundary when a CALL is done.
-        // Since no CALL is executed and a CALL pushes the return value, add 8.
-        USER_REG_SP(m_regs) &= ~0x10;
-        USER_REG_SP(m_regs) += 0x8;
+        // Since no CALL is executed and a CALL pushes the return value, increment the SP.
+        USER_REG_SP(m_regs) &= ~(uintptr_t)0xf;
+        USER_REG_SP(m_regs) += sizeof(uintptr_t);
 
         // Write zero to top of stack, so that a return from a called function will trigger SIGSEGV.
         if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs), (void*)0) < 0)
