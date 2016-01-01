@@ -200,14 +200,16 @@ public:
         libdl.loadFromFile(m_libdl.mappedFile);
         m_dlopen = libdl.getExport("dlopen");
         m_dlclose = libdl.getExport("dlclose");
+        m_dlerror = libdl.getExport("dlerror");
 
-        if (!m_dlopen || !m_dlclose)
+        if (!m_dlopen || !m_dlclose || !m_dlerror)
         {
-            writeErr("Fatal: Did not find exports for dlopen, dlclose\n");
+            writeErr("Fatal: Did not find exports for dlopen, dlclose or dlerror\n");
             return false;
         }
         m_dlopen += m_libdl.base;
         m_dlclose += m_libdl.base;
+        m_dlerror += m_libdl.base;
 
         return true;
     }
@@ -251,6 +253,40 @@ public:
         if (!USER_REG_AX(m_regs))
         {
             writeErr("Fatal: Remote process could not load library\n");
+
+            if (call(m_dlerror))
+            {
+                uintptr_t remoteStr = USER_REG_AX(m_regs);
+                if (remoteStr)
+                {
+                    size_t remoteStrLen = 0;
+                    uintptr_t value = 0;
+                    std::string errorMsg;
+                    auto hasNull = [](uintptr_t word){
+                        for (size_t i = 0; i < sizeof(uintptr_t); i++)
+                        {
+                            if ((word & ((uintptr_t)0xff << 8*i)) == 0)
+                                return true;
+                        }
+                        return false;
+                    };
+                    do
+                    {
+                        value = ptrace(PTRACE_PEEKDATA, m_pid, remoteStr + remoteStrLen, NULL);
+                        if (errno != 0)
+                        {
+                            writeErr("Warning: ptrace PEEKDATA failed when getting dlerror\n");
+                            break;
+                        }
+                        remoteStrLen += sizeof(uintptr_t);
+                        errorMsg.append((char*)&value, sizeof(uintptr_t));
+                    } while (!hasNull(value));
+
+                    writeErr("    dlerror returned:\n    ");
+                    writeErr(errorMsg);
+                }
+            }
+
             return false;
         }
 
@@ -278,7 +314,7 @@ private:
 
         return true;
     }
-    bool call(uintptr_t function, uintptr_t arg1, uintptr_t arg2 = 0)
+    bool call(uintptr_t function, uintptr_t arg1 = 0, uintptr_t arg2 = 0)
     {
         // The stack must be aligned on 16 byte boundary when a CALL is done.
         // Since no CALL is executed and a CALL pushes the return value, increment the SP.
@@ -362,7 +398,7 @@ private:
     int m_pid = 0;
     char m_fileName[PATH_MAX];
     MemoryRegion m_libc, m_libdl;
-    uintptr_t m_malloc, m_free, m_dlopen, m_dlclose;
+    uintptr_t m_malloc, m_free, m_dlopen, m_dlclose, m_dlerror;
     struct user m_regs, m_regsBackup;
     bool m_restoreBackup = false;
     uintptr_t m_remoteLibName = 0;
