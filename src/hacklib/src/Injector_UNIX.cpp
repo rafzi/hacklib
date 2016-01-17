@@ -83,11 +83,7 @@ public:
             if (m_remoteLibName)
             {
                 // Free the remote memory for the library name.
-                if (passArgs(m_free, m_remoteLibName))
-                {
-                    if (resume())
-                        wait(m_pid);
-                }
+                call(m_free, m_remoteLibName);
             }
 
             if (m_restoreBackup)
@@ -139,13 +135,7 @@ public:
 
         m_pid = pid;
 
-        if (!wait(-1))
-            return false;
-
-        // Resolve weird state after syscall.
-        if (!singlestep())
-            return false;
-        if (!wait(m_pid))
+        if (!wait())
             return false;
         if (!getRegs())
             return false;
@@ -157,13 +147,6 @@ public:
         USER_REG_SP(m_regs) -= 256;
 
         m_restoreBackup = true;
-
-        // Write zero to top of stack, so that a return from a called function will trigger SIGSEGV.
-        if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs), (void*)0) < 0)
-        {
-            writeErr("Fatal: ptrace POKEDATA failed\n");
-            return false;
-        }
 
         return true;
     }
@@ -217,14 +200,16 @@ public:
         libdl.loadFromFile(m_libdl.mappedFile);
         m_dlopen = libdl.getExport("dlopen");
         m_dlclose = libdl.getExport("dlclose");
+        m_dlerror = libdl.getExport("dlerror");
 
-        if (!m_dlopen || !m_dlclose)
+        if (!m_dlopen || !m_dlclose || !m_dlerror)
         {
-            writeErr("Fatal: Did not find exports for dlopen, dlclose\n");
+            writeErr("Fatal: Did not find exports for dlopen, dlclose or dlerror\n");
             return false;
         }
         m_dlopen += m_libdl.base;
         m_dlclose += m_libdl.base;
+        m_dlerror += m_libdl.base;
 
         return true;
     }
@@ -234,14 +219,12 @@ public:
         size_t libNameLen = strlen(m_fileName) + 1;
         size_t paddedLibNameLen = ((libNameLen - 1) & ~(sizeof(uintptr_t) - 1)) + sizeof(uintptr_t);
 
+        // Resolve weird state after syscall.
+        if (!call(0, 0, 0))
+            return false;
+
         // Allocate memory in the target process.
-        if (!passArgs(m_malloc, paddedLibNameLen))
-            return false;
-        if (!resume())
-            return false;
-        if (!wait(m_pid))
-            return false;
-        if (!getRegs())
+        if (!call(m_malloc, paddedLibNameLen))
             return false;
 
         m_remoteLibName = USER_REG_AX(m_regs);
@@ -263,19 +246,47 @@ public:
         }
 
         // Load the library from the target process.
-        if (!passArgs(m_dlopen, m_remoteLibName, RTLD_LAZY | RTLD_GLOBAL))
-            return false;
-        if (!resume())
-            return false;
-        if (!wait(m_pid))
-            return false;
-        if (!getRegs())
+        if (!call(m_dlopen, m_remoteLibName, RTLD_NOW | RTLD_LOCAL))
             return false;
 
         // Check whether dlopen succeeded.
         if (!USER_REG_AX(m_regs))
         {
             writeErr("Fatal: Remote process could not load library\n");
+
+            if (call(m_dlerror))
+            {
+                uintptr_t remoteStr = USER_REG_AX(m_regs);
+                if (remoteStr)
+                {
+                    size_t remoteStrLen = 0;
+                    uintptr_t value = 0;
+                    std::string errorMsg;
+                    auto hasNull = [](uintptr_t word){
+                        for (size_t i = 0; i < sizeof(uintptr_t); i++)
+                        {
+                            if ((word & ((uintptr_t)0xff << 8*i)) == 0)
+                                return true;
+                        }
+                        return false;
+                    };
+                    do
+                    {
+                        value = ptrace(PTRACE_PEEKDATA, m_pid, remoteStr + remoteStrLen, NULL);
+                        if (errno != 0)
+                        {
+                            writeErr("Warning: ptrace PEEKDATA failed when getting dlerror\n");
+                            break;
+                        }
+                        remoteStrLen += sizeof(uintptr_t);
+                        errorMsg.append((char*)&value, sizeof(uintptr_t));
+                    } while (!hasNull(value));
+
+                    writeErr("    dlerror returned:\n    ");
+                    writeErr(errorMsg);
+                }
+            }
+
             return false;
         }
 
@@ -303,8 +314,20 @@ private:
 
         return true;
     }
-    bool passArgs(uintptr_t function, uintptr_t arg1, uintptr_t arg2 = 0)
+    bool call(uintptr_t function, uintptr_t arg1 = 0, uintptr_t arg2 = 0)
     {
+        // The stack must be aligned on 16 byte boundary when a CALL is done.
+        // Since no CALL is executed and a CALL pushes the return value, increment the SP.
+        USER_REG_SP(m_regs) &= ~(uintptr_t)0xf;
+        USER_REG_SP(m_regs) += sizeof(uintptr_t);
+
+        // Write zero to top of stack, so that a return from a called function will trigger SIGSEGV.
+        if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs), (void*)0) < 0)
+        {
+            writeErr("Fatal: ptrace POKEDATA failed\n");
+            return false;
+        }
+
         USER_REG_IP(m_regs) = function;
 #ifdef ARCH_64BIT
         m_regs.regs.rdi = arg1;
@@ -323,6 +346,12 @@ private:
 #endif
 
         if (!setRegs())
+            return false;
+        if (!resume())
+            return false;
+        if (!wait())
+            return false;
+        if (!getRegs())
             return false;
 
         return true;
@@ -347,10 +376,10 @@ private:
 
         return true;
     }
-    bool wait(int pid)
+    bool wait()
     {
         int status = 0;
-        if (waitpid(pid, &status, 0) < 0)
+        if (waitpid(m_pid, &status, 0) < 0)
         {
             writeErr("Fatal: waitpid failed\n");
             return false;
@@ -369,7 +398,7 @@ private:
     int m_pid = 0;
     char m_fileName[PATH_MAX];
     MemoryRegion m_libc, m_libdl;
-    uintptr_t m_malloc, m_free, m_dlopen, m_dlclose;
+    uintptr_t m_malloc, m_free, m_dlopen, m_dlclose, m_dlerror;
     struct user m_regs, m_regsBackup;
     bool m_restoreBackup = false;
     uintptr_t m_remoteLibName = 0;

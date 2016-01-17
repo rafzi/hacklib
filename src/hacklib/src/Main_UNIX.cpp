@@ -70,7 +70,7 @@ void hl::StaticInitImpl::unloadSelf()
 {
     // Get own module handle by path name. The dlclose just restores the refcount.
     auto modName = hl::GetModulePath();
-    auto hModule = dlopen(modName.c_str(), RTLD_LAZY);
+    auto hModule = dlopen(modName.c_str(), RTLD_NOW | RTLD_LOCAL);
     dlclose(hModule);
 
     /*
