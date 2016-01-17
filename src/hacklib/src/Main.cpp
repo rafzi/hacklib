@@ -21,47 +21,58 @@ void hl::Main::shutdown()
 }
 
 
-hl::StaticInitImpl::StaticInitImpl()
+hl::StaticInitBase::StaticInitBase()
 {
     try
     {
-        createThread();
+        if (!protectedInit())
+        {
+            m_unloadPending = true;
+        }
+    }
+    catch (std::exception& e)
+    {
+        hl::MsgBox("StaticInit error", std::string("Could not perform static initialization: ") + e.what());
+        m_unloadPending = true;
+    }
+    catch (...)
+    {
+        hl::MsgBox("StaticInit error", "Could not perform static initialization: UNKNOWN EXCEPTION");
+        m_unloadPending = true;
+    }
+
+    try
+    {
+        runMainThread();
     }
     catch (std::exception& e)
     {
         hl::MsgBox("StaticInit error", std::string("Could not start thread: ") + e.what());
     }
-}
-
-void hl::StaticInitImpl::mainThread()
-{
-    try
-    {
-        constructAndRun();
-    }
-    catch (std::exception& e)
-    {
-        hl::MsgBox("Main Error", std::string("Unhandled C++ exception on Main construction: ") + e.what());
-    }
     catch (...)
     {
-        hl::MsgBox("Main Error", "Unhandled C++ exception on Main construction");
+        hl::MsgBox("StaticInit error", "Could not start thread: UNKNOWN EXCEPTION");
     }
-
-    unloadSelf();
 }
 
-void hl::StaticInitImpl::runMain(hl::Main& main)
+void hl::StaticInitBase::mainThread()
 {
-    m_pMain = &main;
+    if (m_unloadPending)
+    {
+        unloadSelf();
+    }
 
     try
     {
-        if (main.init())
+        auto pMain = createMainObj();
+        m_pMain = pMain.get();
+
+        if (m_pMain->init())
         {
-            while (main.step()) { }
+            while (m_pMain->step()) {}
         }
-        main.shutdown();
+        m_pMain->shutdown();
+        m_pMain = nullptr;
     }
     catch (std::exception& e)
     {
@@ -72,5 +83,5 @@ void hl::StaticInitImpl::runMain(hl::Main& main)
         hl::MsgBox("Main Error", "Unhandled C++ exception");
     }
 
-    m_pMain = nullptr;
+    unloadSelf();
 }

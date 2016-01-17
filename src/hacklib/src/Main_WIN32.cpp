@@ -42,12 +42,25 @@ std::string hl::GetModulePath()
 
 static DWORD WINAPI ThreadFunc(LPVOID param)
 {
-    auto self = (hl::StaticInitImpl*)param;
-    self->mainThread();
+    auto self = (hl::StaticInitBase*)param;
+
+    __try
+    {
+        self->mainThread();
+    }
+    __except(EXCEPTION_EXECUTE_HANDLER)
+    {
+        char buf[16];
+        sprintf(buf, "0x%08X", GetExceptionCode());
+        [&]{
+            hl::MsgBox("Main Error", std::string("Unhandled SEH exception: ") + buf);
+        }();
+        self->unloadSelf();
+    }
     return 0;
 }
 
-void hl::StaticInitImpl::createThread()
+void hl::StaticInitBase::runMainThread()
 {
     // Must use WinAPI threads instead of std threads, because current std
     // implementation blocks within the loader lock.
@@ -64,25 +77,25 @@ void hl::StaticInitImpl::createThread()
     }
 }
 
-void hl::StaticInitImpl::protectedMainLoop(hl::Main& main)
+bool hl::StaticInitBase::protectedInit()
 {
     __try
     {
-        runMain(main);
+        return init();
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        m_pMain = nullptr;
-
         char buf[16];
         sprintf(buf, "0x%08X", GetExceptionCode());
         [&]{
-            hl::MsgBox("Main Error", std::string("Unhandled SEH exception: ") + buf);
+            hl::MsgBox("StaticInit Error", std::string("Unhandled SEH exception: ") + buf);
         }();
     }
+
+    return false;
 }
 
-void hl::StaticInitImpl::unloadSelf()
+void hl::StaticInitBase::unloadSelf()
 {
     FreeLibraryAndExitThread(hl::GetCurrentModule(), 0);
 }
