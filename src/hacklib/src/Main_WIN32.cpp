@@ -79,23 +79,21 @@ void hl::StaticInitBase::runMainThread()
 
 bool hl::StaticInitBase::protectedInit()
 {
-    bool success = false;
     __try
     {
-        success = init();
+        return init();
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
         char buf[16];
         sprintf(buf, "0x%08X", GetExceptionCode());
         [&]{
-            hl::MsgBox("Main Error", std::string("Unhandled SEH exception: ") + buf);
+            hl::MsgBox("StaticInit Error", std::string("Unhandled SEH exception: ") + buf);
         }();
     }
 
-    return success;
+    return false;
 }
-
 
 void hl::StaticInitBase::unloadSelf()
 {
