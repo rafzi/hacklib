@@ -21,47 +21,79 @@ void hl::Main::shutdown()
 }
 
 
-hl::StaticInitImpl::StaticInitImpl()
+hl::StaticInitBase::StaticInitBase()
 {
+    bool success = false;
+
+    // static initialization
     try
     {
-        createThread();
+        success = protectedInit();
+    }
+    catch (std::exception& e)
+    {
+        hl::MsgBox("StaticInit error", std::string("Could not perform static initialization: ") + e.what());
+    }
+    catch (...)
+    {
+        hl::MsgBox("StaticInit error", "Could not perform static initialization: UNKNOWN EXCEPTION");
+    }
+
+    if (!success)
+        unloadSelf();
+
+    // start thread
+    success = false;
+    try
+    {
+        runMainThread();
+        success = true;
     }
     catch (std::exception& e)
     {
         hl::MsgBox("StaticInit error", std::string("Could not start thread: ") + e.what());
     }
-}
-
-void hl::StaticInitImpl::mainThread()
-{
-    try
-    {
-        constructAndRun();
-    }
-    catch (std::exception& e)
-    {
-        hl::MsgBox("Main Error", std::string("Unhandled C++ exception on Main construction: ") + e.what());
-    }
     catch (...)
     {
-        hl::MsgBox("Main Error", "Unhandled C++ exception on Main construction");
+        hl::MsgBox("StaticInit error", "Could not start thread: UNKNOWN EXCEPTION");
     }
 
-    unloadSelf();
+    if (!success)
+        unloadSelf();
 }
 
-void hl::StaticInitImpl::runMain(hl::Main& main)
+namespace hl
 {
-    m_pMain = &main;
+    class RAIIHelper
+    {
+    public:
+        RAIIHelper(hl::StaticInitBase* base, std::unique_ptr<hl::Main>&& main)
+            : m_base(base)
+        {
+            m_base->m_pMain = std::move(main);
+        }
 
+        ~RAIIHelper()
+        {
+            m_base->m_pMain.reset();
+        }
+
+    private:
+        hl::StaticInitBase* const m_base;
+    };
+}
+
+
+void hl::StaticInitBase::mainThread()
+{
     try
     {
-        if (main.init())
+        hl::RAIIHelper guard(this, createMainObj());
+        if (m_pMain->init())
         {
-            while (main.step()) { }
+            while (m_pMain->step()) {}
         }
-        main.shutdown();
+        m_pMain->shutdown();
     }
     catch (std::exception& e)
     {
@@ -72,5 +104,5 @@ void hl::StaticInitImpl::runMain(hl::Main& main)
         hl::MsgBox("Main Error", "Unhandled C++ exception");
     }
 
-    m_pMain = nullptr;
+    unloadSelf();
 }
