@@ -24,6 +24,7 @@ SET(FILES_H
     include/hacklib/ExeFile.h
     include/hacklib/Handles.h
     include/hacklib/Logging.h
+    include/hacklib/CrashHandler.h
     )
 
 IF(WIN32)
@@ -41,6 +42,7 @@ IF(WIN32)
         src/GfxOverlay_WIN32.cpp
         src/WindowOverlay_WIN32.cpp
         src/Main_WIN32.cpp
+        src/CrashHandler_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h

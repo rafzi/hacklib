@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 
+
 namespace hl
 {
 
@@ -26,7 +27,7 @@ public:
     // Is called continuously sequenially while running. If returning false, the dll will detach.
     // The default implementation sleeps for 10 milliseconds and returns true.
     virtual bool step();
-    // Is called on shutdown.
+    // Is called on shutdown. Is still called when init returns false.
     // The default implementation does nothing.
     virtual void shutdown();
 
@@ -38,42 +39,27 @@ hl::ModuleHandle GetCurrentModule();
 // Returns the abolute path with filename to the own dynamic library.
 std::string GetModulePath();
 
-class StaticInitBase
+// Implementation detail.
+class StaticInitImpl
 {
 public:
-    StaticInitBase();
-
+    StaticInitImpl();
     void mainThread();
-
-    void unloadSelf(); // impl. specific
-
 protected:
-    // Override to perform initialization while the module is loaded.
-    virtual bool init() { return true; }
-
-    virtual std::unique_ptr<Main> createMainObj() const = 0;
-
+    virtual std::unique_ptr<hl::Main> makeMain() const = 0;
 private:
-    void runMainThread(); // impl. specific
-    bool protectedInit(); // impl. specific
- 
+    void runMainThread();
+    void unloadSelf();
 protected:
-    Main *m_pMain;
-
-private:
-    bool m_unloadPending = false;
-
+    hl::Main *m_pMain = nullptr;
 };
 
 /*
-Helper for running a program defined by hl::Main. Make sure instantiate it once in your dynamic library:
-StaticInit<MyMain> g_main;
-
-This simple implementation will default construct your hl::Main subclass. For complex construction or if type erasure is needed,
-directly inherit from StaticInitBase.
-*/
+ * Helper for running a program defined by hl::Main. Make sure to define it once in your dynamic library:
+ * hl::StaticInit<MyMain> g_main;
+ */
 template <typename T>
-class StaticInit : public StaticInitBase
+class StaticInit : private StaticInitImpl
 {
 public:
     T* getMain()
@@ -86,7 +72,8 @@ public:
     }
 
 protected:
-    virtual std::unique_ptr<Main> createMainObj() const override
+    // Override this for non-default constructors.
+    virtual std::unique_ptr<hl::Main> makeMain() const override
     {
         return std::make_unique<T>();
     }

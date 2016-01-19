@@ -1,5 +1,6 @@
 #include "hacklib/Main.h"
 #include "hacklib/MessageBox.h"
+#include "hacklib/CrashHandler.h"
 #include <thread>
 #include <chrono>
 #include <stdexcept>
@@ -21,66 +22,71 @@ void hl::Main::shutdown()
 }
 
 
-hl::StaticInitBase::StaticInitBase()
+static void ProtectedCode(const std::string& location, const std::function<void()>& body)
 {
-    try
-    {
-        if (!protectedInit())
-        {
-            m_unloadPending = true;
-        }
-    }
-    catch (std::exception& e)
-    {
-        hl::MsgBox("StaticInit error", std::string("Could not perform static initialization: ") + e.what());
-        m_unloadPending = true;
-    }
-    catch (...)
-    {
-        hl::MsgBox("StaticInit error", "Could not perform static initialization: UNKNOWN EXCEPTION");
-        m_unloadPending = true;
-    }
+    auto errorStr = "Hacklib error: " + location;
 
     try
     {
-        runMainThread();
+        hl::CrashHandler(body, [&](uint32_t code){
+            char buf[16];
+#ifdef WIN32
+            sprintf(buf, "SEH exception 0x%08X", code);
+#else
+            sprintf(buf, "signal %i", code);
+#endif
+            hl::MsgBox(errorStr, buf);
+        });
     }
     catch (std::exception& e)
     {
-        hl::MsgBox("StaticInit error", std::string("Could not start thread: ") + e.what());
+        hl::MsgBox(errorStr, std::string("C++ exception: ") + e.what());
     }
     catch (...)
     {
-        hl::MsgBox("StaticInit error", "Could not start thread: UNKNOWN EXCEPTION");
+        hl::MsgBox(errorStr, "Unknown C++ exception");
     }
 }
 
-void hl::StaticInitBase::mainThread()
+
+hl::StaticInitImpl::StaticInitImpl()
 {
-    if (m_unloadPending)
-    {
-        unloadSelf();
-    }
+    ProtectedCode("hl::StaticInit construction", [&]{
+        runMainThread();
+    });
+}
 
-    try
+void hl::StaticInitImpl::mainThread()
+{
     {
-        auto pMain = createMainObj();
-        m_pMain = pMain.get();
+        std::unique_ptr<hl::Main> pMain;
 
-        if (m_pMain->init())
+        ProtectedCode("hl::Main construction", [&]{
+            pMain = makeMain();
+        });
+
+        if (pMain)
         {
-            while (m_pMain->step()) {}
+            m_pMain = pMain.get();
+
+            bool initSuccess = false;
+            ProtectedCode("hl::Main::init", [&]{
+                initSuccess = m_pMain->init();
+            });
+
+            if (initSuccess)
+            {
+                ProtectedCode("hl::Main::step", [&]{
+                    while (m_pMain->step()) { }
+                });
+            }
+
+            ProtectedCode("hl::Main::shutdown", [&]{
+                m_pMain->shutdown();
+            });
+
+            m_pMain = nullptr;
         }
-        m_pMain->shutdown();
-        m_pMain = nullptr;
-    }
-    catch (std::exception& e)
-    {
-        hl::MsgBox("Main Error", std::string("Unhandled C++ exception: ") + e.what());
-    }
-    catch (...)
-    {
-        hl::MsgBox("Main Error", "Unhandled C++ exception");
     }
 
     unloadSelf();
