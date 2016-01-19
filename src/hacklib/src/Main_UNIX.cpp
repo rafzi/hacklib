@@ -52,18 +52,10 @@ void FreeLibAndExitThread_after()
 {
 }
 
-void hl::StaticInitBase::runMainThread()
+void hl::StaticInitImpl::runMainThread()
 {
-    // TODO: sigsegv handler
-
     std::thread th(&StaticInitImpl::mainThread, this);
     th.detach();
-}
-
-bool hl::StaticInitBase::protectedInit()
-{
-    // TODO: sigsegv handler
-    return init();
 }
 
 void hl::StaticInitImpl::unloadSelf()

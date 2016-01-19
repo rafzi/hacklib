@@ -61,6 +61,7 @@ ELSEIF(UNIX)
         src/ExeFile_UNIX.cpp
         src/MessageBox_UNIX.cpp
         src/Main_UNIX.cpp
+        src/CrashHandler_UNIX.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/GfxOverlay_UNIX.h

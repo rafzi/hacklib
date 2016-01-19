@@ -2,6 +2,8 @@
 #define HACKLIB_MAKEUNIQUE_H
 
 #ifndef _WIN32
+#include <memory>
+
 namespace std
 {
     template<typename T, typename... Args>
