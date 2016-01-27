@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <sys/user.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <dlfcn.h>
 #include <limits.h>
 #include <string.h>
@@ -418,5 +419,57 @@ bool hl::Inject(int pid, const std::string& libFileName, std::string *error)
 std::vector<int> hl::GetPIDsByProcName(const std::string& pname)
 {
     std::vector<int> result;
+
+    DIR *dir = opendir("/proc");
+    if (dir)
+    {
+        struct dirent *entryPID;
+        while ((entryPID = readdir(dir)))
+        {
+            bool isPID = true;
+            auto it = entryPID->d_name;
+            while (*it)
+            {
+                if (!std::isdigit(*it))
+                {
+                    isPID = false;
+                    break;
+                }
+                it++;
+            }
+
+            if (isPID)
+            {
+                std::string fileName = "/proc/";
+                fileName += entryPID->d_name;
+                fileName += "/cmdline";
+                std::ifstream file(fileName);
+                std::string processName;
+                std::getline(file, processName, '\0');
+
+                // Remove first space to get name without arguments.
+                // Some processes have arguments in the first cmdline argument.
+                auto space = processName.find_first_of(' ');
+                if (space != std::string::npos)
+                {
+                    processName = processName.substr(0, space);
+                }
+
+                // Remove last slash to get name without path.
+                auto slash = processName.find_last_of('/');
+                if (slash != std::string::npos)
+                {
+                    processName = processName.substr(slash + 1);
+                }
+
+                if (processName == pname)
+                {
+                    result.push_back(std::atoi(entryPID->d_name));
+                }
+            }
+        }
+        closedir(dir);
+    }
+
     return result;
 }
