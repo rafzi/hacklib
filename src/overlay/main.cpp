@@ -1,10 +1,8 @@
 #include "hacklib/WindowOverlay.h"
 #include <GL/gl.h>
-#include <GL/glx.h>
 #include <iostream>
-#include <stdio.h>
-#include <unistd.h>
-#include <chrono>
+#include <cstdio>
+
 
 int main()
 {
