@@ -198,9 +198,9 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                 {
                     if (FollowRelativeAddress(adr) == strAddr)
                     {
-                        // check for MOV instruction
-                        uint8_t opcode = *(uint8_t*)(adr - 3);
-                        if (opcode == 0x48) {
+                        // check for LEA instruction
+                        uint16_t opcode = *(uint16_t*)(adr - 3);
+                        if (opcode == 0x8D48) {
                             results[i] = adr;
                             stringsFound++;
                             break;
