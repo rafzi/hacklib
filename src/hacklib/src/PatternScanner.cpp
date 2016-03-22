@@ -198,9 +198,13 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                 {
                     if (FollowRelativeAddress(adr) == strAddr)
                     {
-                        results[i] = adr;
-                        stringsFound++;
-                        break;
+                        // check for LEA instruction
+                        uint16_t opcode = *(uint16_t*)(adr - 3);
+                        if (opcode == 0x8D48) {
+                            results[i] = adr;
+                            stringsFound++;
+                            break;
+                        }
                     }
                 }
 #endif
