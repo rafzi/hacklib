@@ -1,24 +1,10 @@
 #include "hacklib/PatternScanner.h"
 #include "hacklib/ExeFile.h"
 #include <algorithm>
+#include <unordered_map>
 
 
 using namespace hl;
-
-
-
-static HMODULE GetModuleFromAddress(uintptr_t adr)
-{
-    HMODULE hModule = NULL;
-    GetModuleHandleEx(
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
-        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCTSTR)adr,
-        &hModule);
-
-    return hModule;
-}
-
 
 
 // taken from: http://www.geeksforgeeks.org/pattern-searching-set-7-boyer-moore-algorithm-bad-character-heuristic/
@@ -102,39 +88,23 @@ static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8
 // End of third party code.
 
 
-std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const char *moduleName)
+std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
 {
-    MEMORY_BASIC_INFORMATION mbi = { };
-    uintptr_t adr = 0;
-
-    m_mem.clear();
-
-    while (VirtualQuery((LPCVOID)adr, &mbi, sizeof(mbi)) == sizeof(mbi))
-    {
-        if (mbi.State == MEM_COMMIT && mbi.Type == MEM_IMAGE)
-        {
-            HMODULE mod = GetModuleFromAddress(adr);
-            if (mod)
-                m_mem[mod].push_back(mbi);
-        }
-
-        adr += mbi.RegionSize;
-    }
-
-    HMODULE hMod = GetModuleHandle(moduleName);
+    auto memoryMap = hl::GetMemoryMap();
+    auto hModule = hl::GetModuleByName(moduleName);
 
     std::vector<uintptr_t> strAddrs(strings.size());
     int stringsFound = 0;
 
-    // search all readonly sections for the strings
-    for (const auto& mbi : m_mem[hMod])
+    // Search all readonly sections for the strings.
+    for (const auto& region : memoryMap)
     {
-        if (mbi.Protect == PAGE_READONLY)
+        if (region.hModule == hModule && region.protection == hl::PROTECTION_READ)
         {
             int i = 0;
             for (const auto& str : strings)
             {
-                const uint8_t *found = boyermoore((const uint8_t*)mbi.BaseAddress, mbi.RegionSize, (const uint8_t*)str.data(), str.size() + 1);
+                const uint8_t *found = boyermoore((const uint8_t*)region.base, region.size, (const uint8_t*)str.data(), str.size() + 1);
 
                 if (found)
                 {
@@ -151,24 +121,24 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     }
 
     if (stringsFound != strings.size())
-        throw std::runtime_error("One or more patterns not found");
+        throw std::runtime_error("one or more patterns not found");
 
     ExeFile exeFile;
-    bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hMod) && exeFile.hasRelocs();
+    bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
 
     std::vector<uintptr_t> results(strings.size());
     stringsFound = 0;
 
-    // search all code sections for references to the strings
-    for (const auto& mbi : m_mem[hMod])
+    // Search all code sections for references to the strings.
+    for (const auto& region : memoryMap)
     {
-        if (mbi.Protect == PAGE_EXECUTE_READ)
+        if (region.hModule == hModule && region.protection == hl::PROTECTION_READ_EXECUTE)
         {
             int i = 0;
             for (const auto& strAddr : strAddrs)
             {
-                const uint8_t *baseAdr = (const uint8_t*)mbi.BaseAddress;
-                size_t regionSize = mbi.RegionSize;
+                const uint8_t *baseAdr = (const uint8_t*)region.base;
+                size_t regionSize = region.size;
 
 #ifndef ARCH_64BIT
                 do
@@ -176,10 +146,10 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                     auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
                     if (found)
                     {
-                        // prevent false positives by checking if the reference is relocated
+                        // Prevent false positives by checking if the reference is relocated.
                         if (verifyWithRelocs)
                         {
-                            if (!exeFile.isReloc((uintptr_t)found - (uintptr_t)hMod))
+                            if (!exeFile.isReloc((uintptr_t)found - (uintptr_t)hModule))
                             {
                                 // continue searching
                                 baseAdr = found + 1;
@@ -198,7 +168,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                 {
                     if (FollowRelativeAddress(adr) == strAddr)
                     {
-                        // check for LEA instruction
+                        // Prevent false poritives by checking if the reference occurs in a LEA instruction.
                         uint16_t opcode = *(uint16_t*)(adr - 3);
                         if (opcode == 0x8D48) {
                             results[i] = adr;
@@ -222,7 +192,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     return results;
 }
 
-std::map<std::string, uintptr_t> PatternScanner::findMap(const std::vector<std::string>& strings, const char *moduleName)
+std::map<std::string, uintptr_t> PatternScanner::findMap(const std::vector<std::string>& strings, const std::string& moduleName)
 {
     auto results = find(strings, moduleName);
 
@@ -236,40 +206,36 @@ std::map<std::string, uintptr_t> PatternScanner::findMap(const std::vector<std::
 
 
 
-static bool compareData(uintptr_t address, const char *byteMask, const char *checkMask)
+static bool MatchMaskedPattern(uintptr_t address, const char *byteMask, const char *checkMask)
 {
     for (; *checkMask; ++checkMask, ++address, ++byteMask)
-        if (*checkMask=='x' && *(char*)address!=*byteMask)
+        if (*checkMask == 'x' && *(char*)address != *byteMask)
             return false;
     return *checkMask == 0;
 }
 
 
-uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const char *moduleName)
+uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const std::string& moduleName)
 {
-    auto mbi = GetMemoryInfo(moduleName);
-    uintptr_t address = (uintptr_t)mbi.BaseAddress;
-
-    return FindPattern(byteMask, checkMask, address, mbi.RegionSize);
+    auto region = GetMemoryInfo(moduleName);
+    return FindPattern(byteMask, checkMask, region.base, region.size);
 }
 
 uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
 {
     uintptr_t end = address + len;
     for (uintptr_t i = address; i < end; i++) {
-        if (compareData(i, byteMask, checkMask)) {
+        if (MatchMaskedPattern(i, byteMask, checkMask)) {
             return i;
         }
     }
     return 0;
 }
 
-uintptr_t hl::FindPattern(const std::string& pattern, const char *moduleName)
+uintptr_t hl::FindPattern(const std::string& pattern, const std::string& moduleName)
 {
-    auto mbi = GetMemoryInfo(moduleName);
-    uintptr_t address = (uintptr_t)mbi.BaseAddress;
-
-    return FindPattern(pattern, address, mbi.RegionSize);
+    auto region = GetMemoryInfo(moduleName);
+    return FindPattern(pattern, region.base, region.size);
 }
 
 uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t len)
@@ -319,28 +285,25 @@ uintptr_t hl::FollowRelativeAddress(uintptr_t adr)
 }
 
 
-MEMORY_BASIC_INFORMATION hl::GetMemoryInfo(const char *moduleName)
+hl::MemoryRegion hl::GetMemoryInfo(const std::string& moduleName)
 {
-    static std::map<const char*, MEMORY_BASIC_INFORMATION> mbi;
+    static std::unordered_map<std::string, hl::MemoryRegion> lut;
 
-    auto it = mbi.find(moduleName);
-    if (it != mbi.end())
+    auto it = lut.find(moduleName);
+    if (it != lut.end())
     {
         return it->second;
     }
 
-    HMODULE modBase = GetModuleHandle(moduleName);
-    if (!modBase)
+    auto hModule = hl::GetModuleByName(moduleName);
+    if (!hModule)
     {
         throw std::runtime_error("no such module");
     }
 
-    uintptr_t codeSectionBase = (uintptr_t)modBase + 0x1000;
+    uintptr_t codeSectionBase = (uintptr_t)hModule + hl::GetPageSize();
 
-    if (!VirtualQuery((LPCVOID)codeSectionBase, &mbi[moduleName], sizeof(MEMORY_BASIC_INFORMATION)))
-    {
-        throw std::runtime_error("failed to get mbi");
-    }
+    lut[moduleName] = hl::GetMemoryByAddress(codeSectionBase);
 
-    return mbi[moduleName];
+    return lut[moduleName];
 }

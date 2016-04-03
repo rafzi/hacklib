@@ -22,6 +22,8 @@ struct LogConfig
 {
     // To turn off logging to file.
     bool logToFile = true;
+    // Whether or not the time is prepended.
+    bool logTime = true;
     // Path of log file. Leave empty for "<moduleName>_log.txt"
     std::string fileName;
     // Log function.

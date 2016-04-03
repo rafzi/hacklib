@@ -1,5 +1,6 @@
 #include "hacklib/Injector.h"
 #include "hacklib/ExeFile.h"
+#include "hacklib/Memory.h"
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -23,52 +24,6 @@
 #define USER_REG_SP(u) u.regs.esp
 #define USER_REG_AX(u) u.regs.eax
 #endif
-
-
-struct MemoryRegion
-{
-    uintptr_t base;
-    size_t size;
-    bool readable;
-    bool writable;
-    bool executable;
-    std::string mappedFile;
-};
-
-static std::vector<MemoryRegion> GetProcMap(int pid)
-{
-    std::vector<MemoryRegion> result;
-
-    char fileName[32];
-    sprintf(fileName, "/proc/%d/maps", pid);
-
-    std::ifstream file(fileName);
-
-    unsigned long long start, end;
-    char flags[32];
-    unsigned long long file_offset;
-    int dev_major, dev_minor;
-    unsigned long long inode;
-    char path[512];
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        path[0] = '\0';
-        sscanf(line.c_str(), "%Lx-%Lx %31s %Lx %x:%x %Lu %511s", &start, &end, flags, &file_offset, &dev_major, &dev_minor, &inode, path);
-
-        result.resize(result.size() + 1);
-        auto region = result.rbegin();
-        region->base = (uintptr_t)start;
-        region->size = (size_t)(end - start);
-        region->readable = flags[0] == 'r';
-        region->writable = flags[1] == 'w';
-        region->executable = flags[2] == 'x';
-        region->mappedFile = path;
-    }
-
-    return result;
-}
 
 
 class Injection
@@ -154,15 +109,15 @@ public:
 
     bool findLibs()
     {
-        auto procMap = GetProcMap(m_pid);
+        auto memoryMap = hl::GetMemoryMap(m_pid);
 
         auto findLib = [&](const std::string& libName){
-            return std::find_if(procMap.begin(), procMap.end(), [&](const MemoryRegion& r){
-                auto pos = r.mappedFile.find(libName);
+            return std::find_if(memoryMap.begin(), memoryMap.end(), [&](const hl::MemoryRegion& r){
+                auto pos = r.name.find(libName);
                 if (pos != std::string::npos)
                 {
                     pos += libName.size();
-                    return r.mappedFile[pos] == '.' || r.mappedFile[pos] == '-';
+                    return r.name[pos] == '.' || r.name[pos] == '-';
                 }
                 return false;
             });
@@ -170,7 +125,7 @@ public:
 
         auto libc = findLib("libc");
         auto libdl = findLib("libdl");
-        if (libc == procMap.end() || libdl == procMap.end())
+        if (libc == memoryMap.end() || libdl == memoryMap.end())
         {
             writeErr("Fatal: Did not find mapping for libc and libdl libraries\n");
             return false;

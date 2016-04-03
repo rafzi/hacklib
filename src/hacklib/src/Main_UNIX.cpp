@@ -6,41 +6,6 @@
 #include <thread>
 
 
-hl::ModuleHandle hl::GetCurrentModule()
-{
-    static hl::ModuleHandle hModule = nullptr;
-
-    if (!hModule)
-    {
-        Dl_info info = { 0 };
-        if (dladdr((void*)GetCurrentModule, &info) == 0)
-        {
-            throw std::runtime_error("dladdr failed");
-        }
-        hModule = info.dli_fbase;
-    }
-
-    return hModule;
-}
-
-std::string hl::GetModulePath()
-{
-    static std::string modulePath;
-
-    if (modulePath == "")
-    {
-        Dl_info info = { 0 };
-        if (dladdr((void*)GetModulePath, &info) == 0)
-        {
-            throw std::runtime_error("dladdr failed");
-        }
-        modulePath = info.dli_fname;
-    }
-
-    return modulePath;
-}
-
-
 void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
 {
     // This can not be executed from inside the module.

@@ -61,7 +61,11 @@ static std::string GetCodeStr(const char *file, const char *func, int line)
 
 static void LogString(const std::string& str)
 {
-    std::string logStr = GetTimeStr() + " " + str;
+    std::string logStr = str;
+    if (g_cfg.logTime)
+    {
+        logStr = GetTimeStr() + " " + str;
+    }
 
     if (g_cfg.logFunc)
     {
@@ -82,7 +86,7 @@ void hl::ConfigLog(const LogConfig& config)
 
     if (g_cfg.fileName == "")
     {
-        g_cfg.fileName = hl::GetModulePath() + "_log.txt";
+        g_cfg.fileName = hl::GetCurrentModulePath() + "_log.txt";
     }
 }
 

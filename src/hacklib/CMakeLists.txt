@@ -25,6 +25,7 @@ SET(FILES_H
     include/hacklib/Handles.h
     include/hacklib/Logging.h
     include/hacklib/CrashHandler.h
+    include/hacklib/Memory.h
     )
 
 IF(WIN32)
@@ -34,7 +35,6 @@ IF(WIN32)
         src/Drawer.cpp
         src/PatternScanner.cpp
         src/ConsoleEx.cpp
-        src/PageAllocator_WIN32.cpp
         src/Hooker_VEH.cpp
         src/Injector_WIN32.cpp
         src/Input.cpp
@@ -43,6 +43,7 @@ IF(WIN32)
         src/WindowOverlay_WIN32.cpp
         src/Main_WIN32.cpp
         src/CrashHandler_WIN32.cpp
+        src/Memory_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -54,7 +55,6 @@ IF(WIN32)
         )
 ELSEIF(UNIX)
     SET(FILES_CPP ${FILES_CPP}
-        src/PageAllocator_UNIX.cpp
         src/GfxOverlay_UNIX.cpp
         src/WindowOverlay_UNIX.cpp
         src/Injector_UNIX.cpp
@@ -62,6 +62,7 @@ ELSEIF(UNIX)
         src/MessageBox_UNIX.cpp
         src/Main_UNIX.cpp
         src/CrashHandler_UNIX.cpp
+        src/Memory_UNIX.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/GfxOverlay_UNIX.h
