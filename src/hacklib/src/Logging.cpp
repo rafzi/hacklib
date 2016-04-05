@@ -15,9 +15,14 @@ class FormatStr
 public:
     FormatStr(const char *format, va_list vl)
     {
+        va_list vl_copy;
+        va_copy(vl_copy, vl);
+
         int size = vsnprintf(nullptr, 0, format, vl);
         m_str = new char[size+1];
-        vsnprintf(m_str, size+1, format, vl);
+        vsnprintf(m_str, size+1, format, vl_copy);
+
+        va_end(vl_copy);
     }
     ~FormatStr()
     {

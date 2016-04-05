@@ -85,7 +85,7 @@ public:
     {
         if (ptrace(PTRACE_ATTACH, pid, NULL, NULL) < 0)
         {
-            writeErr("Fatal: Could not attach with ptrace\n");
+            writeErr("Fatal: Could not attach with ptrace (errno = " + std::to_string(errno) + ")\n");
             return false;
         }
 

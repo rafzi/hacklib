@@ -138,6 +138,8 @@ std::vector<hl::MemoryRegion> hl::GetMemoryMap(int pid)
             ((flags[2] == 'x') ? hl::PROTECTION_EXECUTE : 0);
         region.hModule = hl::GetModuleByAddress(region.base);
         region.name = path;
+
+        regions.push_back(region);
     }
 
     return regions;

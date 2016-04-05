@@ -256,9 +256,12 @@ const Font *Drawer::AllocFont(std::string fontname, int size)
 
 void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const
 {
+    va_list valist_copy;
+    va_copy(valist_copy, valist);
+
     int size = vsnprintf(nullptr, 0, format.c_str(), valist);
     char *cStr = new char[size+1];
-    vsnprintf(cStr, size+1, format.c_str(), valist);
+    vsnprintf(cStr, size+1, format.c_str(), valist_copy);
 
     RECT rect;
     rect.left = static_cast<LONG>(x);
@@ -268,6 +271,7 @@ void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::
     pFont->m_pFont->DrawText(NULL, cStr, size, &rect, DT_NOCLIP, color);
 
     delete[] cStr;
+    va_end(valist_copy);
 }
 
 void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const
