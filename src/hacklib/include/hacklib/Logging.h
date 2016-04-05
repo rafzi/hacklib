@@ -6,13 +6,13 @@
 
 
 #ifdef _DEBUG
-#define HL_LOG_DBG(format, ...) hl::LogDebug(__FILE__, __FUNCTION__, __LINE__, format, __VA_ARGS__)
-#define HL_LOG_ERR(format, ...) hl::LogError(__FILE__, __FUNCTION__, __LINE__, format, __VA_ARGS__)
+#define HL_LOG_DBG(format, ...) hl::LogDebug(__FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
+#define HL_LOG_ERR(format, ...) hl::LogError(__FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
 #else
 #define HL_LOG_DBG(format, ...)
-#define HL_LOG_ERR(format, ...) hl::LogError(format, __VA_ARGS__);
+#define HL_LOG_ERR(format, ...) hl::LogError(format, ##__VA_ARGS__);
 #endif
-#define HL_LOG_RAW(format, ...) hl::LogRaw(format, __VA_ARGS__);
+#define HL_LOG_RAW(format, ...) hl::LogRaw(format, ##__VA_ARGS__);
 
 
 namespace hl {

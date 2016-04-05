@@ -1,7 +1,9 @@
 #include "hacklib/Memory.h"
 #include <stdexcept>
+#include <fstream>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 
 static int ToUnixProt(hl::Protection protection)
@@ -88,7 +90,7 @@ hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
 std::string hl::GetModulePath(hl::ModuleHandle hModule)
 {
     Dl_info info = { 0 };
-    if (dladdr((void*)GetModulePath, &info) == 0)
+    if (dladdr((void*)hModule, &info) == 0)
     {
         throw std::runtime_error("dladdr failed");
     }

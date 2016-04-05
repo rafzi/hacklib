@@ -3,6 +3,7 @@
 
 #include "hacklib/Handles.h"
 #include <vector>
+#include <string>
 
 
 namespace hl {

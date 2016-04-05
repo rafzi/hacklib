@@ -140,7 +140,7 @@ public:
     bool findApis()
     {
         hl::ExeFile libc;
-        libc.loadFromFile(m_libc.mappedFile);
+        libc.loadFromFile(m_libc.name);
         m_malloc = libc.getExport("malloc");
         m_free = libc.getExport("free");
 
@@ -153,7 +153,7 @@ public:
         m_free += m_libc.base;
 
         hl::ExeFile libdl;
-        libdl.loadFromFile(m_libdl.mappedFile);
+        libdl.loadFromFile(m_libdl.name);
         m_dlopen = libdl.getExport("dlopen");
         m_dlclose = libdl.getExport("dlclose");
         m_dlerror = libdl.getExport("dlerror");
@@ -353,7 +353,7 @@ private:
 private:
     int m_pid = 0;
     char m_fileName[PATH_MAX];
-    MemoryRegion m_libc, m_libdl;
+    hl::MemoryRegion m_libc, m_libdl;
     uintptr_t m_malloc, m_free, m_dlopen, m_dlclose, m_dlerror;
     struct user m_regs, m_regsBackup;
     bool m_restoreBackup = false;
