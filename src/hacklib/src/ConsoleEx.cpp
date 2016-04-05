@@ -120,7 +120,7 @@ void ConsoleEx::vprintf(const char *format, va_list valist)
     va_copy(valist_copy, valist);
 
     // get size of formatted string
-    int size = vsnprintf(nullptr, 0, format.c_str(), valist);
+    int size = vsnprintf(nullptr, 0, format, valist);
     // allocate buffer to hold formatted string + null terminator
     char *pBuffer = new char[size+1];
     // write formatted string to buffer
