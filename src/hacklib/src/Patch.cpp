@@ -12,7 +12,7 @@ Patch::~Patch()
 }
 
 
-void Patch::apply(uintptr_t location, const unsigned char *patch, size_t size)
+void Patch::apply(uintptr_t location, const char *patch, size_t size)
 {
     // Can only hold one patch at a time.
     revert();
@@ -28,17 +28,16 @@ void Patch::apply(uintptr_t location, const unsigned char *patch, size_t size)
 
     m_location = location;
     m_size = size;
-    m_applied = true;
 }
 
 void Patch::revert()
 {
-    if (m_applied)
+    if (m_size)
     {
         hl::PageProtect((void*)m_location, m_size, PROTECTION_READ_WRITE_EXECUTE);
         memcpy((void*)m_location, m_backup.data(), m_size);
         hl::PageProtect((void*)m_location, m_size, PROTECTION_READ_EXECUTE);
 
-        m_applied = false;
+        m_size = 0;
     }
 }

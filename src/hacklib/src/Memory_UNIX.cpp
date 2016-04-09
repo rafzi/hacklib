@@ -1,6 +1,7 @@
 #include "hacklib/Memory.h"
 #include <stdexcept>
 #include <fstream>
+#include <algorithm>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <dlfcn.h>
@@ -75,8 +76,31 @@ void hl::PageProtect(const void *p, size_t n, hl::Protection protection)
 
 hl::ModuleHandle hl::GetModuleByName(const std::string& name)
 {
-    // TODO
-    throw std::runtime_error("not implemented");
+    void *handle;
+    if (name == "")
+    {
+        handle = dlopen(NULL, RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+    }
+    else
+    {
+        handle = dlopen(name.c_str(), RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+    }
+
+    if (handle)
+    {
+        // This is undocumented, but works and is easy.
+        auto hModule = *(hl::ModuleHandle*)handle;
+        if (!hModule)
+        {
+            hModule = (hl::ModuleHandle)0x400000;
+        }
+        dlclose(handle);
+        return hModule;
+    }
+    else
+    {
+        return hl::NullModuleHandle;
+    }
 }
 
 hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
@@ -100,15 +124,26 @@ std::string hl::GetModulePath(hl::ModuleHandle hModule)
 
 hl::MemoryRegion hl::GetMemoryByAddress(uintptr_t adr, int pid)
 {
-    // TODO
-    throw std::runtime_error("not implemented");
     hl::MemoryRegion region;
+
+    auto memoryMap = hl::GetMemoryMap(pid);
+    auto itRegion = std::find_if(memoryMap.begin(), memoryMap.end(), [adr](const hl::MemoryRegion& r){
+        return adr > r.base && adr < r.base + r.size;
+    });
+    if (itRegion != memoryMap.end())
+    {
+        region = *itRegion;
+    }
+
     return region;
 }
 
 std::vector<hl::MemoryRegion> hl::GetMemoryMap(int pid)
 {
     std::vector<hl::MemoryRegion> regions;
+
+    if (!pid)
+        pid = getpid();
 
     char fileName[32];
     sprintf(fileName, "/proc/%d/maps", pid);

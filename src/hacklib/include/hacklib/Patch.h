@@ -15,12 +15,12 @@ public:
     ~Patch();
 
     // Applies a patch. Any previous patch done by the instance is reverted before.
-    void apply(uintptr_t location, const unsigned char *patch, size_t size);
+    void apply(uintptr_t location, const char *patch, size_t size);
 
     template <typename T>
     void apply(uintptr_t location, T patch)
     {
-        apply(location, (const unsigned char*)&patch, sizeof(patch));
+        apply(location, (const char*)&patch, sizeof(patch));
     }
 
     void revert();
@@ -29,7 +29,6 @@ private:
     std::vector<unsigned char> m_backup;
     uintptr_t m_location = 0;
     size_t m_size = 0;
-    bool m_applied = false;
 
 };
 

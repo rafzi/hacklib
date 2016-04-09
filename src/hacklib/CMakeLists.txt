@@ -3,6 +3,7 @@ PROJECT(hacklib)
 SET(FILES_CPP
     src/Main.cpp
     src/Hooker.cpp
+    src/PatternScanner.cpp
     src/Patch.cpp
     src/GfxOverlay.cpp
     src/WindowOverlay.cpp
@@ -33,7 +34,6 @@ IF(WIN32)
         src/MessageBox_WIN32.cpp
         src/D3DDeviceFetcher.cpp
         src/Drawer.cpp
-        src/PatternScanner.cpp
         src/ConsoleEx.cpp
         src/Hooker_VEH.cpp
         src/Injector_WIN32.cpp

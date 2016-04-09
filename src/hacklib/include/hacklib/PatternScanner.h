@@ -36,7 +36,7 @@ uintptr_t FindPattern(const std::string& pattern, uintptr_t address, size_t len)
 // Instruction is assumed to end after the relative address. for example jmp, call
 uintptr_t FollowRelativeAddress(uintptr_t adr);
 
-hl::MemoryRegion GetMemoryInfo(const std::string& moduleName = "");
+const std::vector<hl::MemoryRegion>& GetCodeRegions(const std::string& moduleName = "");
 
 
 }

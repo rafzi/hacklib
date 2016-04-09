@@ -217,8 +217,14 @@ static bool MatchMaskedPattern(uintptr_t address, const char *byteMask, const ch
 
 uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const std::string& moduleName)
 {
-    auto region = GetMemoryInfo(moduleName);
-    return FindPattern(byteMask, checkMask, region.base, region.size);
+    uintptr_t result = 0;
+    for (const auto& region : hl::GetCodeRegions(moduleName))
+    {
+        result = hl::FindPattern(byteMask, checkMask, region.base, region.size);
+        if (result)
+            break;
+    }
+    return result;
 }
 
 uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
@@ -234,8 +240,14 @@ uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, uintptr_t
 
 uintptr_t hl::FindPattern(const std::string& pattern, const std::string& moduleName)
 {
-    auto region = GetMemoryInfo(moduleName);
-    return FindPattern(pattern, region.base, region.size);
+    uintptr_t result = 0;
+    for (const auto& region : hl::GetCodeRegions(moduleName))
+    {
+        result = hl::FindPattern(pattern, region.base, region.size);
+        if (result)
+            break;
+    }
+    return result;
 }
 
 uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t len)
@@ -274,7 +286,7 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
     // Terminate mask string, because it is used to determine length.
     checkMask.push_back('\0');
 
-    return FindPattern(byteMask.data(), checkMask.data(), address, len);
+    return hl::FindPattern(byteMask.data(), checkMask.data(), address, len);
 }
 
 
@@ -285,9 +297,9 @@ uintptr_t hl::FollowRelativeAddress(uintptr_t adr)
 }
 
 
-hl::MemoryRegion hl::GetMemoryInfo(const std::string& moduleName)
+const std::vector<hl::MemoryRegion>& hl::GetCodeRegions(const std::string& moduleName)
 {
-    static std::unordered_map<std::string, hl::MemoryRegion> lut;
+    static std::unordered_map<std::string, std::vector<hl::MemoryRegion>> lut;
 
     auto it = lut.find(moduleName);
     if (it != lut.end())
@@ -301,9 +313,14 @@ hl::MemoryRegion hl::GetMemoryInfo(const std::string& moduleName)
         throw std::runtime_error("no such module");
     }
 
-    uintptr_t codeSectionBase = (uintptr_t)hModule + hl::GetPageSize();
-
-    lut[moduleName] = hl::GetMemoryByAddress(codeSectionBase);
+    auto memoryMap = hl::GetMemoryMap();
+    std::copy_if(memoryMap.begin(), memoryMap.end(), std::back_inserter(lut[moduleName]), [hModule](const hl::MemoryRegion& r){
+        return r.hModule == hModule && r.protection & hl::PROTECTION_READ_EXECUTE;
+    });
+    if (lut[moduleName].empty())
+    {
+        throw std::runtime_error("no code sections found");
+    }
 
     return lut[moduleName];
 }

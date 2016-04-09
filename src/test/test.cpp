@@ -2,6 +2,9 @@
 #include "hacklib/CrashHandler.h"
 #include "hacklib/Injector.h"
 #include "hacklib/Main.h"
+#include "hacklib/Memory.h"
+#include "hacklib/Patch.h"
+#include "hacklib/PatternScanner.h"
 #include <iostream>
 #include <functional>
 #include <thread>
@@ -245,6 +248,56 @@ void TestInject()
     HL_ASSERT(process.join() == 0, "");
 }
 
+void TestModules()
+{
+    auto modPath = hl::GetCurrentModulePath();
+    HL_ASSERT(modPath.find("hl_test_host") != std::string::npos, "Wrong module path");
+
+    auto hModule = hl::GetCurrentModule();
+    uintptr_t ownFuncAdr = (uintptr_t)&TestModules;
+    HL_ASSERT(ownFuncAdr > (uintptr_t)hModule && ownFuncAdr - (uintptr_t)hModule < 0x100000, "Module base address is wrong");
+
+    auto hModuleByName = hl::GetModuleByName(modPath);
+    HL_ASSERT(hModule == hModuleByName, "hl::GetModuleByName does not work");
+
+    auto hModuleByAddress = hl::GetModuleByAddress(ownFuncAdr);
+    HL_ASSERT(hModule == hModuleByAddress, "hl::GetModuleByAddress does not work");
+
+    static int dummyData = 0;
+    auto hModuleByAddressData = hl::GetModuleByAddress((uintptr_t)&dummyData);
+    HL_ASSERT(hModule == hModuleByAddressData, "hl::GetModuleByAddress does not work with data");
+}
+
+static void DummyFunc()
+{
+    // Generate some code to play with.
+    static volatile int x;
+    x++;
+    x--;
+    x += 42;
+    x *= 3;
+}
+void TestPatternScan()
+{
+    auto testAdr = (uintptr_t)&DummyFunc;
+
+    hl::Patch patch;
+    patch.apply(testAdr, "\x12\x34\x56\x78\x9a\xbc\xde\xf0", 8);
+
+    std::string modName = hl::GetCurrentModulePath();
+    auto pattern1 = hl::FindPattern("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", testAdr, 0x100);
+    auto pattern2 = hl::FindPattern("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", modName);
+    auto pattern3 = hl::FindPattern("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxx?xxxx", modName);
+    auto pattern4 = hl::FindPattern("12 34 56 78 9a bc de f0", modName);
+    auto pattern5 = hl::FindPattern("12 34 56 ?? 9a bc de f0", modName);
+
+    HL_ASSERT(pattern1 == testAdr, "Mask without module info");
+    HL_ASSERT(pattern2 == testAdr, "Mask");
+    HL_ASSERT(pattern3 == testAdr, "Mask with wildcard");
+    HL_ASSERT(pattern4 == testAdr, "String");
+    HL_ASSERT(pattern5 == testAdr, "String with wildcard");
+}
+
 
 class TestMain : public hl::Main
 {
@@ -256,6 +309,8 @@ public:
         TestCrashHandler();
 
         HL_TEST(TestInject);
+        HL_TEST(TestModules);
+        HL_TEST(TestPatternScan);
 
         HL_LOG_RAW("==========\nTests finished successfully.\n");
         return false;
