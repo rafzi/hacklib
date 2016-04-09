@@ -47,9 +47,6 @@ public:
                 // Restore registers.
                 memcpy(&m_regs, &m_regsBackup, sizeof(m_regs));
                 setRegs();
-
-                // Resume normal execution.
-                resume();
             }
 
             ptrace(PTRACE_DETACH, m_pid, NULL, NULL);
@@ -122,6 +119,13 @@ public:
                 return false;
             });
         };
+
+        auto itCheck = std::find_if(memoryMap.begin(), memoryMap.end(), [this](const hl::MemoryRegion& r){ return r.name == m_fileName; });
+        if (itCheck != memoryMap.end())
+        {
+            writeErr("Fatal: The specified module is already loaded\n");
+            return false;
+        }
 
         auto libc = findLib("libc");
         auto libdl = findLib("libdl");

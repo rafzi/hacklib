@@ -1,5 +1,6 @@
 #include "hacklib/Main.h"
 #include "hacklib/PageAllocator.h"
+#include "hacklib/MessageBox.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <cstring>
@@ -28,6 +29,11 @@ void hl::StaticInitImpl::unloadSelf()
     // Get own module handle by path name. The dlclose just restores the refcount.
     auto modName = hl::GetCurrentModulePath();
     auto hModule = dlopen(modName.c_str(), RTLD_NOW | RTLD_LOCAL);
+    if (!hModule)
+    {
+        hl::MsgBox("Hacklib error in unloadSelf", "Could not get the own module handle.");
+        return;
+    }
     dlclose(hModule);
 
     /*
