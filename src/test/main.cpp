@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef WIN32
-    LoadLibrary("hl_test_host.dll");
+    LoadLibrary("hl_test_hostd.dll");
 #else
     dlopen("./libhl_test_hostd.so", RTLD_NOW | RTLD_LOCAL);
 #endif
