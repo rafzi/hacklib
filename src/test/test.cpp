@@ -285,9 +285,9 @@ void TestPatternScan()
     patch.apply(testAdr, "\x12\x34\x56\x78\x9a\xbc\xde\xf0", 8);
 
     std::string modName = hl::GetCurrentModulePath();
-    auto pattern1 = hl::FindPattern("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", testAdr, 0x100);
-    auto pattern2 = hl::FindPattern("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", modName);
-    auto pattern3 = hl::FindPattern("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxx?xxxx", modName);
+    auto pattern1 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", testAdr, 0x100);
+    auto pattern2 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", modName);
+    auto pattern3 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxx?xxxx", modName);
     auto pattern4 = hl::FindPattern("12 34 56 78 9a bc de f0", modName);
     auto pattern5 = hl::FindPattern("12 34 56 ?? 9a bc de f0", modName);
 

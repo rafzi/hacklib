@@ -24,9 +24,9 @@ public:
 // Finds a binary pattern with mask in executable sections of a module.
 // The mask is a string containing 'x' to match and '?' to ignore.
 // If moduleName is nullptr the module of the main module is searched.
-uintptr_t FindPattern(const char *byteMask, const char *checkMask, const std::string& moduleName = "");
+uintptr_t FindPatternMask(const char *byteMask, const char *checkMask, const std::string& moduleName = "");
 // Variant for arbitrary memory.
-uintptr_t FindPattern(const char *byteMask, const char *checkMask, uintptr_t address, size_t len);
+uintptr_t FindPatternMask(const char *byteMask, const char *checkMask, uintptr_t address, size_t len);
 // More convenient and less error prone alternative.
 // Example: "12 45 ?? 89 ?? ?? ?? cd ef"
 uintptr_t FindPattern(const std::string& pattern, const std::string& moduleName = "");

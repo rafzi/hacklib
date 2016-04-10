@@ -215,19 +215,19 @@ static bool MatchMaskedPattern(uintptr_t address, const char *byteMask, const ch
 }
 
 
-uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, const std::string& moduleName)
+uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, const std::string& moduleName)
 {
     uintptr_t result = 0;
     for (const auto& region : hl::GetCodeRegions(moduleName))
     {
-        result = hl::FindPattern(byteMask, checkMask, region.base, region.size);
+        result = hl::FindPatternMask(byteMask, checkMask, region.base, region.size);
         if (result)
             break;
     }
     return result;
 }
 
-uintptr_t hl::FindPattern(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
+uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
 {
     uintptr_t end = address + len;
     for (uintptr_t i = address; i < end; i++) {
@@ -286,7 +286,7 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
     // Terminate mask string, because it is used to determine length.
     checkMask.push_back('\0');
 
-    return hl::FindPattern(byteMask.data(), checkMask.data(), address, len);
+    return hl::FindPatternMask(byteMask.data(), checkMask.data(), address, len);
 }
 
 
