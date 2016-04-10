@@ -24,6 +24,7 @@ public:
     bool hasRelocs() const;
     bool isReloc(uintptr_t rva) const;
 
+    // Returns null if not found.
     uintptr_t getExport(const std::string& name) const;
 
 private:

@@ -73,8 +73,13 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         return false;
     }
 
+#ifdef ARCH_64BIT
     if (m_impl->elfHeader->e_ident[EI_CLASS] != ELFCLASS64 &&
         m_impl->elfHeader->e_machine != EM_X86_64)
+#else
+    if (m_impl->elfHeader->e_ident[EI_CLASS] != ELFCLASS32 &&
+        m_impl->elfHeader->e_machine != EM_386)
+#endif
     {
         return false;
     }

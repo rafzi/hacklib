@@ -144,7 +144,11 @@ public:
     bool findApis()
     {
         hl::ExeFile libc;
-        libc.loadFromFile(m_libc.name);
+        if (!libc.loadFromFile(m_libc.name))
+        {
+            writeErr("Fatal: Could not load libc ELF file\n");
+            return false;
+        }
         m_malloc = libc.getExport("malloc");
         m_free = libc.getExport("free");
 
@@ -157,7 +161,11 @@ public:
         m_free += m_libc.base;
 
         hl::ExeFile libdl;
-        libdl.loadFromFile(m_libdl.name);
+        if (!libc.loadFromFile(m_libdl.name))
+        {
+            writeErr("Fatal: Could not load libdl ELF file\n");
+            return false;
+        }
         m_dlopen = libdl.getExport("dlopen");
         m_dlclose = libdl.getExport("dlclose");
         m_dlerror = libdl.getExport("dlerror");

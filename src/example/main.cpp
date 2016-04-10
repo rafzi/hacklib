@@ -8,7 +8,7 @@
 #include <GL/glew.h>
 
 
-#define GLSL_SRC(src) "#version 130 core\n" #src
+#define GLSL_SRC(src) "#version 150 core\n" #src
 
 
 hl::StaticInit<class ExampleMain> g_main;

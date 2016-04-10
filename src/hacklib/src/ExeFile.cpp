@@ -44,5 +44,11 @@ bool hl::ExeFile::isReloc(uintptr_t rva) const
 
 uintptr_t hl::ExeFile::getExport(const std::string& name) const
 {
-    return m_exports.at(name);
+    auto it = m_exports.find(name);
+    if (it != m_exports.end())
+    {
+        return it->second;
+    }
+
+    return 0;
 }
