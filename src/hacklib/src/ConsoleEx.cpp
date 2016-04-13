@@ -79,7 +79,7 @@ bool ConsoleEx::create(const std::string& windowTitle, CONSOLEEX_PARAMETERS *par
     std::promise<bool> p;
     auto ret = p.get_future();
     m_thread = std::thread(&ConsoleEx::threadProc, this, std::ref(p));
-    
+
     // wait for initialization to be done and return false on error
     if (!ret.get())
         return false;
@@ -116,16 +116,20 @@ HWND ConsoleEx::getWindowHandle() const
 
 void ConsoleEx::vprintf(const char *format, va_list valist)
 {
+    va_list valist_copy;
+    va_copy(valist_copy, valist);
+
     // get size of formatted string
-    size_t size = _vscprintf(format, valist);
+    int size = vsnprintf(nullptr, 0, format, valist);
     // allocate buffer to hold formatted string + null terminator
     char *pBuffer = new char[size+1];
     // write formatted string to buffer
-    vsprintf_s(pBuffer, size+1, format, valist);
+    vsnprintf(pBuffer, size+1, format, valist_copy);
 
     writeStringToRawBuffer(pBuffer);
 
     delete [] pBuffer;
+    va_end(valist_copy);
 }
 
 void ConsoleEx::printf(const char *format, ...)
@@ -208,12 +212,12 @@ LRESULT ConsoleEx::wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 // createwindow of parent will return 0
                 return -1;
             }
-                
+
             // set font in edit controls to system monospaced font
             HGDIOBJ fixedFont = GetStockObject(SYSTEM_FIXED_FONT);
             SendMessageA(m_hEditOut, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE,0));
             SendMessageA(m_hEditIn, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE,0));
-                
+
             // get edit control raw buffer
             m_rawBuffer.setBuffer(reinterpret_cast<HLOCAL>(SendMessageA(m_hEditOut, EM_GETHANDLE, 0, 0)));
 
@@ -464,10 +468,10 @@ void ConsoleEx::ConsoleBuffer::write(wchar_t *str)
     if (m_buffer) {
         // ptr to start of snippet that is drawn
         wchar_t *pStr = str;
-                
+
         while (pStr) {
             int len = static_cast<int>(wcslen(pStr));
-                    
+
             int copyLen = len;
             if (copyLen > m_wid - m_cursorPos) {
                 copyLen = m_wid - m_cursorPos;

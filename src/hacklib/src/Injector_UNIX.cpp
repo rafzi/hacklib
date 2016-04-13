@@ -1,5 +1,6 @@
 #include "hacklib/Injector.h"
 #include "hacklib/ExeFile.h"
+#include "hacklib/Memory.h"
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -25,52 +26,6 @@
 #endif
 
 
-struct MemoryRegion
-{
-    uintptr_t base;
-    size_t size;
-    bool readable;
-    bool writable;
-    bool executable;
-    std::string mappedFile;
-};
-
-static std::vector<MemoryRegion> GetProcMap(int pid)
-{
-    std::vector<MemoryRegion> result;
-
-    char fileName[32];
-    sprintf(fileName, "/proc/%d/maps", pid);
-
-    std::ifstream file(fileName);
-
-    unsigned long long start, end;
-    char flags[32];
-    unsigned long long file_offset;
-    int dev_major, dev_minor;
-    unsigned long long inode;
-    char path[512];
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        path[0] = '\0';
-        sscanf(line.c_str(), "%Lx-%Lx %31s %Lx %x:%x %Lu %511s", &start, &end, flags, &file_offset, &dev_major, &dev_minor, &inode, path);
-
-        result.resize(result.size() + 1);
-        auto region = result.rbegin();
-        region->base = (uintptr_t)start;
-        region->size = (size_t)(end - start);
-        region->readable = flags[0] == 'r';
-        region->writable = flags[1] == 'w';
-        region->executable = flags[2] == 'x';
-        region->mappedFile = path;
-    }
-
-    return result;
-}
-
-
 class Injection
 {
 public:
@@ -92,9 +47,6 @@ public:
                 // Restore registers.
                 memcpy(&m_regs, &m_regsBackup, sizeof(m_regs));
                 setRegs();
-
-                // Resume normal execution.
-                resume();
             }
 
             ptrace(PTRACE_DETACH, m_pid, NULL, NULL);
@@ -130,7 +82,7 @@ public:
     {
         if (ptrace(PTRACE_ATTACH, pid, NULL, NULL) < 0)
         {
-            writeErr("Fatal: Could not attach with ptrace\n");
+            writeErr("Fatal: Could not attach with ptrace (errno = " + std::to_string(errno) + ")\n");
             return false;
         }
 
@@ -154,23 +106,30 @@ public:
 
     bool findLibs()
     {
-        auto procMap = GetProcMap(m_pid);
+        auto memoryMap = hl::GetMemoryMap(m_pid);
 
         auto findLib = [&](const std::string& libName){
-            return std::find_if(procMap.begin(), procMap.end(), [&](const MemoryRegion& r){
-                auto pos = r.mappedFile.find(libName);
+            return std::find_if(memoryMap.begin(), memoryMap.end(), [&](const hl::MemoryRegion& r){
+                auto pos = r.name.find(libName);
                 if (pos != std::string::npos)
                 {
                     pos += libName.size();
-                    return r.mappedFile[pos] == '.' || r.mappedFile[pos] == '-';
+                    return r.name[pos] == '.' || r.name[pos] == '-';
                 }
                 return false;
             });
         };
 
+        auto itCheck = std::find_if(memoryMap.begin(), memoryMap.end(), [this](const hl::MemoryRegion& r){ return r.name == m_fileName; });
+        if (itCheck != memoryMap.end())
+        {
+            writeErr("Fatal: The specified module is already loaded\n");
+            return false;
+        }
+
         auto libc = findLib("libc");
         auto libdl = findLib("libdl");
-        if (libc == procMap.end() || libdl == procMap.end())
+        if (libc == memoryMap.end() || libdl == memoryMap.end())
         {
             writeErr("Fatal: Did not find mapping for libc and libdl libraries\n");
             return false;
@@ -185,7 +144,11 @@ public:
     bool findApis()
     {
         hl::ExeFile libc;
-        libc.loadFromFile(m_libc.mappedFile);
+        if (!libc.loadFromFile(m_libc.name))
+        {
+            writeErr("Fatal: Could not load libc ELF file\n");
+            return false;
+        }
         m_malloc = libc.getExport("malloc");
         m_free = libc.getExport("free");
 
@@ -198,7 +161,11 @@ public:
         m_free += m_libc.base;
 
         hl::ExeFile libdl;
-        libdl.loadFromFile(m_libdl.mappedFile);
+        if (!libc.loadFromFile(m_libdl.name))
+        {
+            writeErr("Fatal: Could not load libdl ELF file\n");
+            return false;
+        }
         m_dlopen = libdl.getExport("dlopen");
         m_dlclose = libdl.getExport("dlclose");
         m_dlerror = libdl.getExport("dlerror");
@@ -398,7 +365,7 @@ private:
 private:
     int m_pid = 0;
     char m_fileName[PATH_MAX];
-    MemoryRegion m_libc, m_libdl;
+    hl::MemoryRegion m_libc, m_libdl;
     uintptr_t m_malloc, m_free, m_dlopen, m_dlclose, m_dlerror;
     struct user m_regs, m_regsBackup;
     bool m_restoreBackup = false;

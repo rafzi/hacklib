@@ -1,43 +1,5 @@
 #include "hacklib/Main.h"
-#include "hacklib/MessageBox.h"
 #include <Windows.h>
-
-
-hl::ModuleHandle hl::GetCurrentModule()
-{
-    static hl::ModuleHandle hModule = NULL;
-
-    if (!hModule)
-    {
-        if (GetModuleHandleEx(
-            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
-            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            (LPCTSTR)GetCurrentModule,
-            &hModule) == 0)
-        {
-            throw std::runtime_error("GetModuleHandleEx failed");
-        }
-    }
-
-    return hModule;
-}
-
-std::string hl::GetModulePath()
-{
-    static std::string modulePath;
-
-    if (modulePath == "")
-    {
-        char path[MAX_PATH];
-        if (GetModuleFileNameA(hl::GetCurrentModule(), path, MAX_PATH) == 0)
-        {
-            throw std::runtime_error("GetModuleFileName failed");
-        }
-        modulePath = path;
-    }
-
-    return modulePath;
-}
 
 
 static DWORD WINAPI ThreadFunc(LPVOID param)

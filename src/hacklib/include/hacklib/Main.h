@@ -37,7 +37,7 @@ public:
 hl::ModuleHandle GetCurrentModule();
 
 // Returns the abolute path with filename to the own dynamic library.
-std::string GetModulePath();
+std::string GetCurrentModulePath();
 
 // Implementation detail.
 class StaticInitImpl

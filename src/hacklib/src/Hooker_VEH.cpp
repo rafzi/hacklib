@@ -78,13 +78,8 @@ public:
         }
         else
         {
-            MEMORY_BASIC_INFORMATION info;
-            if (!VirtualQuery((LPVOID)adr, &info, sizeof(info)))
-            {
-                throw std::runtime_error("VirtualQuery failed");
-            }
-
-            uintptr_t lowerBound = (uintptr_t)info.BaseAddress;
+            auto region = hl::GetMemoryByAddress(adr);
+            uintptr_t lowerBound = region.base;
             uintptr_t upperBound = lowerBound + hl::GetPageSize();
 
             std::lock_guard<std::mutex> lock(m_pagesMutex);

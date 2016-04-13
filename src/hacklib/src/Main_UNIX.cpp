@@ -1,44 +1,10 @@
 #include "hacklib/Main.h"
 #include "hacklib/PageAllocator.h"
+#include "hacklib/MessageBox.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <cstring>
 #include <thread>
-
-
-hl::ModuleHandle hl::GetCurrentModule()
-{
-    static hl::ModuleHandle hModule = nullptr;
-
-    if (!hModule)
-    {
-        Dl_info info = { 0 };
-        if (dladdr((void*)GetCurrentModule, &info) == 0)
-        {
-            throw std::runtime_error("dladdr failed");
-        }
-        hModule = info.dli_fbase;
-    }
-
-    return hModule;
-}
-
-std::string hl::GetModulePath()
-{
-    static std::string modulePath;
-
-    if (modulePath == "")
-    {
-        Dl_info info = { 0 };
-        if (dladdr((void*)GetModulePath, &info) == 0)
-        {
-            throw std::runtime_error("dladdr failed");
-        }
-        modulePath = info.dli_fname;
-    }
-
-    return modulePath;
-}
 
 
 void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
@@ -61,8 +27,13 @@ void hl::StaticInitImpl::runMainThread()
 void hl::StaticInitImpl::unloadSelf()
 {
     // Get own module handle by path name. The dlclose just restores the refcount.
-    auto modName = hl::GetModulePath();
+    auto modName = hl::GetCurrentModulePath();
     auto hModule = dlopen(modName.c_str(), RTLD_NOW | RTLD_LOCAL);
+    if (!hModule)
+    {
+        hl::MsgBox("Hacklib error in unloadSelf", "Could not get the own module handle.");
+        return;
+    }
     dlclose(hModule);
 
     /*

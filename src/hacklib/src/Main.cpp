@@ -1,9 +1,34 @@
 #include "hacklib/Main.h"
 #include "hacklib/MessageBox.h"
 #include "hacklib/CrashHandler.h"
+#include "hacklib/Memory.h"
 #include <thread>
 #include <chrono>
 #include <stdexcept>
+
+
+hl::ModuleHandle hl::GetCurrentModule()
+{
+    static hl::ModuleHandle hModule = 0;
+
+    if (!hModule)
+    {
+        hModule = hl::GetModuleByAddress((uintptr_t)hl::GetCurrentModule);
+    }
+
+    return hModule;
+}
+std::string hl::GetCurrentModulePath()
+{
+    static std::string modulePath;
+
+    if (modulePath == "")
+    {
+        modulePath = hl::GetModulePath(hl::GetCurrentModule());
+    }
+
+    return modulePath;
+}
 
 
 bool hl::Main::init()
@@ -26,26 +51,28 @@ static void ProtectedCode(const std::string& location, const std::function<void(
 {
     auto errorStr = "Hacklib error: " + location;
 
-    try
-    {
-        hl::CrashHandler(body, [&](uint32_t code){
-            char buf[16];
+    hl::CrashHandler([&]{
+        try
+        {
+            body();
+        }
+        catch (std::exception& e)
+        {
+            hl::MsgBox(errorStr, std::string("C++ exception: ") + e.what());
+        }
+        catch (...)
+        {
+            hl::MsgBox(errorStr, "Unknown C++ exception");
+        }
+    }, [&](uint32_t code){
+        char buf[128];
 #ifdef WIN32
-            sprintf(buf, "SEH exception 0x%08X", code);
+        sprintf(buf, "SEH exception 0x%08X", code);
 #else
-            sprintf(buf, "signal %i", code);
+        sprintf(buf, "signal %i", code);
 #endif
-            hl::MsgBox(errorStr, buf);
-        });
-    }
-    catch (std::exception& e)
-    {
-        hl::MsgBox(errorStr, std::string("C++ exception: ") + e.what());
-    }
-    catch (...)
-    {
-        hl::MsgBox(errorStr, "Unknown C++ exception");
-    }
+        hl::MsgBox(errorStr, buf);
+    });
 }
 
 

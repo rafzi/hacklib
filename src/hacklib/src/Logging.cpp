@@ -15,9 +15,14 @@ class FormatStr
 public:
     FormatStr(const char *format, va_list vl)
     {
+        va_list vl_copy;
+        va_copy(vl_copy, vl);
+
         int size = vsnprintf(nullptr, 0, format, vl);
         m_str = new char[size+1];
-        vsnprintf(m_str, size+1, format, vl);
+        vsnprintf(m_str, size+1, format, vl_copy);
+
+        va_end(vl_copy);
     }
     ~FormatStr()
     {
@@ -61,7 +66,11 @@ static std::string GetCodeStr(const char *file, const char *func, int line)
 
 static void LogString(const std::string& str)
 {
-    std::string logStr = GetTimeStr() + " " + str;
+    std::string logStr = str;
+    if (g_cfg.logTime)
+    {
+        logStr = GetTimeStr() + " " + str;
+    }
 
     if (g_cfg.logFunc)
     {
@@ -82,7 +91,7 @@ void hl::ConfigLog(const LogConfig& config)
 
     if (g_cfg.fileName == "")
     {
-        g_cfg.fileName = hl::GetModulePath() + "_log.txt";
+        g_cfg.fileName = hl::GetCurrentModulePath() + "_log.txt";
     }
 }
 

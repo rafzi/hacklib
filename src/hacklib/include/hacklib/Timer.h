@@ -17,7 +17,7 @@ public:
     }
 
     template <typename T = float>
-    T diff()
+    T diff() const
     {
         std::chrono::duration<T> fs = Clock::now() - m_timestamp;
         return fs.count();
