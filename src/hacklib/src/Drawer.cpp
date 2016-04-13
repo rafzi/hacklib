@@ -245,10 +245,10 @@ void Drawer::DrawCircleFilled(float mx, float my, float r, D3DCOLOR color) const
 }
 
 
-const Font *Drawer::AllocFont(std::string fontname, int size)
+const Font *Drawer::AllocFont(std::string fontname, int size, bool bold)
 {
     ID3DXFont *pFont;
-    if (D3DXCreateFont(m_pDevice, size, 0, FW_BOLD, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH|FF_DONTCARE, fontname.c_str(), &pFont) != D3D_OK)
+    if (D3DXCreateFont(m_pDevice, size, 0, (bold ? FW_BOLD : FW_NORMAL), 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH|FF_DONTCARE, fontname.c_str(), &pFont) != D3D_OK)
         return nullptr;
 
     return Alloc(m_fonts, pFont);
