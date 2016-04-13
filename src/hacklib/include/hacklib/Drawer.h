@@ -139,7 +139,7 @@ public:
     void DrawCircle(float mx, float my, float r, D3DCOLOR color) const;
     void DrawCircleFilled(float mx, float my, float r, D3DCOLOR color) const;
 
-    const Font *AllocFont(std::string fontname, int size);
+    const Font *AllocFont(std::string fontname, int size, bool bold = true);
     void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const;
     void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const;
     void ReleaseFont(const Font *pFont);
