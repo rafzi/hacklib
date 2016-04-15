@@ -142,6 +142,7 @@ public:
     const Font *AllocFont(std::string fontname, int size, bool bold = true);
     void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const;
     void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const;
+    D3DXVECTOR2 TextInfo(const Font *pFont, std::string str) const;
     void ReleaseFont(const Font *pFont);
 
     const Texture *AllocTexture(std::string filename);

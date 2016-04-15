@@ -282,6 +282,15 @@ void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::
     va_end(vl);
 }
 
+D3DXVECTOR2 Drawer::TextInfo(const Font *pFont, std::string str) const {
+    D3DXVECTOR2 ret = { 0, 0 };
+    RECT rect = { 0, 0, 0, 0 };
+    pFont->m_pFont->DrawText(NULL, str.c_str(), -1, &rect, DT_CALCRECT, 0);
+    ret.x = float(rect.right - rect.left);
+    ret.y = float(rect.bottom - rect.top);
+    return ret;
+}
+
 void Drawer::ReleaseFont(const Font *pFont)
 {
     Release(m_fonts, pFont);
