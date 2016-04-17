@@ -102,6 +102,13 @@ public:
     void unhook(const IHook *pHook);
 
 
+    template<typename T, typename C>
+    const IHook *hookVT(T *classInstance, int functionIndex, C cbHook, int vtBackupSize = 1024)
+    {
+        return hookVT((uintptr_t)classInstance, functionIndex, (uintptr_t)cbHook, vtBackupSize);
+    }
+
+
 private:
     std::vector<std::unique_ptr<IHook>> m_hooks;
 

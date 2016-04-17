@@ -1,35 +1,26 @@
 #ifndef HACKLIB_GFXOVERLAY_H
 #define HACKLIB_GFXOVERLAY_H
 
-// link with: d3d9.lib dwmapi.lib
-#include <Windows.h>
-#include "d3d9.h"
+#include "hacklib/Handles.h"
 #include <thread>
 #include <future>
+#include <chrono>
 
 
 namespace hl {
 
 
-// the overlay requires the desktop window manager introduced in windows 6.0 (vista) to be in compositing mode
-// otherwise the overlay will not be transparent, but still "works"
-// in windows 6.0 (vista) and 6.1 (win7) the DWM can be in compositing (new) or stacking (old) mode
-// in window 6.2 (win8) the DWM can only be in compositing mode
-// overlay has to be created newly if composition mode changes
-
-
 class GfxOverlay
 {
-    GfxOverlay(const GfxOverlay &) = delete;
-    GfxOverlay &operator= (const GfxOverlay &) = delete;
+    friend class GfxOverlayImpl;
 
 public:
     enum class Error
     {
-        Success,    // success
-        Window,     // the window could not be created
-        Device,     // the device could not be created
-        Other       // other error
+        Okay,       // Success.
+        Window,     // The window could not be created.
+        Context,    // The graphics context could not be created.
+        Other       // Other error.
     };
 
 public:
@@ -37,52 +28,55 @@ public:
     static bool IsCompositionEnabled();
 
 public:
-    GfxOverlay(HINSTANCE hModule = NULL);
+    GfxOverlay(ModuleHandle hModule = NULL);
+    GfxOverlay(const GfxOverlay &) = delete;
+    GfxOverlay &operator= (const GfxOverlay &) = delete;
     ~GfxOverlay();
 
     Error create(int posX, int posY, int width, int height);
 
     void close();
+    // Has no effect on OpenGL implementation as it will always use monitor refresh rate.
+    void setTargetRefreshRate(int rate);
     bool isOpen() const;
 
-    IDirect3DDevice9 *getDev() const;
-    // Generates a d3d parameter set thats suitable for an overlay.
-    // Trys to set the highest multisampling and best depth buffer thats supported by the hardware.
-    D3DPRESENT_PARAMETERS getPresentParams() const;
     int getPosX() const;
     int getPosY() const;
     int getWidth() const;
     int getHeight() const;
+    GraphicsContext getContext() const;
 
-    // Helper for clearing the backbuffer. Also clears the alpha channel.
-    void clearRenderTarget() const;
-    // If the window manager on a system prior to windows 8 switches to stacking mode,
-    // this function must be called to get the overlay working again.
-    void resetRequiredSettings() const;
-
-private:
-    static LRESULT CALLBACK s_WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
+    void resetContext();
+    // Helper for starting to draw. Also clears the backbuffer accordingly.
+    void beginDraw();
+    // Helper for finishing to draw by swapping backbuffer and frontbuffer.
+    void swapBuffers();
 
 private:
-    // member functions to process window and thread callbacks
-    LRESULT wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
-    void threadProc(std::promise<Error> &p);
+    void impl_construct();
+    void impl_destruct();
+    void impl_close();
+    void impl_windowThread(std::promise<Error>& p);
 
 protected:
     virtual void cbWindowLoop();
 
 protected:
+    class GfxOverlayImpl *m_impl = nullptr;
+
     std::thread m_thread;
-    HINSTANCE m_hModule = NULL;
-    HWND m_hWnd = NULL;
-    IDirect3D9 *m_pD3D = nullptr;
-    IDirect3DDevice9 *m_pDevice = nullptr;
+    ModuleHandle m_hModule = NULL;
+    WindowHandle m_hWnd = 0;
     bool m_isOpen = false;
 
     int m_posX = 0;
     int m_posY = 0;
     int m_width = 0;
     int m_height = 0;
+
+    typedef std::chrono::high_resolution_clock Clock;
+    Clock::time_point m_lastSwap;
+    std::chrono::nanoseconds m_frameTime{ 1000000000ull / 60 };
 
 };
 

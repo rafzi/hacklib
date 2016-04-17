@@ -1,11 +1,11 @@
-#ifndef PATTERNSCANNER_H
-#define PATTERNSCANNER_H
+#ifndef HACKLIB_PATTERNSCANNER_H
+#define HACKLIB_PATTERNSCANNER_H
 
+#include "hacklib/Memory.h"
 #include <string>
 #include <vector>
 #include <map>
 #include <cstdint>
-#include <Windows.h>
 
 
 namespace hl {
@@ -15,19 +15,28 @@ class PatternScanner
 {
 public:
     // Searches for referenced strings in code of the module.
-    std::vector<uintptr_t> find(const std::vector<std::string>& strings, const char *moduleName = nullptr);
-
-private:
-    std::map<HMODULE, std::vector<MEMORY_BASIC_INFORMATION>> m_mem;
+    std::vector<uintptr_t> find(const std::vector<std::string>& strings, const std::string& moduleName = "");
+    std::map<std::string, uintptr_t> findMap(const std::vector<std::string>& strings, const std::string& moduleName = "");
 
 };
 
 
+// Finds a binary pattern with mask in executable sections of a module.
+// The mask is a string containing 'x' to match and '?' to ignore.
+// If moduleName is nullptr the module of the main module is searched.
+uintptr_t FindPatternMask(const char *byteMask, const char *checkMask, const std::string& moduleName = "");
+// Variant for arbitrary memory.
+uintptr_t FindPatternMask(const char *byteMask, const char *checkMask, uintptr_t address, size_t len);
+// More convenient and less error prone alternative.
+// Example: "12 45 ?? 89 ?? ?? ?? cd ef"
+uintptr_t FindPattern(const std::string& pattern, const std::string& moduleName = "");
+uintptr_t FindPattern(const std::string& pattern, uintptr_t address, size_t len);
 
-std::uintptr_t FindPattern(const char *byteMask, const char *checkMask, const char *moduleName = nullptr);
+// Helper to follow relative addresses in instructions.
+// Instruction is assumed to end after the relative address. for example jmp, call
+uintptr_t FollowRelativeAddress(uintptr_t adr);
 
-// instruction is assumed to end after the relative address. for example jmp, call
-std::uintptr_t FollowRelativeAddress(std::uintptr_t adr);
+const std::vector<hl::MemoryRegion>& GetCodeRegions(const std::string& moduleName = "");
 
 
 }

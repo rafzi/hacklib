@@ -245,10 +245,10 @@ void Drawer::DrawCircleFilled(float mx, float my, float r, D3DCOLOR color) const
 }
 
 
-const Font *Drawer::AllocFont(std::string fontname, int size)
+const Font *Drawer::AllocFont(std::string fontname, int size, bool bold)
 {
     ID3DXFont *pFont;
-    if (D3DXCreateFont(m_pDevice, size, 0, FW_BOLD, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH|FF_DONTCARE, fontname.c_str(), &pFont) != D3D_OK)
+    if (D3DXCreateFont(m_pDevice, size, 0, (bold ? FW_BOLD : FW_NORMAL), 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH|FF_DONTCARE, fontname.c_str(), &pFont) != D3D_OK)
         return nullptr;
 
     return Alloc(m_fonts, pFont);
@@ -256,9 +256,12 @@ const Font *Drawer::AllocFont(std::string fontname, int size)
 
 void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const
 {
+    va_list valist_copy;
+    va_copy(valist_copy, valist);
+
     int size = vsnprintf(nullptr, 0, format.c_str(), valist);
     char *cStr = new char[size+1];
-    vsnprintf(cStr, size+1, format.c_str(), valist);
+    vsnprintf(cStr, size+1, format.c_str(), valist_copy);
 
     RECT rect;
     rect.left = static_cast<LONG>(x);
@@ -268,6 +271,7 @@ void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::
     pFont->m_pFont->DrawText(NULL, cStr, size, &rect, DT_NOCLIP, color);
 
     delete[] cStr;
+    va_end(valist_copy);
 }
 
 void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const
@@ -276,6 +280,15 @@ void Drawer::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::
     va_start(vl, format);
     DrawFont(pFont, x, y, color, format, vl);
     va_end(vl);
+}
+
+D3DXVECTOR2 Drawer::TextInfo(const Font *pFont, std::string str) const {
+    D3DXVECTOR2 ret = { 0, 0 };
+    RECT rect = { 0, 0, 0, 0 };
+    pFont->m_pFont->DrawText(NULL, str.c_str(), -1, &rect, DT_CALCRECT, 0);
+    ret.x = float(rect.right - rect.left);
+    ret.y = float(rect.bottom - rect.top);
+    return ret;
 }
 
 void Drawer::ReleaseFont(const Font *pFont)

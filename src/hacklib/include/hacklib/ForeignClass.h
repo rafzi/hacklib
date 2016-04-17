@@ -81,6 +81,21 @@ inline bool operator==(nullptr_t, const ForeignClass& rhs)
     return nullptr == rhs.data();
 }
 
+inline bool operator!=(const ForeignClass& lhs, const ForeignClass& rhs)
+{
+    return lhs.data() != rhs.data();
+}
+
+inline bool operator!=(const ForeignClass& lhs, nullptr_t)
+{
+    return lhs.data() != nullptr;
+}
+
+inline bool operator!=(nullptr_t, const ForeignClass& rhs)
+{
+    return nullptr != rhs.data();
+}
+
 
 }
 

@@ -59,19 +59,17 @@ Wrapper for drawing with D3D in a resource-safe C++ way.
 hl::Drawer drawer;
 hl::WindowOverlay overlay;
 
-if (overlay.create() != hl::WindowOverlay::Error::Success)
+if (overlay.create() != hl::WindowOverlay::Error::Okay)
     return false;
 
-auto pDev = overlay.getDev();
 overlay.registerResetHandlers([&]{ drawer.OnLostDevice(); }, [&]{ drawer.OnResetDevice(); });
-drawer.SetDevice(pDev);
+drawer.SetDevice(overlay.getContext());
 
-while (pDev->BeginScene() == D3D_OK)
+while (true)
 {
-    overlay.clearRenderTarget();
+    overlay.beginDraw();
     drawer.DrawCircle(100, 100, 30, 0xaacc6633);
-    pDev->EndScene();
-    pDev->Present(0, 0, 0, 0);
+    overlay.swapBuffers();
 }
 ```
 
@@ -236,6 +234,8 @@ while (true)
 Hacklib is written in modern C++ and requires a recent compiler like Visual Studio 2013, GCC 4.8 or Clang 3.3 with C++11 support enabled.
 
 The project is using CMake and CMake 2.8.11.2 or newer is required to build.
+
+Graphics related components require the DirectX SDK June 2010 on Windows or X11, OpenGL libraries on Linux. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: libx11-dev, mesa-common-dev, libglu1-mesa-dev, libxrender-dev and libxfixes-dev.
 
 ## How to build ##
 

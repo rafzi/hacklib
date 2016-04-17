@@ -75,7 +75,7 @@ IDirect3DDevice9 *D3DDeviceFetcher::GetD3D9Device(int timeout)
     d3dPar.Windowed = TRUE;
     d3dPar.SwapEffect = D3DSWAPEFFECT_DISCARD;
     LPDIRECT3DDEVICE9 pDev = NULL;
-    pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dPar, &pDev);
+    pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_NULLREF, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dPar, &pDev);
     if (!pDev) return NULL;
 
     // fetch the location of endscene in the d3d9 module via vtable of dummy device

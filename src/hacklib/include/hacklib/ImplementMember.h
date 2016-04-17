@@ -50,17 +50,21 @@
 
 #define IMPLMEMBER(type, name, offset) \
     protected: \
-    static const int o##name = offset; \
-    static type const t##name; \
+        static const uintptr_t o##name = offset; \
+        typedef type t##name; \
     public: \
-    type get##name() const \
-    { \
-    return *(type*)((std::uintptr_t)this + o##name); \
-    } \
-    void set##name(type value) \
-    { \
-    *(type*)((std::uintptr_t)this + o##name) = value; \
-    }
+        type const& get##name() const \
+        { \
+            return *(type*)((uintptr_t)this + o##name); \
+        } \
+        type& get##name() \
+        { \
+            return *(type*)((uintptr_t)this + o##name); \
+        } \
+        void set##name(type value) \
+        { \
+            *(type*)((uintptr_t)this + o##name) = value; \
+        }
 
 
 #define IMPLMEMBER_REL(type, name, offset, from) \
@@ -94,13 +98,13 @@
 
 #define IMPLVTFUNC_OR(rettype, name, ordinal, ...) \
     public: \
-    rettype name(EXPAND_ARGS(ARGS_FULL, __VA_ARGS__)) \
-    { \
-    return (\
-    (rettype(__thiscall*)(std::uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__))) \
-    (*(std::uintptr_t*)((*(std::uintptr_t**)this) + ordinal))) \
-    ((std::uintptr_t)this EXPAND_ARGS(ARGS_NAMES, __VA_ARGS__)); \
-    }
+        rettype name(EXPAND_ARGS(ARGS_FULL, __VA_ARGS__)) \
+        { \
+            return (\
+                (rettype(__thiscall*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__))) \
+                (*(uintptr_t*)((*(uintptr_t**)this) + ordinal))) \
+                ((uintptr_t)this EXPAND_ARGS(ARGS_NAMES, __VA_ARGS__)); \
+        }
 
 #define IMPLVTFUNC(rettype, name, offset, ...) \
     IMPLVTFUNC_OR(rettype, name, (offset/sizeof(void*)), __VA_ARGS__)

@@ -14,10 +14,10 @@ class WindowOverlay : public GfxOverlay
 {
 public:
     // Returns the window that will be covered by the overlay.
-    static HWND GetTargetWindow();
+    static WindowHandle GetTargetWindow();
 
 public:
-    WindowOverlay(HINSTANCE hModule = NULL);
+    WindowOverlay(ModuleHandle hModule = NULL);
 
     // Create the overlay.
     // The overlay dissapears if the target window loses focus. Set
@@ -38,7 +38,7 @@ private:
     virtual void cbWindowLoop();
 
 private:
-    HWND m_targetWindow = NULL;
+    WindowHandle m_targetWindow = 0;
     bool m_isTargetForeground = false;
     std::function <void()> m_cbPreReset;
     std::function <void()> m_cbPostReset;

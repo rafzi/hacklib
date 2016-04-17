@@ -1,0 +1,5 @@
+PROJECT(overlay_test)
+
+ADD_EXECUTABLE(${PROJECT_NAME} main.cpp)
+
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} hacklib)

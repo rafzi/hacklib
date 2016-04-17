@@ -127,7 +127,7 @@ public:
     // Projects a position in world coordiantes to screen coordinates.
     void Project(const D3DXVECTOR3 &worldPos, D3DXVECTOR3 &screenPos, const D3DXMATRIX *worldMatrix = nullptr) const;
     // Returns true if the screen position is in front of the camera.
-    bool IsInfrontCam(const D3DXVECTOR3 &screenPos) const;
+    virtual bool IsInfrontCam(const D3DXVECTOR3 &screenPos) const;
     // Checks if a screen position would be visible on the viewport. The offScreenTolerance is measured in pixels.
     // Returns true if the position is behind the camera, but on the viewport.
     bool IsOnScreen(const D3DXVECTOR3 &screenPos, float offScreenTolerance = 0) const;
@@ -139,9 +139,10 @@ public:
     void DrawCircle(float mx, float my, float r, D3DCOLOR color) const;
     void DrawCircleFilled(float mx, float my, float r, D3DCOLOR color) const;
 
-    const Font *AllocFont(std::string fontname, int size);
+    const Font *AllocFont(std::string fontname, int size, bool bold = true);
     void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const;
     void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const;
+    D3DXVECTOR2 TextInfo(const Font *pFont, std::string str) const;
     void ReleaseFont(const Font *pFont);
 
     const Texture *AllocTexture(std::string filename);

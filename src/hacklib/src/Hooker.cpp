@@ -1,8 +1,9 @@
 #include "hacklib/Hooker.h"
 #include "hacklib/PageAllocator.h"
+#include "hacklib/make_unique.h"
 #include <algorithm>
 #include <mutex>
-#include <map>
+#include <unordered_map>
 #include <cstring>
 
 
@@ -10,17 +11,6 @@
 static const int JMPHOOKSIZE = 14;
 #else
 static const int JMPHOOKSIZE = 5;
-#endif
-
-
-#ifndef _WIN32
-namespace std
-{
-    template<typename T, typename... Args>
-    std::unique_ptr<T> make_unique(Args&&... args) {
-        return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-    }
-}
 #endif
 
 
@@ -101,7 +91,7 @@ public:
         }
     }
 private:
-    std::map<uintptr_t**, std::unique_ptr<FakeVT>> m_fakeVTs;
+    std::unordered_map<uintptr_t**, std::unique_ptr<FakeVT>> m_fakeVTs;
 };
 
 
