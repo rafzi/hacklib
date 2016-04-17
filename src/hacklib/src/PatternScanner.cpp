@@ -2,6 +2,7 @@
 #include "hacklib/ExeFile.h"
 #include <algorithm>
 #include <unordered_map>
+#include <iterator>
 
 
 using namespace hl;
