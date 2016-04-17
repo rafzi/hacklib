@@ -22,7 +22,7 @@ Bigger examples are located in separate repositories:
 
 ### Main.h ###
 
-A helper / framework for implementing a DLL that runs by itself after it is loaded into the target process.
+A helper / framework for implementing a shared library that runs by itself after it is loaded into the target process.
 
 
 ```
@@ -44,9 +44,9 @@ hl::StaticInit<MyMain> g_main;
 
 ### WindowOverlay.h ###
 
-A high performance 3D-capable transparent overlay for Windows. Will follow a target window and always draw on top of it with the ability have transparency on the overlay. Can be rendered to with D3D. Requires the compositiing window manager introduced with Windows Vista (always active since Windows 8).
+A cross-platform high performance 3D-capable transparent overlay. Will follow a target window and always draw on top of it with the ability have transparency on the overlay. Can be rendered to with D3D on Windows and OpenGL on Linux. Requires the compositiing window manager introduced with Windows Vista (always active since Windows 8). The X Window System is required on Linux.
 
-For an example see Drawer.h section.
+For an example see Drawer.h section below.
 
 ### Drawer.h ###
 
@@ -88,19 +88,40 @@ Provides pattern scanning techniques like masked search strings or search by ref
 ```
 #!c++
 
-uintptr_t MapIdSig = hl::FindPattern("\00\x00\x08\x00\x89\x0d", "xxxxxx");
+uintptr_t MapIdSig = hl::FindPattern("00 ?? 08 00 89 0d");
 
 hl::PatternScanner scanner;
 auto results = scanner.find({
     "ViewAdvanceDevice",
     "ViewAdvanceAgentSelect",
-    "ViewAdvanceAgentView",
-    "ViewAdvanceWorldView",
-    "character->IsAlive() || (character->IsDowned() && character->IsInWater())"
+    "ViewAdvanceAgentView"
 });
 
 void *pAgentSelectionCtx = *(void**)(hl::FollowRelativeAddress(results[1] + 0xa) + 0x1);
 ```
+
+
+### Logging.h ###
+
+Convenient printf-like logging macros. Source information with file name, line number and function name are included in debug builds.
+
+```
+#!c++
+
+// The default configuration also logs to a file next to the library.
+hl::LogConfig logCfg;
+logCfg.logFunc = [](const std::string& msg){ std::cout << msg << std::flush; };
+hl::ConfigLog(logCfg);
+
+HL_LOG_DBG("This is only shown in debug builds. printf formatting: %i\n", 3);
+HL_LOG_ERR("This is always shown\n");
+HL_LOG_RAW("This will log just the given input without source information or time\n");
+```
+
+
+### Memory.h ###
+
+Various utilities for memory allocation, protection and mappings.
 
 
 ### Patch.h ###
@@ -118,11 +139,13 @@ p2.apply(0x00222222, "\x90\x90\x90", 3);
 
 ### Injector.h ###
 
-A way to forcibly get your shared library into the target process.
+A way to forcibly get your shared library into the target process. For a tool building on this functionality see the `ldr` project.
+
 
 ### ConsoleEx.h ###
 
 A high performance Windows console that accepts input and output simultaneously.
+
 
 ### D3DDeviceFetcher.h ###
 
@@ -173,6 +196,26 @@ class CPlayer
     IMPLMEMBER_REL(float, Hp, 0, Pos);
 };
 ```
+
+
+### CrashHandler.h ###
+
+A wrapper that catches system exceptions like memory access faults. The handlers should never be called in working programs, because C++ destructors are not called when a fault occurs.
+
+```
+#!c++
+
+hl::CrashHandler([]{
+    int crash = *(volatile int*)nullptr;
+}, [](uint32_t code){
+    printf("Crash prevented. code: %08X\n", code);
+});
+```
+
+
+### ExeFile.h ###
+
+An abstraction for PE or ELF executable images.
 
 
 ### Utility ###
@@ -235,7 +278,7 @@ Hacklib is written in modern C++ and requires a recent compiler like Visual Stud
 
 The project is using CMake and CMake 2.8.11.2 or newer is required to build.
 
-Graphics related components require the DirectX SDK June 2010 on Windows or X11, OpenGL libraries on Linux. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: libx11-dev, mesa-common-dev, libglu1-mesa-dev, libxrender-dev and libxfixes-dev.
+Graphics related components require the DirectX SDK June 2010 on Windows or X11, OpenGL libraries on Linux. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev`.
 
 ## How to build ##
 
@@ -247,14 +290,13 @@ Graphics related components require the DirectX SDK June 2010 on Windows or X11,
 ```
 #!cmake
 
-SET(PROJ_NAME YourProject)
-PROJECT(${PROJ_NAME})
+PROJECT(YourProject)
 
-ADD_LIBRARY(${PROJ_NAME} SHARED main.cpp)
+ADD_LIBRARY(${PROJECT_NAME} SHARED main.cpp)
 
-SET_TARGET_PROPERTIES(${PROJ_NAME} PROPERTIES FOLDER ${PROJ_NAME})
+SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES FOLDER ${PROJECT_NAME})
 
-TARGET_LINK_LIBRARIES(${PROJ_NAME} hacklib)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} hacklib)
 ```
 
 
