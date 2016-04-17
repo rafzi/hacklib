@@ -44,12 +44,12 @@ class StaticInitImpl
 {
 public:
     StaticInitImpl();
-    void mainThread();
+    [[noreturn]] void mainThread();
 protected:
     virtual std::unique_ptr<hl::Main> makeMain() const = 0;
 private:
     void runMainThread();
-    void unloadSelf();
+    [[noreturn]] void unloadSelf();
 protected:
     hl::Main *m_pMain = nullptr;
 };
