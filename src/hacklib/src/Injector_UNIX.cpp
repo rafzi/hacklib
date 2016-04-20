@@ -161,7 +161,7 @@ public:
         m_free += m_libc.base;
 
         hl::ExeFile libdl;
-        if (!libc.loadFromFile(m_libdl.name))
+        if (!libdl.loadFromFile(m_libdl.name))
         {
             writeErr("Fatal: Could not load libdl ELF file\n");
             return false;
