@@ -412,17 +412,22 @@ std::vector<int> hl::GetPIDsByProcName(const std::string& pname)
                 fileName += "/cmdline";
                 std::ifstream file(fileName);
                 std::string processName;
-                std::getline(file, processName, '\0');
+                std::getline(file, processName);
 
-                // Remove first space to get name without arguments.
-                // Some processes have arguments in the first cmdline argument.
-                auto space = processName.find_first_of(' ');
-                if (space != std::string::npos)
+                // This code assumes that the process command line in /proc/pid/cmdline was
+                // not edited or set in weird ways. It is impossible to disambiguate something like:
+                // /space path/executable with space -argWithSlash/ -argumentBeforeNull\0-otherArg
+
+                // Discard everything but the first argument (being the executable path).
+                auto firstArgEnd = processName.find_first_of("\0\n", 0, 2);
+                if (firstArgEnd != std::string::npos)
                 {
-                    processName = processName.substr(0, space);
+                    processName = processName.substr(0, firstArgEnd);
                 }
 
-                // Remove last slash to get name without path.
+                // Remove everything up to the last slash to get the name without path.
+                // This assumes that there is no slash in the arguments, if the arguments
+                // are in the first command line argument.
                 auto slash = processName.find_last_of('/');
                 if (slash != std::string::npos)
                 {
