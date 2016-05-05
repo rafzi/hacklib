@@ -28,10 +28,16 @@ int main(int argc, char *argv[])
     }
 
 #ifdef WIN32
-    LoadLibrary("hl_test_hostd.dll");
+    auto result = (void*)LoadLibrary("hl_test_hostd.dll");
 #else
-    dlopen("./libhl_test_hostd.so", RTLD_NOW | RTLD_LOCAL);
+    auto result = dlopen("./libhl_test_hostd.so", RTLD_NOW | RTLD_LOCAL);
 #endif
+
+    if (result == NULL)
+    {
+        printf("Failed to load hl_test_host shared library\n");
+        return 1;
+    }
 
     std::cin.ignore();
 }
