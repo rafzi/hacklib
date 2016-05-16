@@ -151,9 +151,10 @@ public:
 class DetourHook : public IHook
 {
 public:
-    DetourHook(uintptr_t location, int offset) :
+    DetourHook(uintptr_t location, int offset, Hooker::HookCallback_t cbHook) :
         location(location),
         offset(offset),
+        cbHook(cbHook),
         wrapperCode(0x1000, 0xcc)
     {
     }
@@ -493,9 +494,7 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
     if (!location || nextInstructionOffset < JMPHOOKSIZE || !cbHook)
         return nullptr;
 
-    auto pHook = std::make_unique<DetourHook>(location, nextInstructionOffset);
-
-    pHook->cbHook = cbHook;
+    auto pHook = std::make_unique<DetourHook>(location, nextInstructionOffset, cbHook);
 
 #ifdef ARCH_64BIT
     GenWrapper_x86_64(pHook.get());
