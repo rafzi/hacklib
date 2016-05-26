@@ -9,6 +9,8 @@ SET(FILES_CPP
     src/WindowOverlay.cpp
     src/Logging.cpp
     src/ExeFile.cpp
+    src/IDrawer.cpp
+    src/DrawerOpenGL.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
@@ -27,13 +29,14 @@ SET(FILES_H
     include/hacklib/Logging.h
     include/hacklib/CrashHandler.h
     include/hacklib/Memory.h
+    include/hacklib/IDrawer.h
+    include/hacklib/DrawerOpenGL.h
     )
 
 IF(WIN32)
     SET(FILES_CPP ${FILES_CPP}
         src/MessageBox_WIN32.cpp
         src/D3DDeviceFetcher.cpp
-        src/Drawer.cpp
         src/ConsoleEx.cpp
         src/Hooker_VEH.cpp
         src/Injector_WIN32.cpp
@@ -44,14 +47,15 @@ IF(WIN32)
         src/Main_WIN32.cpp
         src/CrashHandler_WIN32.cpp
         src/Memory_WIN32.cpp
+        src/DrawerD3D.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
-        include/hacklib/Drawer.h
         include/hacklib/GfxOverlay.h
         include/hacklib/WindowOverlay.h
         include/hacklib/ConsoleEx.h
         include/hacklib/Input.h
+        include/hacklib/DrawerD3D.h
         )
 ELSEIF(UNIX)
     SET(FILES_CPP ${FILES_CPP}

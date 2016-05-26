@@ -7,7 +7,7 @@
 #include <thread>
 
 
-void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
+[[noreturn]] void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), [[noreturn]] void(*adr_pthread_exit)(void*))
 {
     // This can not be executed from inside the module.
     // Don't generate any code that uses relative addressing to the IP.
@@ -29,11 +29,6 @@ void hl::StaticInitImpl::unloadSelf()
     // Get own module handle by path name. The dlclose just restores the refcount.
     auto modName = hl::GetCurrentModulePath();
     auto hModule = dlopen(modName.c_str(), RTLD_NOW | RTLD_LOCAL);
-    if (!hModule)
-    {
-        hl::MsgBox("Hacklib error in unloadSelf", "Could not get the own module handle.");
-        return;
-    }
     dlclose(hModule);
 
     /*

@@ -42,7 +42,7 @@ public:
 template <typename T>
 class data_page_allocator : public page_allocator<T, hl::PROTECTION_READ_WRITE>
 {
-    using page_allocator::page_allocator;
+    using page_allocator<T, hl::PROTECTION_READ_WRITE>::page_allocator;
 };
 
 template <typename T>
@@ -51,7 +51,7 @@ using data_page_vector = std::vector<T, data_page_allocator<T>>;
 template <typename T>
 class code_page_allocator : public page_allocator<T, hl::PROTECTION_READ_WRITE_EXECUTE>
 {
-    using page_allocator::page_allocator;
+    using page_allocator<T, hl::PROTECTION_READ_WRITE_EXECUTE>::page_allocator;
 };
 
 typedef std::vector<unsigned char, code_page_allocator<unsigned char>> code_page_vector;
