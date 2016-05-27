@@ -31,6 +31,7 @@ SET(FILES_H
     include/hacklib/Memory.h
     include/hacklib/IDrawer.h
     include/hacklib/DrawerOpenGL.h
+    include/hacklib/Math.h
     )
 
 IF(WIN32)

@@ -2,25 +2,11 @@
 #define HACKLIB_IDRAWER_H
 
 #include "hacklib/Handles.h"
-#include "glm/glm.hpp"
+#include "hacklib/Math.h"
 
 
 namespace hl {
 
-
-class Vec3 : public glm::vec3
-{
-public:
-    using glm::vec3::vec3;
-
-    //operator D3DXVECTOR3() const
-};
-
-class Mat4x4 : public glm::mat4x4
-{
-public:
-    using glm::mat4x4::mat4x4;
-};
 
 // Represents an A8R8G8B8 color.
 class Color

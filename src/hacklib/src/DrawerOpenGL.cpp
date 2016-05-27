@@ -1,5 +1,8 @@
+#define _USE_MATH_DEFINES
+
 #include "hacklib/DrawerOpenGL.h"
 #include <GL/gl.h>
+#include <cmath>
 
 
 using namespace hl;
@@ -7,7 +10,7 @@ using namespace hl;
 
 void DrawerOpenGL::drawLine(float x1, float y1, float x2, float y2, hl::Color color) const
 {
-    glViewport(0, 0, m_width, m_height);
+    glViewport(0, 0, static_cast<GLsizei>(m_width), static_cast<GLsizei>(m_height));
 
     // orthographic projection
     glMatrixMode(GL_PROJECTION);

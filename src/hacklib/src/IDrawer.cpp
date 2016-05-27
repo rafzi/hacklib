@@ -78,20 +78,17 @@ float IDrawer::getHeight() const
 
 void IDrawer::project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::Mat4x4 *worldMatrix) const
 {
-    static hl::Mat4x4 worldMatrixLocal(1.0f);
-    hl::Mat4x4 modelMatrix;
-
+    hl::Mat4x4 modelMatrix = m_viewMatrix;
     if (worldMatrix)
     {
-        modelMatrix = m_viewMatrix * *worldMatrix;
-    }
-    else
-    {
-        modelMatrix = m_viewMatrix * worldMatrixLocal;
+        modelMatrix = modelMatrix * *worldMatrix;
     }
 
     glm::vec4 viewport(0.0f, 0.0f, m_width, m_height);
-    screenPos = glm::project(worldPos, m_viewMatrix, m_projMatrix, viewport);
+    screenPos = glm::project(worldPos, modelMatrix, m_projMatrix, viewport);
+
+    // Invert Y axis, because the drawer interface assumes a top to bottom (d3d-like) viewport.
+    screenPos[1] = m_height - screenPos[1];
 }
 
 bool IDrawer::isInfrontCam(const hl::Vec3& screenPos) const

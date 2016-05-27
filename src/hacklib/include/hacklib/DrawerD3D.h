@@ -40,7 +40,7 @@ struct VERTEX_3D_DIF { // transformable colorzed
 
 class Font
 {
-    friend class Drawer;
+    friend class DrawerD3D;
 public:
     Font(ID3DXFont *d3dobj) :
         m_pFont(d3dobj)
@@ -51,7 +51,7 @@ private:
 };
 class Texture
 {
-    friend class Drawer;
+    friend class DrawerD3D;
 public:
     Texture(IDirect3DTexture9 *d3dobj) :
         m_pTexture(d3dobj)
@@ -62,7 +62,7 @@ private:
 };
 class VertexBuffer
 {
-    friend class Drawer;
+    friend class DrawerD3D;
 public:
     VertexBuffer(DWORD format, IDirect3DVertexBuffer9 *d3dobj, unsigned int verts) :
         m_format(format),
@@ -77,7 +77,7 @@ private:
 };
 class IndexBuffer
 {
-    friend class Drawer;
+    friend class DrawerD3D;
 public:
     IndexBuffer(DWORD format, IDirect3DIndexBuffer9 *d3dobj, unsigned int indices) :
         m_format(format),
@@ -92,7 +92,7 @@ private:
 };
 class Sprite
 {
-    friend class Drawer;
+    friend class DrawerD3D;
 public:
     Sprite(ID3DXSprite *d3dobj) :
         m_pSprite(d3dobj)
@@ -118,41 +118,39 @@ public:
     void drawCircle(float mx, float my, float r, hl::Color color) const override;
     void drawCircleFilled(float mx, float my, float r, hl::Color color) const override;
 
-    const Font *AllocFont(std::string fontname, int size, bool bold = true);
-    void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const;
-    void DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const;
-    D3DXVECTOR2 TextInfo(const Font *pFont, std::string str) const;
-    void ReleaseFont(const Font *pFont);
+    const Font *allocFont(std::string fontname, int size, bool bold = true);
+    void drawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const;
+    void drawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const;
+    D3DXVECTOR2 textInfo(const Font *pFont, std::string str) const;
+    void releaseFont(const Font *pFont);
 
-    const Texture *AllocTexture(std::string filename);
-    const Texture *AllocTexture(const void *buffer, size_t size);
-    void DrawTexture(const Texture *pTexture, float x, float y, float w, float h) const;
-    void ReleaseTexture(const Texture *pTexture);
+    const Texture *allocTexture(std::string filename);
+    const Texture *allocTexture(const void *buffer, size_t size);
+    void drawTexture(const Texture *pTexture, float x, float y, float w, float h) const;
+    void releaseTexture(const Texture *pTexture);
 
     template <class T>
-    const VertexBuffer *AllocVertexBuffer(const std::vector<T> &vertices);
-    const IndexBuffer *AllocIndexBuffer(const std::vector<unsigned int> &indices);
+    const VertexBuffer *allocVertexBuffer(const std::vector<T> &vertices);
+    const IndexBuffer *allocIndexBuffer(const std::vector<unsigned int> &indices);
     // Draws a primitive. The IndexBuffer is optional. See d3d documentation for primitive types.
-    void DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix) const;
-    void DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix, D3DCOLOR color) const;
-    void ReleaseVertexBuffer(const VertexBuffer *pVertBuf);
-    void ReleaseIndexBuffer(const IndexBuffer *pIndBuf);
+    void drawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix) const;
+    void drawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix, D3DCOLOR color) const;
+    void releaseVertexBuffer(const VertexBuffer *pVertBuf);
+    void releaseIndexBuffer(const IndexBuffer *pIndBuf);
 
-    const Sprite *AllocSprite();
-    void ReleaseSprite(const Sprite *pSprite);
+    const Sprite *allocSprite();
+    void releaseSprite(const Sprite *pSprite);
 
 private:
     template <typename T, typename... Ts>
-    const T *Alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs);
+    const T *alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs);
     template <typename T>
-    void Release(std::vector<std::unique_ptr<T>>& container, const T *instance);
+    void release(std::vector<std::unique_ptr<T>>& container, const T *instance);
 
 protected:
     void updateDimensions() override;
 
 protected:
-    IDirect3DDevice9 *m_pDevice = nullptr;
-
     std::vector<std::unique_ptr<Font>> m_fonts;
     std::vector<std::unique_ptr<Texture>> m_textures;
     std::vector<std::unique_ptr<VertexBuffer>> m_vertexBuffers;
@@ -163,7 +161,7 @@ protected:
 
 
 template <typename T, typename... Ts>
-const T *DrawerD3D::Alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs)
+const T *DrawerD3D::alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs)
 {
     auto resource = std::make_unique<T>(std::forward<Ts>(vs)...);
 
@@ -174,7 +172,7 @@ const T *DrawerD3D::Alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs
 
 
 template <typename T>
-void DrawerD3D::Release(std::vector<std::unique_ptr<T>>& container, const T *instance)
+void DrawerD3D::release(std::vector<std::unique_ptr<T>>& container, const T *instance)
 {
     container.erase(std::remove_if(container.begin(), container.end(), [instance](const auto& uptr){
         return uptr.get() == instance;
@@ -183,10 +181,10 @@ void DrawerD3D::Release(std::vector<std::unique_ptr<T>>& container, const T *ins
 
 
 template <class T>
-const VertexBuffer *DrawerD3D::AllocVertexBuffer(const std::vector<T> &vertices)
+const VertexBuffer *DrawerD3D::allocVertexBuffer(const std::vector<T> &vertices)
 {
     IDirect3DVertexBuffer9 *pd3dVertexBuffer;
-    if (m_pDevice->CreateVertexBuffer(static_cast<UINT>(vertices.size()*sizeof(T)), 0, T::FVF, D3DPOOL_MANAGED, &pd3dVertexBuffer, NULL) != D3D_OK)
+    if (m_context->CreateVertexBuffer(static_cast<UINT>(vertices.size()*sizeof(T)), 0, T::FVF, D3DPOOL_MANAGED, &pd3dVertexBuffer, NULL) != D3D_OK)
         return nullptr;
 
     T *pData = nullptr;
@@ -194,7 +192,7 @@ const VertexBuffer *DrawerD3D::AllocVertexBuffer(const std::vector<T> &vertices)
     memcpy(pData, vertices.data(), vertices.size()*sizeof(T));
     pd3dVertexBuffer->Unlock();
 
-    return Alloc(m_vertexBuffers, T::FVF, pd3dVertexBuffer, static_cast<unsigned int>(vertices.size()));
+    return alloc(m_vertexBuffers, T::FVF, pd3dVertexBuffer, static_cast<unsigned int>(vertices.size()));
 }
 
 }

@@ -113,19 +113,19 @@ void DrawerD3D::onResetDevice()
 
 void DrawerD3D::drawLine(float x1, float y1, float x2, float y2, hl::Color color) const
 {
-    TempFVF fvf(m_pDevice, VERTEX_2D_DIF::FVF);
+    TempFVF fvf(m_context, VERTEX_2D_DIF::FVF);
 
     VERTEX_2D_DIF verts[] = {
         { x1, y1, 0, 1, color },
         { x2, y2, 0, 1, color }
     };
 
-    m_pDevice->DrawPrimitiveUP(D3DPT_LINELIST, 1, &verts, sizeof(VERTEX_2D_DIF));
+    m_context->DrawPrimitiveUP(D3DPT_LINELIST, 1, &verts, sizeof(VERTEX_2D_DIF));
 }
 
 void DrawerD3D::drawRect(float x, float y, float w, float h, hl::Color color) const
 {
-    TempFVF fvf(m_pDevice, VERTEX_2D_DIF::FVF);
+    TempFVF fvf(m_context, VERTEX_2D_DIF::FVF);
 
     VERTEX_2D_DIF verts[] = {
         { x, y, 0, 1, color },
@@ -135,12 +135,12 @@ void DrawerD3D::drawRect(float x, float y, float w, float h, hl::Color color) co
         { x, y, 0, 1, color }
     };
 
-    m_pDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, &verts, sizeof(VERTEX_2D_DIF));
+    m_context->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, &verts, sizeof(VERTEX_2D_DIF));
 }
 
 void DrawerD3D::drawRectFilled(float x, float y, float w, float h, hl::Color color) const
 {
-    TempFVF fvf(m_pDevice, VERTEX_2D_DIF::FVF);
+    TempFVF fvf(m_context, VERTEX_2D_DIF::FVF);
 
     VERTEX_2D_DIF verts[] = {
         { x, y+h, 0, 1, color },
@@ -149,12 +149,12 @@ void DrawerD3D::drawRectFilled(float x, float y, float w, float h, hl::Color col
         { x+w, y, 0, 1, color }
     };
 
-    m_pDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, sizeof(VERTEX_2D_DIF));
+    m_context->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, sizeof(VERTEX_2D_DIF));
 }
 
 void DrawerD3D::drawCircle(float mx, float my, float r, hl::Color color) const
 {
-    TempFVF fvf(m_pDevice, VERTEX_2D_DIF::FVF);
+    TempFVF fvf(m_context, VERTEX_2D_DIF::FVF);
 
     VERTEX_2D_DIF verts[CIRCLE_RESOLUTION+1];
 
@@ -167,12 +167,12 @@ void DrawerD3D::drawCircle(float mx, float my, float r, hl::Color color) const
         verts[i].color = color;
     }
 
-    m_pDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, CIRCLE_RESOLUTION, &verts, sizeof(VERTEX_2D_DIF));
+    m_context->DrawPrimitiveUP(D3DPT_LINESTRIP, CIRCLE_RESOLUTION, &verts, sizeof(VERTEX_2D_DIF));
 }
 
 void DrawerD3D::drawCircleFilled(float mx, float my, float r, hl::Color color) const
 {
-    TempFVF fvf(m_pDevice, VERTEX_2D_DIF::FVF);
+    TempFVF fvf(m_context, VERTEX_2D_DIF::FVF);
 
     VERTEX_2D_DIF verts[CIRCLE_RESOLUTION+1];
 
@@ -185,20 +185,20 @@ void DrawerD3D::drawCircleFilled(float mx, float my, float r, hl::Color color) c
         verts[i].color = color;
     }
 
-    m_pDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, CIRCLE_RESOLUTION-1, &verts, sizeof(VERTEX_2D_DIF));
+    m_context->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, CIRCLE_RESOLUTION-1, &verts, sizeof(VERTEX_2D_DIF));
 }
 
 
-const Font *DrawerD3D::AllocFont(std::string fontname, int size, bool bold)
+const Font *DrawerD3D::allocFont(std::string fontname, int size, bool bold)
 {
     ID3DXFont *pFont;
-    if (D3DXCreateFont(m_pDevice, size, 0, (bold ? FW_BOLD : FW_NORMAL), 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH|FF_DONTCARE, fontname.c_str(), &pFont) != D3D_OK)
+    if (D3DXCreateFont(m_context, size, 0, (bold ? FW_BOLD : FW_NORMAL), 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH|FF_DONTCARE, fontname.c_str(), &pFont) != D3D_OK)
         return nullptr;
 
-    return Alloc(m_fonts, pFont);
+    return alloc(m_fonts, pFont);
 }
 
-void DrawerD3D::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const
+void DrawerD3D::drawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const
 {
     va_list valist_copy;
     va_copy(valist_copy, valist);
@@ -218,15 +218,15 @@ void DrawerD3D::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, st
     va_end(valist_copy);
 }
 
-void DrawerD3D::DrawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const
+void DrawerD3D::drawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, ...) const
 {
     va_list vl;
     va_start(vl, format);
-    DrawFont(pFont, x, y, color, format, vl);
+    drawFont(pFont, x, y, color, format, vl);
     va_end(vl);
 }
 
-D3DXVECTOR2 DrawerD3D::TextInfo(const Font *pFont, std::string str) const {
+D3DXVECTOR2 DrawerD3D::textInfo(const Font *pFont, std::string str) const {
     D3DXVECTOR2 ret = { 0, 0 };
     RECT rect = { 0, 0, 0, 0 };
     pFont->m_pFont->DrawText(NULL, str.c_str(), -1, &rect, DT_CALCRECT, 0);
@@ -235,33 +235,33 @@ D3DXVECTOR2 DrawerD3D::TextInfo(const Font *pFont, std::string str) const {
     return ret;
 }
 
-void DrawerD3D::ReleaseFont(const Font *pFont)
+void DrawerD3D::releaseFont(const Font *pFont)
 {
-    Release(m_fonts, pFont);
+    release(m_fonts, pFont);
 }
 
 
-const Texture *DrawerD3D::AllocTexture(std::string filename)
+const Texture *DrawerD3D::allocTexture(std::string filename)
 {
     IDirect3DTexture9 *pTexture;
-    if (D3DXCreateTextureFromFile(m_pDevice, filename.c_str(), &pTexture) != D3D_OK)
+    if (D3DXCreateTextureFromFile(m_context, filename.c_str(), &pTexture) != D3D_OK)
         return nullptr;
 
-    return Alloc(m_textures, pTexture);
+    return alloc(m_textures, pTexture);
 }
 
-const Texture *DrawerD3D::AllocTexture(const void *buffer, size_t size)
+const Texture *DrawerD3D::allocTexture(const void *buffer, size_t size)
 {
     IDirect3DTexture9 *pTexture;
-    if (D3DXCreateTextureFromFileInMemory(m_pDevice, buffer, (UINT)size, &pTexture) != D3D_OK)
+    if (D3DXCreateTextureFromFileInMemory(m_context, buffer, (UINT)size, &pTexture) != D3D_OK)
         return nullptr;
 
-    return Alloc(m_textures, pTexture);
+    return alloc(m_textures, pTexture);
 }
 
-void DrawerD3D::DrawTexture(const Texture *pTexture, float x, float y, float w, float h) const
+void DrawerD3D::drawTexture(const Texture *pTexture, float x, float y, float w, float h) const
 {
-    TempFVF fvf(m_pDevice, VERTEX_2D_TEX::FVF);
+    TempFVF fvf(m_context, VERTEX_2D_TEX::FVF);
 
     VERTEX_2D_TEX verts[] = {
         { x, y+h, 0, 1, 0, 1 },
@@ -271,24 +271,24 @@ void DrawerD3D::DrawTexture(const Texture *pTexture, float x, float y, float w, 
     };
 
     IDirect3DBaseTexture9 *oldTexture;
-    m_pDevice->GetTexture(0, &oldTexture);
-    m_pDevice->SetTexture(0, pTexture->m_pTexture);
-    m_pDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, sizeof(VERTEX_2D_TEX));
-    m_pDevice->SetTexture(0, oldTexture);
+    m_context->GetTexture(0, &oldTexture);
+    m_context->SetTexture(0, pTexture->m_pTexture);
+    m_context->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, sizeof(VERTEX_2D_TEX));
+    m_context->SetTexture(0, oldTexture);
 }
 
-void DrawerD3D::ReleaseTexture(const Texture *pTexture)
+void DrawerD3D::releaseTexture(const Texture *pTexture)
 {
-    Release(m_textures, pTexture);
+    release(m_textures, pTexture);
 }
 
 
-const IndexBuffer *DrawerD3D::AllocIndexBuffer(const std::vector<unsigned int> &indices)
+const IndexBuffer *DrawerD3D::allocIndexBuffer(const std::vector<unsigned int> &indices)
 {
     bool is4byte = indices.size() > USHRT_MAX;
 
     IDirect3DIndexBuffer9 *pd3dIndexBuffer;
-    if (m_pDevice->CreateIndexBuffer(static_cast<UINT>(indices.size()*(is4byte ? sizeof(unsigned int) : sizeof(unsigned short))), 0, is4byte ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_MANAGED, &pd3dIndexBuffer, NULL) != D3D_OK)
+    if (m_context->CreateIndexBuffer(static_cast<UINT>(indices.size()*(is4byte ? sizeof(unsigned int) : sizeof(unsigned short))), 0, is4byte ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_MANAGED, &pd3dIndexBuffer, NULL) != D3D_OK)
         return nullptr;
 
     if (is4byte) {
@@ -304,12 +304,12 @@ const IndexBuffer *DrawerD3D::AllocIndexBuffer(const std::vector<unsigned int> &
         pd3dIndexBuffer->Unlock();
     }
 
-    return Alloc(m_indexBuffers, is4byte ? D3DFMT_INDEX32 : D3DFMT_INDEX16, pd3dIndexBuffer, static_cast<unsigned int>(indices.size()));
+    return alloc(m_indexBuffers, is4byte ? D3DFMT_INDEX32 : D3DFMT_INDEX16, pd3dIndexBuffer, static_cast<unsigned int>(indices.size()));
 }
 
-void DrawerD3D::DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix) const
+void DrawerD3D::drawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix) const
 {
-    TempFVF fvf(m_pDevice, pVertBuf->m_format);
+    TempFVF fvf(m_context, pVertBuf->m_format);
 
     unsigned int vertexSize = 0;
     switch (pVertBuf->m_format) {
@@ -333,47 +333,47 @@ void DrawerD3D::DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *p
     }
 
 
-    m_pDevice->SetTransform(D3DTS_WORLD, &worldMatrix);
-    m_pDevice->SetTransform(D3DTS_VIEW, &m_viewMatrix);
-    m_pDevice->SetTransform(D3DTS_PROJECTION, &m_projMatrix);
-    m_pDevice->SetStreamSource(0, pVertBuf->m_pVertexBuffer, 0, vertexSize);
+    m_context->SetTransform(D3DTS_WORLD, &worldMatrix);
+    m_context->SetTransform(D3DTS_VIEW, reinterpret_cast<const D3DXMATRIX*>(&m_viewMatrix));
+    m_context->SetTransform(D3DTS_PROJECTION, reinterpret_cast<const D3DXMATRIX*>(&m_projMatrix));
+    m_context->SetStreamSource(0, pVertBuf->m_pVertexBuffer, 0, vertexSize);
     if (pIndBuf) {
-        m_pDevice->SetIndices(pIndBuf->m_pIndexBuffer);
-        m_pDevice->DrawIndexedPrimitive(type, 0, 0, pVertBuf->m_numVertices, 0, numPrimitives);
+        m_context->SetIndices(pIndBuf->m_pIndexBuffer);
+        m_context->DrawIndexedPrimitive(type, 0, 0, pVertBuf->m_numVertices, 0, numPrimitives);
     } else {
-        m_pDevice->DrawPrimitive(type, 0, numPrimitives);
+        m_context->DrawPrimitive(type, 0, numPrimitives);
     }
 }
 
-void DrawerD3D::DrawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix, D3DCOLOR color) const
+void DrawerD3D::drawPrimitive(const VertexBuffer *pVertBuf, const IndexBuffer *pIndBuf, D3DPRIMITIVETYPE type, const D3DXMATRIX &worldMatrix, D3DCOLOR color) const
 {
-    TempColor col(m_pDevice, color);
-    DrawPrimitive(pVertBuf, pIndBuf, type, worldMatrix);
+    TempColor col(m_context, color);
+    drawPrimitive(pVertBuf, pIndBuf, type, worldMatrix);
 }
 
-void DrawerD3D::ReleaseVertexBuffer(const VertexBuffer *pVertBuf)
+void DrawerD3D::releaseVertexBuffer(const VertexBuffer *pVertBuf)
 {
-    Release(m_vertexBuffers, pVertBuf);
+    release(m_vertexBuffers, pVertBuf);
 }
 
-void DrawerD3D::ReleaseIndexBuffer(const IndexBuffer *pIndBuf)
+void DrawerD3D::releaseIndexBuffer(const IndexBuffer *pIndBuf)
 {
-    Release(m_indexBuffers, pIndBuf);
+    release(m_indexBuffers, pIndBuf);
 }
 
 
-const Sprite *DrawerD3D::AllocSprite()
+const Sprite *DrawerD3D::allocSprite()
 {
     ID3DXSprite *pSprite;
-    if (D3DXCreateSprite(m_pDevice, &pSprite) != D3D_OK)
+    if (D3DXCreateSprite(m_context, &pSprite) != D3D_OK)
         return nullptr;
 
-    return Alloc(m_sprites, pSprite);
+    return alloc(m_sprites, pSprite);
 }
 
-void DrawerD3D::ReleaseSprite(const Sprite *pSprite)
+void DrawerD3D::releaseSprite(const Sprite *pSprite)
 {
-    Release(m_sprites, pSprite);
+    release(m_sprites, pSprite);
 }
 
 
