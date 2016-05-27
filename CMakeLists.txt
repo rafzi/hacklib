@@ -45,7 +45,7 @@ IF(WIN32)
     ADD_DEFINITIONS(-D_SCL_SECURE_NO_WARNINGS)  # microsofts useless warnings
     ADD_DEFINITIONS(-DNOMINMAX)  # microsofts wonderful macros for min and max
 ELSEIF(UNIX)
-    ADD_DEFINITIONS(-std=c++11)
+    ADD_DEFINITIONS(-std=c++14)
     SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
     SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D_DEBUG")
 ENDIF()
