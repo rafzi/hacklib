@@ -171,7 +171,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
                     {
                         // Prevent false poritives by checking if the reference occurs in a LEA instruction.
                         uint16_t opcode = *(uint16_t*)(adr - 3);
-                        if (opcode == 0x8D48) {
+                        if (opcode == 0x8D48 || opcode == 0x8D4C) {
                             results[i] = adr;
                             stringsFound++;
                             break;
