@@ -175,7 +175,7 @@ namespace glm
         // HACKLIB PATCH BEGIN
         // This is mainly for backwards compatibility of hacklib code. Might be removed in the future.
         #ifdef _WIN32
-            tvec3(const D3DXVECTOR3& v) : glm::tvec3(v.x, v.y, v.z) { }
+            tvec3(const D3DXVECTOR3& v) : glm::tvec3<T, P>(v.x, v.y, v.z) { }
 
             operator D3DXVECTOR3() const
             {
