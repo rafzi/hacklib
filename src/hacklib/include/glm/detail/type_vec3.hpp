@@ -8,14 +8,14 @@
 /// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 /// copies of the Software, and to permit persons to whom the Software is
 /// furnished to do so, subject to the following conditions:
-/// 
+///
 /// The above copyright notice and this permission notice shall be included in
 /// all copies or substantial portions of the Software.
-/// 
+///
 /// Restrictions:
 ///		By making use of the Software for military purposes, you choose to make
 ///		a Bunny unhappy.
-/// 
+///
 /// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 /// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 /// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -171,6 +171,18 @@ namespace glm
 				*this = tvec3<T, P>(scalar, v());
 			}
 #		endif// GLM_HAS_ANONYMOUS_UNION && defined(GLM_SWIZZLE)
+
+        // HACKLIB PATCH BEGIN
+        // This is mainly for backwards compatibility of hacklib code. Might be removed in the future.
+        #ifdef _WIN32
+            tvec3(const D3DXVECTOR3& v) : glm::tvec3(v.x, v.y, v.z) { }
+
+            operator D3DXVECTOR3() const
+            {
+                return *reinterpret_cast<const D3DXVECTOR3*>(this);
+            }
+        #endif
+        // HACKLIB PATCH END
 
 		// -- Unary arithmetic operators --
 
@@ -410,7 +422,7 @@ namespace glm
 	template <typename T, precision P>
 	GLM_FUNC_DECL tvec3<T, P> operator>>(tvec3<T, P> const & v1, tvec3<T, P> const & v2);
 
-	template <typename T, precision P> 
+	template <typename T, precision P>
 	GLM_FUNC_DECL tvec3<T, P> operator~(tvec3<T, P> const & v);
 
 	// -- Boolean operators --

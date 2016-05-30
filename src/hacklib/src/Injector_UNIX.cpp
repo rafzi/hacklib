@@ -105,7 +105,6 @@ public:
         else
         {
             bool isTarget64 = regSet.iov_len != 17*sizeof(uint32_t);
-            writeErr(std::to_string(regSet.iov_len) + "\n");
 #ifdef ARCH_64BIT
             if (!isTarget64)
             {

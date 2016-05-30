@@ -10,15 +10,11 @@ using namespace hl;
 
 void DrawerOpenGL::drawLine(float x1, float y1, float x2, float y2, hl::Color color) const
 {
-    glViewport(0, 0, static_cast<GLsizei>(m_width), static_cast<GLsizei>(m_height));
-
-    // orthographic projection
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0, m_width, m_height, 0, -1, 1);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-
 
     glLineWidth(1.0);
     color.glSet();
@@ -30,6 +26,12 @@ void DrawerOpenGL::drawLine(float x1, float y1, float x2, float y2, hl::Color co
 
 void DrawerOpenGL::drawRect(float x, float y, float w, float h, hl::Color color) const
 {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, m_width, m_height, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity(););
+
     glBegin(GL_LINE_LOOP);
     color.glSet();
     glVertex2f(x, y);
@@ -41,6 +43,12 @@ void DrawerOpenGL::drawRect(float x, float y, float w, float h, hl::Color color)
 
 void DrawerOpenGL::drawRectFilled(float x, float y, float w, float h, hl::Color color) const
 {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, m_width, m_height, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
     glBegin(GL_QUADS);
     color.glSet();
     glVertex2f(x, y);
@@ -52,6 +60,12 @@ void DrawerOpenGL::drawRectFilled(float x, float y, float w, float h, hl::Color 
 
 void DrawerOpenGL::drawCircle(float mx, float my, float r, hl::Color color) const
 {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, m_width, m_height, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
     glBegin(GL_LINE_LOOP);
     color.glSet();
     for (int i = 0; i < CIRCLE_RESOLUTION; i++)
@@ -66,6 +80,12 @@ void DrawerOpenGL::drawCircle(float mx, float my, float r, hl::Color color) cons
 
 void DrawerOpenGL::drawCircleFilled(float mx, float my, float r, hl::Color color) const
 {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, m_width, m_height, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
     glBegin(GL_TRIANGLE_FAN);
     color.glSet();
     for (int i = 0; i < CIRCLE_RESOLUTION+1; i++)
