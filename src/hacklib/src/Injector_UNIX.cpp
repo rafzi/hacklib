@@ -5,9 +5,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/user.h>
+#include <sys/uio.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <dlfcn.h>
+#include <elf.h>
 #include <limits.h>
 #include <string.h>
 #include <fstream>
@@ -90,6 +92,34 @@ public:
 
         if (!wait())
             return false;
+
+        // Verify matching bitness of injector and target.
+        char regsBuffer[256]; // x86_64 GPRs should be 27*sizeof(uint64_t)=216 bytes.
+        struct iovec regSet;
+        regSet.iov_base = &regsBuffer;
+        regSet.iov_len = sizeof(regsBuffer);
+        if (ptrace(PTRACE_GETREGSET, m_pid, NT_PRSTATUS, &regSet) < 0)
+        {
+            writeErr("Warning: Could not determine bitness of target process\n");
+        }
+        else
+        {
+            bool isTarget64 = regSet.iov_len != 17*sizeof(uint32_t);
+#ifdef ARCH_64BIT
+            if (!isTarget64)
+            {
+                writeErr("Fatal: Can not inject into 32-bit process from 64-bit injector\n");
+                return false;
+            }
+#else
+            if (isTarget64)
+            {
+                writeErr("Fatal: Can not inject into 64-bit process from 32-bit injector\n");
+                return false;
+            }
+#endif
+        }
+
         if (!getRegs())
             return false;
 

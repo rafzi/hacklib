@@ -61,8 +61,21 @@ GLXFBConfig GfxOverlayImpl::getFBConfig(int depthBits) const
 
 bool GfxOverlay::IsCompositionEnabled()
 {
-    // Should be true for almost any linux system.
-    return true;
+    XInitThreads();
+    auto display = XOpenDisplay(NULL);
+    if (!display)
+    {
+        throw std::runtime_error("Could not connect to X Server");
+    }
+
+    int screen = DefaultScreen(display);
+    auto atomName = "_NET_WM_CM_S" + std::to_string(screen);
+
+    auto atom = XInternAtom(display, atomName.c_str(), False);
+    bool enabled = XGetSelectionOwner(display, atom) != None;
+
+    XCloseDisplay(display);
+    return enabled;
 }
 
 
