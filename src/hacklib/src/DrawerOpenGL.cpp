@@ -30,7 +30,7 @@ void DrawerOpenGL::drawRect(float x, float y, float w, float h, hl::Color color)
     glLoadIdentity();
     glOrtho(0, m_width, m_height, 0, -1, 1);
     glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity(););
+    glLoadIdentity();
 
     glBegin(GL_LINE_LOOP);
     color.glSet();
