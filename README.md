@@ -1,8 +1,8 @@
 # Hacklib #
 
-Hacklib is a C++ library for building applications that run as a shared library in another application. It provides general purpose functionality like pattern scanning, hooking and laying out foreign classes. Additionally it contains some D3D drawing facilities and a high performance 3D-capable transparent overlay.
+Hacklib is a C++ library for building applications that run as a shared library in another application. It provides general purpose functionality like pattern scanning, hooking and laying out foreign classes. Additionally it contains some D3D and OpenGL drawing facilities and a cross-platform, high-performance, 3D-capable, transparent overlay.
 
-Every component in this project can target 32-bit x86 Windows and most of it targets 64-bit x86_64 Windows aswell. Some stuff should work on every platform that has a modern C++ compiler.
+Every component in this project can target 32-bit x86 Windows and most of it targets 64-bit x86_64 Windows as well. Some stuff should work on every platform that has a modern C++ compiler.
 
 ## Example projects ##
 
@@ -14,7 +14,7 @@ This repository contains a couple simple examples already:
 
 Bigger examples are located in separate repositories:
 
-* [hacklib_csgo](https://bitbucket.org/rafzi/hacklib_csgo): A minimal example for a real-world target Counter-Strike: Global Offensive.
+* [hacklib_csgo](https://bitbucket.org/rafzi/hacklib_csgo): A minimal example for a real-world target Counter-Strike: Global Offensive. (Cross-platform)
 * [hacklib_gw2](https://bitbucket.org/rafzi/hacklib_gw2): Graphical information gathering tool for Guild Wars 2.
 * [hacklib_bf](https://bitbucket.org/rafzi/hacklib_bf): A game hack for the Battlefield series.
 
@@ -44,31 +44,31 @@ hl::StaticInit<MyMain> g_main;
 
 ### WindowOverlay.h ###
 
-A cross-platform high performance 3D-capable transparent overlay. Will follow a target window and always draw on top of it with the ability have transparency on the overlay. Can be rendered to with D3D on Windows and OpenGL on Linux. Requires the compositiing window manager introduced with Windows Vista (always active since Windows 8). The X Window System is required on Linux.
+A cross-platform high performance 3D-capable transparent overlay. Will follow a target window and always draw on top of it with the ability have transparency on the overlay. Can be rendered to with D3D on Windows and OpenGL on Linux. Requires the compositing window manager introduced with Windows Vista (always active since Windows 8). The X Window System is required on Linux.
 
 For an example see Drawer.h section below.
 
-### Drawer.h ###
+### IDrawer.h / DrawerD3D.h / DrawerOpenGL.h ###
 
-Wrapper for drawing with D3D in a resource-safe C++ way.
+Wrapper for drawing with D3D or OpenGL in a resource-safe C++ way.
 
 
 ```
 #!c++
 
-hl::Drawer drawer;
+hl::DrawerD3D drawer;
 hl::WindowOverlay overlay;
 
 if (overlay.create() != hl::WindowOverlay::Error::Okay)
     return false;
 
-overlay.registerResetHandlers([&]{ drawer.OnLostDevice(); }, [&]{ drawer.OnResetDevice(); });
-drawer.SetDevice(overlay.getContext());
+overlay.registerResetHandlers([&]{ drawer.onLostDevice(); }, [&]{ drawer.onResetDevice(); });
+drawer.setContext(overlay.getContext());
 
 while (true)
 {
     overlay.beginDraw();
-    drawer.DrawCircle(100, 100, 30, 0xaacc6633);
+    drawer.drawCircle(100, 100, 30, hl::Color(150, 255, 100, 50));
     overlay.swapBuffers();
 }
 ```
@@ -177,7 +177,7 @@ obj.set(0x70, value+7);
 
 ### ImplementMember.h ###
 
-Macros for declaring a foreign class statically in a type-safe, const-safe and simply conventient manner.
+Macros for declaring a foreign class statically in a type-safe, const-safe and simply convenient manner.
 
 
 ```
@@ -274,9 +274,9 @@ while (true)
 
 ## Dependencies ##
 
-Hacklib is written in modern C++ and requires a recent compiler like Visual Studio 2013, GCC 4.8 or Clang 3.3 with C++11 support enabled.
+Hacklib is written in modern C++ and requires a recent compiler like Visual Studio 2015, GCC 4.8 or Clang 3.3 with C++14 support enabled. Use the ``vs2013`` tag for an outdated version that works for Visual Studio 2013.
 
-The project is using CMake and CMake 2.8.11.2 or newer is required to build.
+The project is using CMake and version 2.8.11.2 or newer is required to build.
 
 Graphics related components require the DirectX SDK June 2010 on Windows or X11, OpenGL libraries on Linux. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev`.
 
