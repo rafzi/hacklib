@@ -44,6 +44,18 @@ public:
             (T(__thiscall*)(void*, Ts...))
             (*(uintptr_t*)((*(uintptr_t*)m_ptr) + offset)))(m_ptr, args...);
     }
+    
+    /**
+     * Creates a new ForeignClass that is offset from the current class
+     *
+     * \param offset The offset into the current class
+     * \return A new ForeignClass instance
+     */
+    ForeignClass operator+(uintptr_t offset) {
+        uintptr_t ptr = (uintptr_t)m_ptr;
+        ForeignClass newCls = (void*)(ptr + offset);
+        return newCls;
+    }
 
     explicit operator bool() const
     {
