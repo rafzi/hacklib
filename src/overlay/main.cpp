@@ -1,4 +1,5 @@
 #include "hacklib/WindowOverlay.h"
+#include "hacklib/DrawerOpenGL.h"
 #include <GL/gl.h>
 #include <iostream>
 #include <cstdio>
@@ -20,10 +21,15 @@ int main()
         return 1;
     }
 
+    hl::DrawerOpenGL drawer;
+    drawer.setContext(overlay.getContext());
+
     auto renderLoop = [&]{
         while (running)
         {
             overlay.beginDraw();
+
+            drawer.update(hl::Mat4x4(), hl::Mat4x4());
 
             glViewport(0, 0, overlay.getWidth(), overlay.getHeight());
 
@@ -55,6 +61,12 @@ int main()
             glVertex2f(200, 0);
             glEnd();
             glPopMatrix();
+
+            drawer.drawLine(50, 50, 200, 100, hl::Color(255, 255, 255));
+            drawer.drawRectFilled(50, 50, 300, 50, hl::Color(100, 0, 0, 200));
+            drawer.drawRect(60, 60, 280, 30, hl::Color(100, 255, 0, 0));
+            drawer.drawCircle(80, 80, 30, hl::Color(150, 0, 255, 0));
+            drawer.drawCircleFilled(90, 90, 30, hl::Color(150, 0, 255, 255));
 
             overlay.swapBuffers();
         }

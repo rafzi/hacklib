@@ -1,6 +1,5 @@
 #include "hacklib/Hooker.h"
 #include "hacklib/PageAllocator.h"
-#include "hacklib/make_unique.h"
 #include <algorithm>
 #include <mutex>
 #include <unordered_map>
@@ -151,9 +150,10 @@ public:
 class DetourHook : public IHook
 {
 public:
-    DetourHook(uintptr_t location, int offset) :
+    DetourHook(uintptr_t location, int offset, Hooker::HookCallback_t cbHook) :
         location(location),
         offset(offset),
+        cbHook(cbHook),
         wrapperCode(0x1000, 0xcc)
     {
     }
@@ -493,9 +493,7 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
     if (!location || nextInstructionOffset < JMPHOOKSIZE || !cbHook)
         return nullptr;
 
-    auto pHook = std::make_unique<DetourHook>(location, nextInstructionOffset);
-
-    pHook->cbHook = cbHook;
+    auto pHook = std::make_unique<DetourHook>(location, nextInstructionOffset, cbHook);
 
 #ifdef ARCH_64BIT
     GenWrapper_x86_64(pHook.get());
@@ -518,7 +516,7 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
 
 void Hooker::unhook(const IHook *pHook)
 {
-    auto cond = [&](const std::unique_ptr<IHook>& uptr) {
+    auto cond = [pHook](const auto& uptr) {
         return uptr.get() == pHook;
     };
 
