@@ -97,6 +97,27 @@ inline bool operator!=(nullptr_t, const ForeignClass& rhs)
 }
 
 
+inline ForeignClass operator+(const ForeignClass& base, uintptr_t offset)
+{
+    return (void*)((uintptr_t)base.data() + offset);
+}
+
+inline ForeignClass operator+(uintptr_t offset, const ForeignClass& base)
+{
+    return base + offset;
+}
+
+inline ForeignClass operator-(const ForeignClass& base, uintptr_t offset)
+{
+    return (void*)((uintptr_t)base.data() - offset);
+}
+
+inline ForeignClass operator-(uintptr_t offset, const ForeignClass& base)
+{
+    return base - offset;
+}
+
+
 }
 
 #endif
