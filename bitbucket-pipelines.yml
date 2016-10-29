@@ -11,5 +11,3 @@ pipelines:
           - cd build
           - cmake ..
           - make
-          - cd ../bin64
-          - ./hl_test
