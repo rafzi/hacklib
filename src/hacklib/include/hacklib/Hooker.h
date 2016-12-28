@@ -83,7 +83,7 @@ public:
     // to resume execution somehow. A simple return will likely crash the target.
     // param location: The location to hook.
     // param nextInstructionOffset: The offset from location to the next instruction after
-    //     the jump that will be written. Currently 5 bytes on 32-bit and 14 bytes on 64-bit.
+    //     the jump that will be written. Currently 5 bytes on 32-bit and 14 bytes on 64-bit are required for the jump.
     // param jmpBack: Optional output parameter to receive the address of wrapper code that
     //     executes the overwritten code and jumps back. Do a jump to this address
     //     at the end of your hook to resume execution.
@@ -106,6 +106,18 @@ public:
     const IHook *hookVT(T *classInstance, int functionIndex, C cbHook, int vtBackupSize = 1024)
     {
         return hookVT((uintptr_t)classInstance, functionIndex, (uintptr_t)cbHook, vtBackupSize);
+    }
+
+    template<typename F, typename C>
+    const IHook *hookJMP(F location, int nextInstructionOffset, C cbHook, uintptr_t *jmpBack = nullptr)
+    {
+        return hookJMP((uintptr_t)location, nextInstructionOffset, (uintptr_t)cbHook, jmpBack);
+    }
+
+    template<typename F>
+    const IHook *hookDetour(F location, int nextInstructionOffset, HookCallback_t cbHook)
+    {
+        return hookDetour((uintptr_t)location, nextInstructionOffset, cbHook);
     }
 
 

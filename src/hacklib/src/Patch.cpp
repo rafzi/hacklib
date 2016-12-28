@@ -41,3 +41,11 @@ void Patch::revert()
         m_size = 0;
     }
 }
+
+
+hl::Patch MakePatch(uintptr_t location, const char *patch, size_t size)
+{
+    Patch p;
+    p.apply(location, patch, size);
+    return p;
+}
