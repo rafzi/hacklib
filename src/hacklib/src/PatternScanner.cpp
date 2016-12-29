@@ -88,11 +88,14 @@ static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8
 
 // End of third party code.
 
+PatternScanner::PatternScanner() {
+    memoryMap = hl::GetMemoryMap();
+}
 
 std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
 {
-    auto memoryMap = hl::GetMemoryMap();
-    auto hModule = hl::GetModuleByName(moduleName);
+    if (!moduleMap.count(moduleName)) moduleMap[moduleName] = hl::GetModuleByName(moduleName);
+    auto hModule = moduleMap[moduleName];
 
     std::vector<uintptr_t> strAddrs(strings.size());
     int stringsFound = 0;
@@ -124,8 +127,11 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     if (stringsFound != strings.size())
         throw std::runtime_error("one or more patterns not found");
 
-    ExeFile exeFile;
-    bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
+    if (!exeFileMap.count(moduleName)) exeFileMap[moduleName] = std::make_unique<ExeFile>();
+    ExeFile &exeFile = *exeFileMap[moduleName].get();
+
+    if (!verifyRelocsMap.count(moduleName)) verifyRelocsMap[moduleName] = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
+    bool verifyWithRelocs = verifyRelocsMap[moduleName];
 
     std::vector<uintptr_t> results(strings.size());
     stringsFound = 0;
@@ -314,7 +320,7 @@ const std::vector<hl::MemoryRegion>& hl::GetCodeRegions(const std::string& modul
         throw std::runtime_error("no such module");
     }
 
-    auto memoryMap = hl::GetMemoryMap();
+    const static auto memoryMap = hl::GetMemoryMap();
     std::copy_if(memoryMap.begin(), memoryMap.end(), std::back_inserter(lut[moduleName]), [hModule](const hl::MemoryRegion& r){
         return r.hModule == hModule && r.protection == hl::PROTECTION_READ_EXECUTE;
     });
