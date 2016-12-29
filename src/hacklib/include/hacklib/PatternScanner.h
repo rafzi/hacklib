@@ -16,13 +16,16 @@ namespace hl {
 class PatternScanner
 {
 public:
+    PatternScanner();
     // Searches for referenced strings in code of the module.
     std::vector<uintptr_t> find(const std::vector<std::string>& strings, const std::string& moduleName = "");
     std::map<std::string, uintptr_t> findMap(const std::vector<std::string>& strings, const std::string& moduleName = "");
 
-    static std::unordered_map<std::string, hl::ModuleHandle> moduleMap;
-    static std::unordered_map<std::string, std::unique_ptr<hl::ExeFile>> exeFileMap;
-    static std::unordered_map<std::string, bool> verifyRelocsMap;
+private:
+    std::unordered_map<std::string, hl::ModuleHandle> moduleMap;
+    std::unordered_map<std::string, std::unique_ptr<hl::ExeFile>> exeFileMap;
+    std::unordered_map<std::string, bool> verifyRelocsMap;
+    std::vector<hl::MemoryRegion> memoryMap;
 };
 
 

@@ -7,10 +7,6 @@
 
 using namespace hl;
 
-std::unordered_map<std::string, hl::ModuleHandle> hl::PatternScanner::moduleMap;
-std::unordered_map<std::string, std::unique_ptr<hl::ExeFile>> hl::PatternScanner::exeFileMap;
-std::unordered_map<std::string, bool> hl::PatternScanner::verifyRelocsMap;
-
 
 // taken from: http://www.geeksforgeeks.org/pattern-searching-set-7-boyer-moore-algorithm-bad-character-heuristic/
 /* Program for Bad Character Heuristic of Boyer Moore String Matching Algorithm */
@@ -92,11 +88,12 @@ static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8
 
 // End of third party code.
 
+PatternScanner::PatternScanner() {
+    memoryMap = hl::GetMemoryMap();
+}
 
 std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
 {
-    static auto memoryMap = hl::GetMemoryMap();
-
     if (!moduleMap.count(moduleName)) moduleMap[moduleName] = hl::GetModuleByName(moduleName);
     auto hModule = moduleMap[moduleName];
 
