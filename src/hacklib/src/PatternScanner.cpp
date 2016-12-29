@@ -89,10 +89,15 @@ static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8
 // End of third party code.
 
 
-std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
+std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName, bool staticInit)
 {
-    auto memoryMap = hl::GetMemoryMap();
-    auto hModule = hl::GetModuleByName(moduleName);
+    static auto memoryMap = hl::GetMemoryMap();
+    static auto hModule = hl::GetModuleByName(moduleName);
+
+    if (!staticInit) {
+        memoryMap = hl::GetMemoryMap();
+        hModule = hl::GetModuleByName(moduleName);
+    }
 
     std::vector<uintptr_t> strAddrs(strings.size());
     int stringsFound = 0;
@@ -124,8 +129,13 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     if (stringsFound != strings.size())
         throw std::runtime_error("one or more patterns not found");
 
-    ExeFile exeFile;
-    bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
+    static ExeFile exeFile;
+    static bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
+
+    if (!staticInit) {
+        ExeFile tmp;
+        verifyWithRelocs = tmp.loadFromMem((uintptr_t)hModule) && tmp.hasRelocs();
+    }
 
     std::vector<uintptr_t> results(strings.size());
     stringsFound = 0;

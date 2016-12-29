@@ -15,7 +15,7 @@ class PatternScanner
 {
 public:
     // Searches for referenced strings in code of the module.
-    std::vector<uintptr_t> find(const std::vector<std::string>& strings, const std::string& moduleName = "");
+    std::vector<uintptr_t> find(const std::vector<std::string>& strings, const std::string& moduleName = "", bool staticInit = false);
     std::map<std::string, uintptr_t> findMap(const std::vector<std::string>& strings, const std::string& moduleName = "");
 
 };
