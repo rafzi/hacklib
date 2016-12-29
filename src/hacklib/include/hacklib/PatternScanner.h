@@ -2,8 +2,10 @@
 #define HACKLIB_PATTERNSCANNER_H
 
 #include "hacklib/Memory.h"
+#include "hacklib/ExeFile.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <map>
 #include <cstdint>
 
@@ -15,9 +17,12 @@ class PatternScanner
 {
 public:
     // Searches for referenced strings in code of the module.
-    std::vector<uintptr_t> find(const std::vector<std::string>& strings, const std::string& moduleName = "", bool staticInit = false);
+    std::vector<uintptr_t> find(const std::vector<std::string>& strings, const std::string& moduleName = "");
     std::map<std::string, uintptr_t> findMap(const std::vector<std::string>& strings, const std::string& moduleName = "");
 
+    static std::unordered_map<std::string, hl::ModuleHandle> moduleMap;
+    static std::unordered_map<std::string, std::unique_ptr<hl::ExeFile>> exeFileMap;
+    static std::unordered_map<std::string, bool> verifyRelocsMap;
 };
 
 
@@ -37,8 +42,6 @@ uintptr_t FindPattern(const std::string& pattern, uintptr_t address, size_t len)
 uintptr_t FollowRelativeAddress(uintptr_t adr);
 
 const std::vector<hl::MemoryRegion>& GetCodeRegions(const std::string& moduleName = "");
-
-
 }
 
 #endif

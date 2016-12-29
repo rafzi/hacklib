@@ -7,6 +7,10 @@
 
 using namespace hl;
 
+std::unordered_map<std::string, hl::ModuleHandle> hl::PatternScanner::moduleMap;
+std::unordered_map<std::string, std::unique_ptr<hl::ExeFile>> hl::PatternScanner::exeFileMap;
+std::unordered_map<std::string, bool> hl::PatternScanner::verifyRelocsMap;
+
 
 // taken from: http://www.geeksforgeeks.org/pattern-searching-set-7-boyer-moore-algorithm-bad-character-heuristic/
 /* Program for Bad Character Heuristic of Boyer Moore String Matching Algorithm */
@@ -89,15 +93,12 @@ static const uint8_t *boyermoore(const uint8_t *txt, const size_t n, const uint8
 // End of third party code.
 
 
-std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName, bool staticInit)
+std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
 {
     static auto memoryMap = hl::GetMemoryMap();
-    static auto hModule = hl::GetModuleByName(moduleName);
 
-    if (!staticInit) {
-        memoryMap = hl::GetMemoryMap();
-        hModule = hl::GetModuleByName(moduleName);
-    }
+    if (!moduleMap.count(moduleName)) moduleMap[moduleName] = hl::GetModuleByName(moduleName);
+    auto hModule = moduleMap[moduleName];
 
     std::vector<uintptr_t> strAddrs(strings.size());
     int stringsFound = 0;
@@ -129,13 +130,11 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     if (stringsFound != strings.size())
         throw std::runtime_error("one or more patterns not found");
 
-    static ExeFile exeFile;
-    static bool verifyWithRelocs = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
+    if (!exeFileMap.count(moduleName)) exeFileMap[moduleName] = std::make_unique<ExeFile>();
+    ExeFile &exeFile = *exeFileMap[moduleName].get();
 
-    if (!staticInit) {
-        ExeFile tmp;
-        verifyWithRelocs = tmp.loadFromMem((uintptr_t)hModule) && tmp.hasRelocs();
-    }
+    if (!verifyRelocsMap.count(moduleName)) verifyRelocsMap[moduleName] = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
+    bool verifyWithRelocs = verifyRelocsMap[moduleName];
 
     std::vector<uintptr_t> results(strings.size());
     stringsFound = 0;
