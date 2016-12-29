@@ -323,7 +323,7 @@ const std::vector<hl::MemoryRegion>& hl::GetCodeRegions(const std::string& modul
         throw std::runtime_error("no such module");
     }
 
-    auto memoryMap = hl::GetMemoryMap();
+    static auto memoryMap = hl::GetMemoryMap();
     std::copy_if(memoryMap.begin(), memoryMap.end(), std::back_inserter(lut[moduleName]), [hModule](const hl::MemoryRegion& r){
         return r.hModule == hModule && r.protection == hl::PROTECTION_READ_EXECUTE;
     });
