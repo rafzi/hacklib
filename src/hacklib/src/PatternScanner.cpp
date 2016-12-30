@@ -94,38 +94,50 @@ PatternScanner::PatternScanner() {
 
 std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
 {
-    if (!moduleMap.count(moduleName)) moduleMap[moduleName] = hl::GetModuleByName(moduleName);
-    auto hModule = moduleMap[moduleName];
-
-    std::vector<uintptr_t> strAddrs(strings.size());
+    std::vector<uintptr_t> results(strings.size());
     int stringsFound = 0;
 
-    // Search all readonly sections for the strings.
-    for (const auto& region : memoryMap)
-    {
-        if (region.hModule == hModule && region.protection == hl::PROTECTION_READ)
-        {
-            int i = 0;
-            for (const auto& str : strings)
-            {
-                const uint8_t *found = boyermoore((const uint8_t*)region.base, region.size, (const uint8_t*)str.data(), str.size() + 1);
+    int i = 0;
+    for (const auto& str : strings) {
+        uintptr_t found = 0;
+        try {
+            found = findString(str, moduleName);
+        } catch (...) { }
 
-                if (found)
-                {
-                    strAddrs[i] = (uintptr_t)found;
-                    stringsFound++;
-                    if (stringsFound == strings.size())
-                        break;
-                }
-                i++;
-            }
+        if (found) {
+            results[i] = found;
+            stringsFound++;
             if (stringsFound == strings.size())
                 break;
         }
+        i++;
     }
 
     if (stringsFound != strings.size())
         throw std::runtime_error("one or more patterns not found");
+
+    return results;
+}
+
+uintptr_t hl::PatternScanner::findString(const std::string & str, const std::string & moduleName) {
+    if (!moduleMap.count(moduleName)) moduleMap[moduleName] = hl::GetModuleByName(moduleName);
+    auto hModule = moduleMap[moduleName];
+
+    uintptr_t addr = 0;
+
+    // Search all readonly sections for the strings.
+    for (const auto& region : memoryMap) {
+        if (region.hModule == hModule && region.protection == hl::PROTECTION_READ) {
+            const uint8_t *found = boyermoore((const uint8_t*)region.base, region.size, (const uint8_t*)str.data(), str.size() + 1);
+
+            if (found) {
+                addr = (uintptr_t)found;
+                break;
+            }
+        }
+    }
+
+    if (!addr) throw std::runtime_error("pattern not found");
 
     if (!exeFileMap.count(moduleName)) exeFileMap[moduleName] = std::make_unique<ExeFile>();
     ExeFile &exeFile = *exeFileMap[moduleName].get();
@@ -133,70 +145,50 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     if (!verifyRelocsMap.count(moduleName)) verifyRelocsMap[moduleName] = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
     bool verifyWithRelocs = verifyRelocsMap[moduleName];
 
-    std::vector<uintptr_t> results(strings.size());
-    stringsFound = 0;
+    uintptr_t ret = 0;
 
     // Search all code sections for references to the strings.
-    for (const auto& region : memoryMap)
-    {
-        if (region.hModule == hModule && region.protection == hl::PROTECTION_READ_EXECUTE)
-        {
-            int i = 0;
-            for (const auto& strAddr : strAddrs)
-            {
-                const uint8_t *baseAdr = (const uint8_t*)region.base;
-                size_t regionSize = region.size;
+    for (const auto& region : memoryMap) {
+        if (region.hModule == hModule && region.protection == hl::PROTECTION_READ_EXECUTE) {
+
+            const uint8_t *baseAdr = (const uint8_t*)region.base;
+            size_t regionSize = region.size;
 
 #ifndef ARCH_64BIT
-                do
-                {
-                    auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&strAddr, sizeof(uintptr_t));
-                    if (found)
-                    {
-                        // Prevent false positives by checking if the reference is relocated.
-                        if (verifyWithRelocs)
-                        {
-                            if (!exeFile.isReloc((uintptr_t)found - (uintptr_t)hModule))
-                            {
-                                // continue searching
-                                baseAdr = found + 1;
-                                regionSize -= (size_t)(found - baseAdr + 1);
-                                continue;
-                            }
+            do {
+                auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&addr, sizeof(uintptr_t));
+                if (found) {
+                    // Prevent false positives by checking if the reference is relocated.
+                    if (verifyWithRelocs) {
+                        if (!exeFile.isReloc((uintptr_t)found - (uintptr_t)hModule)) {
+                            // continue searching
+                            baseAdr = found + 1;
+                            regionSize -= (size_t)(found - baseAdr + 1);
+                            continue;
                         }
-
-                        results[i] = (uintptr_t)found;
-                        stringsFound++;
                     }
-                } while (false);
+
+                    ret = (uintptr_t)found;
+                }
+            } while (false);
 #else
-                uintptr_t endAdr = (uintptr_t)(baseAdr + regionSize);
-                for (uintptr_t adr = (uintptr_t)baseAdr; adr < endAdr; adr++)
-                {
-                    if (FollowRelativeAddress(adr) == strAddr)
-                    {
-                        // Prevent false poritives by checking if the reference occurs in a LEA instruction.
-                        uint16_t opcode = *(uint16_t*)(adr - 3);
-                        if (opcode == 0x8D48 || opcode == 0x8D4C) {
-                            results[i] = adr;
-                            stringsFound++;
-                            break;
-                        }
+            uintptr_t endAdr = (uintptr_t)(baseAdr + regionSize);
+            for (uintptr_t adr = (uintptr_t)baseAdr; adr < endAdr; adr++) {
+                if (FollowRelativeAddress(adr) == addr) {
+                    // Prevent false poritives by checking if the reference occurs in a LEA instruction.
+                    uint16_t opcode = *(uint16_t*)(adr - 3);
+                    if (opcode == 0x8D48 || opcode == 0x8D4C) {
+                        ret = adr;
+                        break;
                     }
                 }
-#endif
-
-                if (stringsFound == strings.size())
-                    break;
-
-                i++;
             }
-            if (stringsFound == strings.size())
-                break;
+#endif
+            if (ret) break;
         }
     }
 
-    return results;
+    return ret;
 }
 
 std::map<std::string, uintptr_t> PatternScanner::findMap(const std::vector<std::string>& strings, const std::string& moduleName)
