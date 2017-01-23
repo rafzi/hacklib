@@ -9,6 +9,7 @@ Every component in this project can target 32-bit x86 Windows and most of it tar
 This repository contains a couple simple examples already:
 
 * `injector`: A command line application to inject shared libraries into processes. This is the tool to get your projects into target applications.
+* `test`: An automatic test application.
 * `disableGfx`: A simple project that may be able to double your FPS in D3D9 games. But at what cost?
 * `veh_benchmark`: Comparison of VEH hooking implementations.
 
@@ -17,6 +18,7 @@ Bigger examples are located in separate repositories:
 * [hacklib_csgo](https://bitbucket.org/rafzi/hacklib_csgo): A minimal example for a real-world target Counter-Strike: Global Offensive. (Cross-platform)
 * [hacklib_gw2](https://bitbucket.org/rafzi/hacklib_gw2): Graphical information gathering tool for Guild Wars 2.
 * [hacklib_bf](https://bitbucket.org/rafzi/hacklib_bf): A game hack for the Battlefield series.
+* [D3D_ok](https://bitbucket.org/rafzi/d3d_ok): A library that makes the DirectX 9 3D API do nothing to save resources.
 
 ## Features ##
 
@@ -274,11 +276,11 @@ while (true)
 
 ## Dependencies ##
 
-Hacklib is written in modern C++ and requires a recent compiler like Visual Studio 2015, GCC 4.8 or Clang 3.3 with C++14 support enabled. Use the ``vs2013`` tag for an outdated version that works for Visual Studio 2013.
+Hacklib is written in modern C++ and requires a recent compiler. The build was tested with Visual Studio 2015, GCC 4.8, GCC 4.9, Clang 3.3 and Clang 3.5 with C++14 support enabled. Use the ``vs2013`` tag for an outdated version that works for Visual Studio 2013.
 
-The project is using CMake and version 2.8.11.2 or newer is required to build.
+The project is using CMake and requires version 2.8.11.2 or later.
 
-Graphics related components require the DirectX SDK June 2010 on Windows or X11, OpenGL libraries on Linux. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev`.
+Graphics related components require the DirectX SDK June 2010 on Windows or on Linux the X11 and OpenGL libraries. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev`.
 
 ## How to build ##
 
@@ -308,6 +310,6 @@ Please use the issue tracker and submit pull requests to contribute.
 
 Free to use for any purpose. Don't claim you wrote the code or modified versions. If you release code or binaries give credit and link to this repository.
 
-If you are making money with this code or have some spare money, please give me some!
+If you are making money with this code, please consider sharing a bit!
 
 [Paypal Donate Link](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EW66GFAYT9K9C)

@@ -7,7 +7,7 @@
 #include <thread>
 
 
-[[noreturn]] void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), [[noreturn]] void(*adr_pthread_exit)(void*))
+void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
 {
     // This can not be executed from inside the module.
     // Don't generate any code that uses relative addressing to the IP.
