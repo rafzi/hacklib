@@ -465,7 +465,7 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 #else
         auto jmpBackPatch = GenJumpOverwrite_x86(location + nextInstructionOffset, (uintptr_t)pHook->wrapperCode.data() + nextInstructionOffset, JMPHOOKSIZE);
 #endif
-        // It is save to write out of bounds here, because we allocated a whole page.
+        // It is safe to write out of bounds here, because we allocated a whole page.
         memcpy(pHook->wrapperCode.data() + nextInstructionOffset, jmpBackPatch.data(), JMPHOOKSIZE);
         *jmpBack = (uintptr_t)pHook->wrapperCode.data();
     }
