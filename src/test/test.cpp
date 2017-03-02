@@ -214,13 +214,57 @@ Process LaunchProcess(const std::string& command, const std::vector<std::string>
 }
 #endif
 
-void ExecFunc() {}
-void ExecFunc_after() {}
+
+// Set up dummy code.
+#ifdef ARCH_64BIT
+hl::code_page_vector g_dummyCode {
+    0x55,                   // PUSH RBP
+    0x48,0x89,0xe5,         // MOV RBP, RSP
+    0x48,0x31,0xc0,         // XOR RAX, RAX
+    0x48,0xff,0xc0,         // INC RAX
+    0x48,0xff,0xc0,         // INC RAX
+    0x48,0xff,0xc0,         // INC RAX
+    0x48,0xff,0xc0,         // INC RAX
+    0x48,0xff,0xc0,         // INC RAX
+    0x5d,                   // POP RBP
+    0xc3,                   // RET
+};
+int g_dummyHookOffset = 16;
+#else
+hl::code_page_vector g_dummyCode {
+    0x55,                   // PUSH EBP
+    0x89,0xe5,              // MOV EBP, ESP
+    0x31,0xc0,              // XOR EAX, EAX
+    0x40,                   // INC EAX
+    0x40,                   // INC EAX
+    0x40,                   // INC EAX
+    0x40,                   // INC EAX
+    0x40,                   // INC EAX
+    0x5d,                   // POP EBP
+    0xc3,                   // RET
+};
+int g_dummyHookOffset = 6;
+#endif
+
+template <typename T, typename F>
+void ExpectException(F func)
+{
+    bool gotException = false;
+    try
+    {
+        func();
+    }
+    catch (const T&)
+    {
+        gotException = true;
+    }
+    HL_ASSERT(gotException, "Did not get expected exception");
+}
+
+
 void TestMemory()
 {
-    auto mem = hl::PageAlloc(1000, hl::PROTECTION_READ_WRITE);
-
-    std::copy((char*)ExecFunc, (char*)ExecFunc_after, (char*)mem);
+    void *mem = g_dummyCode.data();
 
     auto readFunc = [&]{
         bool crashed = false;
@@ -280,7 +324,8 @@ void TestMemory()
     HL_ASSERT(!writeFunc(), "Could not write RWE page");
     HL_ASSERT(!execFunc(), "Could not execute RWE page");
 
-    hl::PageFree(mem, 1000);
+    // Restore normal code protection.
+    hl::PageProtect(mem, 1000, hl::PROTECTION_READ_EXECUTE);
 }
 
 void TestInject()
@@ -339,18 +384,9 @@ void TestModules()
     HL_ASSERT(hModule == hModuleByAddressData, "hl::GetModuleByAddress does not work with data");
 }
 
-static void DummyFunc()
-{
-    // Generate some code to play with.
-    static volatile int x;
-    x++;
-    x--;
-    x += 42;
-    x *= 3;
-}
 void TestPatch()
 {
-    auto testAdr = (uintptr_t)&DummyFunc;
+    auto testAdr = (uintptr_t)g_dummyCode.data();
     char testData[] = "\x12\34\x56";
     char backupData[3];
 
@@ -364,26 +400,55 @@ void TestPatch()
     }
 
     HL_ASSERT(std::equal(backupData, backupData+3, (char*)testAdr), "Patch not undone");
+
+    {
+        hl::Patch patch;
+        patch.apply(testAdr, (uint16_t)0xabcd);
+
+        HL_ASSERT(*(uint16_t*)testAdr == 0xabcd, "Patch not applied");
+
+
+    }
+
+    HL_ASSERT(std::equal(backupData, backupData+3, (char*)testAdr), "Patch not undone");
 }
+
 void TestPatternScan()
 {
-    auto testAdr = (uintptr_t)&DummyFunc;
+    auto testAdr = (uintptr_t)g_dummyCode.data();
 
     hl::Patch patch;
     patch.apply(testAdr, "\x12\x34\x56\x78\x9a\xbc\xde\xf0", 8);
 
     std::string modName = hl::GetCurrentModulePath();
     auto pattern1 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", testAdr, 0x100);
-    auto pattern2 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", modName);
-    auto pattern3 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxx?xxxx", modName);
-    auto pattern4 = hl::FindPattern("12 34 56 78 9a bc de f0", modName);
-    auto pattern5 = hl::FindPattern("12 34 56 ?? 9a bc de f0", modName);
+    auto pattern2 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxx?xxxx", testAdr, 0x100);
+    auto pattern3 = hl::FindPattern("12 34 56 78 9a bc de f0", testAdr, 0x100);
+    auto pattern4 = hl::FindPattern("12 34 56 ?? 9a bc de f0", testAdr, 0x100);
+    auto pattern5 = hl::FindPattern("12 34 56 78 9a bC dE f0", testAdr, 0x100);
 
-    HL_ASSERT(pattern1 == testAdr, "Mask without module info");
-    HL_ASSERT(pattern2 == testAdr, "Mask");
-    HL_ASSERT(pattern3 == testAdr, "Mask with wildcard");
-    HL_ASSERT(pattern4 == testAdr, "String");
-    HL_ASSERT(pattern5 == testAdr, "String with wildcard");
+    HL_ASSERT(pattern1 == testAdr, "Mask");
+    HL_ASSERT(pattern2 == testAdr, "Mask with wildcard");
+    HL_ASSERT(pattern3 == testAdr, "String");
+    HL_ASSERT(pattern4 == testAdr, "String with wildcard");
+    HL_ASSERT(pattern5 == testAdr, "Uppercase");
+
+    ExpectException<std::runtime_error>([&]{ hl::FindPattern("12 34 g0 78", testAdr, 0x100); });
+    ExpectException<std::runtime_error>([&]{ hl::FindPattern("12 34 ?0 78", testAdr, 0x100); });
+
+    // Surround the search area with noaccess pages to check for out of bounds accesses.
+    auto pageSize = hl::GetPageSize();
+    hl::code_page_vector guardMem(3*pageSize);
+    hl::PageProtect(guardMem.data(), pageSize, hl::PROTECTION_NOACCESS);
+    hl::PageProtect((void*)((uintptr_t)guardMem.data() + 2*pageSize), pageSize, hl::PROTECTION_NOACCESS);
+    hl::Patch baitPatch;
+    baitPatch.apply((uintptr_t)guardMem.data() + 2*pageSize - 4, (uint32_t)0xcccccccc);
+
+    auto patternGuard1 = hl::FindPattern("cc cc cc cc cc", (uintptr_t)guardMem.data() + pageSize, pageSize);
+    auto patternGuard2 = hl::FindPattern("cc cc cc cc", (uintptr_t)guardMem.data() + pageSize, pageSize);
+
+    HL_ASSERT(patternGuard1 == 0, "Should not find this");
+    HL_ASSERT(patternGuard2 == (uintptr_t)guardMem.data() + 2*pageSize - 4, "Should find this");
 }
 
 static int cbCounter = 0;
@@ -397,43 +462,12 @@ static void DetourFunc(hl::CpuContext *ctx)
 }
 void TestHooks()
 {
-    // Set up dummy code.
-#ifdef ARCH_64BIT
-    hl::code_page_vector code {
-        0x55,                   // PUSH RBP
-        0x48,0x89,0xe5,         // MOV RSP, RBP
-        0x48,0x31,0xc0,         // XOR RAX, RAX
-        0x48,0xff,0xc0,         // INC RAX
-        0x48,0xff,0xc0,         // INC RAX
-        0x48,0xff,0xc0,         // INC RAX
-        0x48,0xff,0xc0,         // INC RAX
-        0x48,0xff,0xc0,         // INC RAX
-        0x5d,                   // POP RBP
-        0xc3,                   // RET
-    };
-    int nextInstrOffset = 16;
-#else
-    hl::code_page_vector code {
-        0x55,                   // PUSH EBP
-        0x89,0xec,              // MOV ESP, EBP
-        0x31,0xc0,              // XOR EAX, EAX
-        0x40,                   // INC EAX
-        0x40,                   // INC EAX
-        0x40,                   // INC EAX
-        0x40,                   // INC EAX
-        0x40,                   // INC EAX
-        0x5d,                   // POP EBP
-        0xc3,                   // RET
-    };
-    int nextInstrOffset = 6;
-#endif
-
-    auto dummyFunc = (int(*)())code.data();
+    auto dummyFunc = (int(*)())g_dummyCode.data();
 
     hl::Hooker hooker;
 
     uintptr_t jmpBack = 0;
-    auto jmpHook = hooker.hookJMP(code.data(), nextInstrOffset, &CallbackFunc, &jmpBack);
+    auto jmpHook = hooker.hookJMP(g_dummyCode.data(), g_dummyHookOffset, &CallbackFunc, &jmpBack);
 
     int result = 0;
 
@@ -448,7 +482,7 @@ void TestHooks()
     HL_ASSERT(cbCounter == 0, "Hook not undone");
     HL_ASSERT(result == 5, "JMP unhook broke the function");
 
-    auto detourHook = hooker.hookDetour(code.data(), nextInstrOffset, &DetourFunc);
+    auto detourHook = hooker.hookDetour(g_dummyCode.data(), g_dummyHookOffset, &DetourFunc);
 
     cbCounter = 0;
     result = dummyFunc();
@@ -463,13 +497,10 @@ void TestHooks()
     HL_ASSERT(result == 5, "Detour unhook broke the function");
 
 
-    auto memFunc = hl::PageAlloc(1000, hl::PROTECTION_READ_WRITE_EXECUTE);
     auto memVt = hl::PageAlloc(1000, hl::PROTECTION_READ_WRITE_EXECUTE);
     auto memInstance = hl::PageAlloc(1000, hl::PROTECTION_READ_WRITE);
-    std::copy((char*)ExecFunc, (char*)ExecFunc_after, (char*)memFunc);
-    *(uintptr_t*)memVt = (uintptr_t)memFunc;
+    *(uintptr_t*)memVt = (uintptr_t)g_dummyCode.data();
     *(uintptr_t*)memInstance = (uintptr_t)memVt;
-    hl::PageProtect(memFunc, 1000, hl::PROTECTION_READ_EXECUTE);
     hl::PageProtect(memVt, 1000, hl::PROTECTION_READ);
 
     auto vtHook = hooker.hookVT(memInstance, 0, &CallbackFunc);

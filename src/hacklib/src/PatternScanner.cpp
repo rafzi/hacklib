@@ -228,7 +228,7 @@ uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, const
 
 uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
 {
-    uintptr_t end = address + len;
+    uintptr_t end = address + len - strlen(checkMask) + 1;
     for (uintptr_t i = address; i < end; i++) {
         if (MatchMaskedPattern(i, byteMask, checkMask)) {
             return i;
@@ -267,9 +267,9 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
         }
         else if (lowPattern[3*i+2] == ' ' &&
             ((lowPattern[3*i] >= '0' && lowPattern[3*i] <= '9') ||
-                (lowPattern[3*i] >= 'a' && lowPattern[3*i] <= 'z')) &&
+                (lowPattern[3*i] >= 'a' && lowPattern[3*i] <= 'f')) &&
             ((lowPattern[3*i+1] >= '0' && lowPattern[3*i+1] <= '9') ||
-                (lowPattern[3*i+1] >= 'a' && lowPattern[3*i+1] <= 'z')))
+                (lowPattern[3*i+1] >= 'a' && lowPattern[3*i+1] <= 'f')))
 
         {
             auto value = strtol(lowPattern.data()+3*i, nullptr, 16);
