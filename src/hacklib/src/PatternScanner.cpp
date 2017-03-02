@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <iterator>
+#include <cstring>
 
 
 using namespace hl;
