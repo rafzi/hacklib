@@ -269,16 +269,22 @@ void TestMemory()
     auto readFunc = [&]{
         bool crashed = false;
         hl::CrashHandler([&]{
-            *(volatile int*)mem;
+            *(volatile char*)mem;
+            *((volatile char*)mem + g_dummyCode.size());
         }, [&](uint32_t){
             crashed = true;
         });
         return crashed;
     };
-    auto writeFunc = [&]{
+    auto backupFirst = g_dummyCode[0];
+    auto backupLast = g_dummyCode[g_dummyCode.size()-1];
+    auto writeFunc = [&](){
         bool crashed = false;
         hl::CrashHandler([&]{
-            *((volatile int*)mem + 100) = 0;
+            *(volatile char*)mem = 0;
+            *((volatile char*)mem + g_dummyCode.size()) = 0;
+            *(volatile unsigned char*)mem = backupFirst;
+            *((volatile unsigned char*)mem + g_dummyCode.size()) = backupLast;
         }, [&](uint32_t){
             crashed = true;
         });
@@ -326,6 +332,19 @@ void TestMemory()
 
     // Restore normal code protection.
     hl::PageProtect(mem, 1000, hl::PROTECTION_READ_EXECUTE);
+
+
+    // Test across page boundary.
+    hl::data_page_vector<unsigned char> twoPages(2*hl::GetPageSize());
+    auto offset = hl::GetPageSize() - g_dummyCode.size() + 1;
+    mem = twoPages.data() + offset;
+    std::copy(g_dummyCode.begin(), g_dummyCode.end(), twoPages.begin() + offset);
+    hl::PageProtectVec(twoPages, hl::PROTECTION_NOACCESS);
+    hl::PageProtect(mem, g_dummyCode.size(), hl::PROTECTION_READ_WRITE_EXECUTE);
+
+    HL_ASSERT(!readFunc(), "Could not read RWE page across page boundary");
+    HL_ASSERT(!writeFunc(), "Could not write RWE page across page boundary");
+    HL_ASSERT(!execFunc(), "Could not execute RWE page across page boundary");
 }
 
 void TestInject()

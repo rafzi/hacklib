@@ -67,10 +67,11 @@ void hl::PageFree(void *p, size_t n)
 void hl::PageProtect(const void *p, size_t n, hl::Protection protection)
 {
     // Align to page boundary.
-    p = (const void*)((uintptr_t)p & ~(hl::GetPageSize() - 1));
+    auto pAligned = (const void*)((uintptr_t)p & ~(hl::GetPageSize() - 1));
+    size_t nAligned = (uintptr_t)p - (uintptr_t)pAligned + n;
 
     // const_cast: The memory contents will remain unchanged, so this is fine.
-    mprotect(const_cast<void*>(p), n, ToUnixProt(protection));
+    mprotect(const_cast<void*>(pAligned), nAligned, ToUnixProt(protection));
 }
 
 
