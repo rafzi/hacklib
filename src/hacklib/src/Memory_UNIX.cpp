@@ -107,10 +107,7 @@ hl::ModuleHandle hl::GetModuleByName(const std::string& name)
 hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
 {
     Dl_info info = { 0 };
-    if (dladdr((void*)adr, &info) == 0)
-    {
-        throw std::runtime_error("dladdr failed");
-    }
+    dladdr((void*)adr, &info);
     return info.dli_fbase;
 }
 
