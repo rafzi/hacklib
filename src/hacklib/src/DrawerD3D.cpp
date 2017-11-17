@@ -200,12 +200,19 @@ const Font *DrawerD3D::allocFont(std::string fontname, int size, bool bold)
 
 void DrawerD3D::drawFont(const Font *pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const
 {
+    float ww = getWidth();
+    float wh = getHeight();
+    if (x > ww || y > wh) return;
+
     va_list valist_copy;
     va_copy(valist_copy, valist);
 
     int size = vsnprintf(nullptr, 0, format.c_str(), valist);
     char *cStr = new char[size+1];
     vsnprintf(cStr, size+1, format.c_str(), valist_copy);
+
+    D3DXVECTOR2 ti = textInfo(pFont, cStr);
+    if (x + ti.x < 0 || y + ti.y < 0) return;
 
     RECT rect;
     rect.left = static_cast<LONG>(x);
