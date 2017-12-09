@@ -71,8 +71,8 @@ void DrawerOpenGL::drawCircle(float mx, float my, float r, hl::Color color) cons
     for (int i = 0; i < CIRCLE_RESOLUTION; i++)
     {
         glVertex2f(
-            mx + r * cos(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f))),
-            my + r * sin(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f)))
+            mx + r * cos((float)M_PI * (i / (CIRCLE_RESOLUTION / 2.0f))),
+            my + r * sin((float)M_PI * (i / (CIRCLE_RESOLUTION / 2.0f)))
         );
     }
     glEnd();
@@ -91,8 +91,8 @@ void DrawerOpenGL::drawCircleFilled(float mx, float my, float r, hl::Color color
     for (int i = 0; i < CIRCLE_RESOLUTION+1; i++)
     {
         glVertex2f(
-            mx + r * cos(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f))),
-            my + r * sin(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f)))
+            mx + r * cos((float)M_PI * (i / (CIRCLE_RESOLUTION / 2.0f))),
+            my + r * sin((float)M_PI * (i / (CIRCLE_RESOLUTION / 2.0f)))
         );
     }
     glEnd();

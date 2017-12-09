@@ -97,7 +97,7 @@ class Process
 public:
     Process(int id, uintptr_t handle) : m_id(id), m_handle(handle) { }
     Process(const Process&) = delete;
-    Process(Process&& other) { m_id = other.m_id; m_handle = other.m_handle; } // = default
+    Process(Process&& other) = default;
     int id() const { return m_id; }
     int join();
 private:
