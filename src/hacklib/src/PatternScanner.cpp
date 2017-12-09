@@ -120,13 +120,13 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
     return results;
 }
 
-uintptr_t hl::PatternScanner::findString(const std::string & str, const std::string & moduleName) {
+uintptr_t hl::PatternScanner::findString(const std::string & str, const std::string & moduleName, int instance) {
     if (!moduleMap.count(moduleName)) moduleMap[moduleName] = hl::GetModuleByName(moduleName);
     auto hModule = moduleMap[moduleName];
 
     uintptr_t addr = 0;
 
-    // Search all readonly sections for the strings.
+    // Search all readonly sections for the string.
     for (const auto& region : memoryMap) {
         if (region.hModule == hModule && region.protection == hl::PROTECTION_READ) {
             const uint8_t *found = boyermoore((const uint8_t*)region.base, region.size, (const uint8_t*)str.data(), str.size() + 1);
@@ -148,7 +148,7 @@ uintptr_t hl::PatternScanner::findString(const std::string & str, const std::str
 
     uintptr_t ret = 0;
 
-    // Search all code sections for references to the strings.
+    // Search all code sections for references to the string.
     for (const auto& region : memoryMap) {
         if (region.hModule == hModule && region.protection == hl::PROTECTION_READ_EXECUTE) {
 
@@ -160,13 +160,11 @@ uintptr_t hl::PatternScanner::findString(const std::string & str, const std::str
                 auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&addr, sizeof(uintptr_t));
                 if (found) {
                     // Prevent false positives by checking if the reference is relocated.
-                    if (verifyWithRelocs) {
-                        if (!exeFile.isReloc((uintptr_t)found - (uintptr_t)hModule)) {
-                            // continue searching
-                            baseAdr = found + 1;
-                            regionSize -= (size_t)(found - baseAdr + 1);
-                            continue;
-                        }
+                    if ((verifyWithRelocs && !exeFile.isReloc((uintptr_t)found - (uintptr_t)hModule)) || instance --> 0) {
+                        // continue searching
+                        baseAdr = found + 1;
+                        regionSize -= (size_t)(found - baseAdr + 1);
+                        continue;
                     }
 
                     ret = (uintptr_t)found;
@@ -179,8 +177,10 @@ uintptr_t hl::PatternScanner::findString(const std::string & str, const std::str
                     // Prevent false poritives by checking if the reference occurs in a LEA instruction.
                     uint16_t opcode = *(uint16_t*)(adr - 3);
                     if (opcode == 0x8D48 || opcode == 0x8D4C) {
-                        ret = adr;
-                        break;
+                        if (instance-- <= 0) {
+                            ret = adr;
+                            break;
+                        }
                     }
                 }
             }
@@ -215,7 +215,7 @@ static bool MatchMaskedPattern(uintptr_t address, const char *byteMask, const ch
 }
 
 
-uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, const std::string& moduleName)
+uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, const std::string& moduleName, int instance)
 {
     uintptr_t result = 0;
     for (const auto& region : hl::GetCodeRegions(moduleName))
@@ -227,30 +227,30 @@ uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, const
     return result;
 }
 
-uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, uintptr_t address, size_t len)
+uintptr_t hl::FindPatternMask(const char *byteMask, const char *checkMask, uintptr_t address, size_t len, int instance)
 {
     uintptr_t end = address + len - strlen(checkMask) + 1;
     for (uintptr_t i = address; i < end; i++) {
         if (MatchMaskedPattern(i, byteMask, checkMask)) {
-            return i;
+            if(!instance--) return i;
         }
     }
     return 0;
 }
 
-uintptr_t hl::FindPattern(const std::string& pattern, const std::string& moduleName)
+uintptr_t hl::FindPattern(const std::string& pattern, const std::string& moduleName, int instance)
 {
     uintptr_t result = 0;
     for (const auto& region : hl::GetCodeRegions(moduleName))
     {
-        result = hl::FindPattern(pattern, region.base, region.size);
+        result = hl::FindPattern(pattern, region.base, region.size, instance);
         if (result)
             break;
     }
     return result;
 }
 
-uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t len)
+uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t len, int instance)
 {
     std::vector<char> byteMask;
     std::vector<char> checkMask;
@@ -286,14 +286,14 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
     // Terminate mask string, because it is used to determine length.
     checkMask.push_back('\0');
 
-    return hl::FindPatternMask(byteMask.data(), checkMask.data(), address, len);
+    return hl::FindPatternMask(byteMask.data(), checkMask.data(), address, len, instance);
 }
 
 
-uintptr_t hl::FollowRelativeAddress(uintptr_t adr)
+uintptr_t hl::FollowRelativeAddress(uintptr_t adr, int ext)
 {
     // Hardcoded 32-bit dereference to make it work with 64-bit code.
-    return *(int32_t*)adr + adr + 4;
+    return *(int32_t*)adr + adr + 4 + ext;
 }
 
 
