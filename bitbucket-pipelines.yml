@@ -1,12 +1,9 @@
-image: gcc:6.1
+image: rafzi/hacklib-env
 
 pipelines:
   default:
     - step:
         script:
-          - apt-get update
-          - apt-get -y install cmake
-          - apt-get -y install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev
           - mkdir build
           - cd build
           - cmake ..
