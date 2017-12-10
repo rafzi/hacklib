@@ -5,8 +5,8 @@
 class hl::ExeFileImpl
 {
 public:
-    IMAGE_DOS_HEADER *dosHeader = nullptr;
-    IMAGE_NT_HEADERS *peHeader = nullptr;
+    IMAGE_DOS_HEADER* dosHeader = nullptr;
+    IMAGE_NT_HEADERS* peHeader = nullptr;
     std::vector<IMAGE_SECTION_HEADER*> sectionHeaders;
 };
 
@@ -15,8 +15,8 @@ static std::vector<uintptr_t> LoadRelocs(uintptr_t relocData)
 {
     std::vector<uintptr_t> relocs;
 
-    DWORD *regionPtr = (DWORD*)relocData;
-    WORD *relocPtr = (WORD*)relocData;
+    DWORD* regionPtr = (DWORD*)relocData;
+    WORD* relocPtr = (WORD*)relocData;
 
     while (true)
     {
@@ -54,9 +54,7 @@ hl::ExeFile::ExeFile()
     m_impl = std::make_unique<ExeFileImpl>();
 }
 
-hl::ExeFile::~ExeFile()
-{
-}
+hl::ExeFile::~ExeFile() {}
 
 
 bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
@@ -88,8 +86,8 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
     int nSections = m_impl->peHeader->FileHeader.NumberOfSections;
     for (int i = 0; i < nSections; i++)
     {
-        auto sectionHeader = (IMAGE_SECTION_HEADER*)(
-            (uintptr_t)m_impl->peHeader + sizeof(IMAGE_NT_HEADERS) + i * sizeof(IMAGE_SECTION_HEADER));
+        auto sectionHeader = (IMAGE_SECTION_HEADER*)((uintptr_t)m_impl->peHeader + sizeof(IMAGE_NT_HEADERS) +
+                                                     i * sizeof(IMAGE_SECTION_HEADER));
         m_impl->sectionHeaders.push_back(sectionHeader);
     }
 

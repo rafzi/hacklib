@@ -1,11 +1,11 @@
 #include "hacklib/Timer.h"
-#include <cstdint>
-#include <vector>
-#include <memory>
-#include <map>
-#include <thread>
-#include <iostream>
 #include <Windows.h>
+#include <cstdint>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <thread>
+#include <vector>
 
 
 #ifdef ARCH_64BIT
@@ -17,21 +17,16 @@
 
 namespace hl
 {
-    struct Hooker
-    {
-        typedef int* HookCallback_t;
-    };
+struct Hooker
+{
+    typedef int* HookCallback_t;
+};
 }
 
 
 struct Page
 {
-    Page(uintptr_t begin, uintptr_t end) :
-        m_begin(begin),
-        m_end(end),
-        m_refs(1)
-    {
-    }
+    Page(uintptr_t begin, uintptr_t end) : m_begin(begin), m_end(end), m_refs(1) {}
     uintptr_t m_begin;
     uintptr_t m_end;
     int m_refs;
@@ -58,7 +53,7 @@ public:
 
         return nullptr;
     }
-    Page *getPage(uintptr_t adr)
+    Page* getPage(uintptr_t adr)
     {
         auto it = m_pages.upper_bound(adr);
         if (it != m_pages.end())
@@ -74,7 +69,8 @@ public:
         if (page)
         {
             page->m_refs++;
-        } else
+        }
+        else
         {
             MEMORY_BASIC_INFORMATION info;
             if (!VirtualQuery((LPVOID)adr, &info, sizeof(info)))
@@ -97,12 +93,14 @@ public:
             {
                 m_pages.erase(page->m_end);
                 m_pages.erase(page->m_begin);
-            } else
+            }
+            else
             {
                 page->m_refs--;
             }
         }
     }
+
 private:
     static uintptr_t s_pageSize;
     std::map<uintptr_t, hl::Hooker::HookCallback_t> m_hooks;
@@ -114,7 +112,7 @@ uintptr_t VEHHookManager::s_pageSize;
 static VEHHookManager g_vehHookManager;
 
 
-static void checkForHookAndCall(uintptr_t adr, CONTEXT *pCtx)
+static void checkForHookAndCall(uintptr_t adr, CONTEXT* pCtx)
 {
     // Check for hooks and call them.
     auto cbHook = g_vehHookManager.getHook(adr);
@@ -129,7 +127,7 @@ static LONG CALLBACK VectoredHandlerGuard(PEXCEPTION_POINTERS exc)
 {
     static uintptr_t guardFaultAdr;
 
-    CONTEXT *pCtx = exc->ContextRecord;
+    CONTEXT* pCtx = exc->ContextRecord;
 
     if (exc->ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION)
     {
@@ -149,7 +147,8 @@ static LONG CALLBACK VectoredHandlerGuard(PEXCEPTION_POINTERS exc)
         }
 
         return EXCEPTION_CONTINUE_EXECUTION;
-    } else if (exc->ExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP)
+    }
+    else if (exc->ExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP)
     {
         // Single-step exeption occured. Single-step flag is cleared now.
 
@@ -160,7 +159,8 @@ static LONG CALLBACK VectoredHandlerGuard(PEXCEPTION_POINTERS exc)
             pCtx->EFlags |= 0x100;
 
             checkForHookAndCall(pCtx->REG_INSTRUCTIONPTR, pCtx);
-        } else
+        }
+        else
         {
             // We stepped out of a hooked page.
             // Check if the page that was last guarded still contains a hook.
@@ -168,7 +168,7 @@ static LONG CALLBACK VectoredHandlerGuard(PEXCEPTION_POINTERS exc)
             {
                 // Restore guard page protection.
                 DWORD oldProt;
-                VirtualProtect((LPVOID)guardFaultAdr, 1, PAGE_EXECUTE_READ|PAGE_GUARD, &oldProt);
+                VirtualProtect((LPVOID)guardFaultAdr, 1, PAGE_EXECUTE_READ | PAGE_GUARD, &oldProt);
             }
         }
 
@@ -184,7 +184,7 @@ static LONG CALLBACK VectoredHandlerNoaccess(PEXCEPTION_POINTERS exc)
     static uintptr_t accessFaultAdr;
 
     DWORD oldProt;
-    CONTEXT *pCtx = exc->ContextRecord;
+    CONTEXT* pCtx = exc->ContextRecord;
 
     if (exc->ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION)
     {
@@ -207,7 +207,8 @@ static LONG CALLBACK VectoredHandlerNoaccess(PEXCEPTION_POINTERS exc)
         VirtualProtect((LPVOID)accessFaultAdr, 1, PAGE_EXECUTE_READ, &oldProt);
 
         return EXCEPTION_CONTINUE_EXECUTION;
-    } else if (exc->ExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP)
+    }
+    else if (exc->ExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP)
     {
         // Single-step exeption occured. Single-step flag is cleared now.
 
@@ -226,14 +227,15 @@ static LONG CALLBACK VectoredHandlerNoaccess(PEXCEPTION_POINTERS exc)
 }
 
 
-typedef void(*func_t)();
+typedef void (*func_t)();
 
 
 #pragma comment(linker, "/INCREMENTAL:NO")
 void assembleMe()
 {
     volatile int counter = 10000;
-    while (--counter);
+    while (--counter)
+        ;
 }
 
 
@@ -242,7 +244,7 @@ int main()
     DWORD dwOldProt;
 
     // Setup dummy codepage that loops on incrementing the counter.
-    uint8_t *mem1 = (uint8_t*)VirtualAlloc(NULL, 0x1000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    uint8_t* mem1 = (uint8_t*)VirtualAlloc(NULL, 0x1000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     uintptr_t hookPage = (uintptr_t)mem1;
     func_t f = (func_t)mem1;
 
@@ -252,7 +254,7 @@ int main()
     // Test 1: Guard page protection + single-step optimization.
 
     g_vehHookManager.addHook(hookPage, nullptr);
-    VirtualProtect((LPVOID)hookPage, 1, PAGE_EXECUTE_READ|PAGE_GUARD, &dwOldProt);
+    VirtualProtect((LPVOID)hookPage, 1, PAGE_EXECUTE_READ | PAGE_GUARD, &dwOldProt);
     auto handler = AddVectoredExceptionHandler(1, VectoredHandlerGuard);
 
     hl::Timer tGuard;

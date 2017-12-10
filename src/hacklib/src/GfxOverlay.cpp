@@ -4,8 +4,7 @@
 using namespace hl;
 
 
-GfxOverlay::GfxOverlay(ModuleHandle hModule) :
-    m_hModule(hModule)
+GfxOverlay::GfxOverlay(ModuleHandle hModule) : m_hModule(hModule)
 {
     impl_construct();
 }

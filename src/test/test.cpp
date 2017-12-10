@@ -1,51 +1,53 @@
-#include "hacklib/Logging.h"
 #include "hacklib/CrashHandler.h"
+#include "hacklib/Hooker.h"
 #include "hacklib/Injector.h"
+#include "hacklib/Logging.h"
 #include "hacklib/Main.h"
 #include "hacklib/Memory.h"
+#include "hacklib/PageAllocator.h"
 #include "hacklib/Patch.h"
 #include "hacklib/PatternScanner.h"
-#include "hacklib/Hooker.h"
-#include "hacklib/PageAllocator.h"
-#include <iostream>
-#include <functional>
-#include <thread>
 #include <chrono>
 #include <cstdio>
+#include <functional>
+#include <iostream>
 #include <stdexcept>
+#include <thread>
 
 
-#define HL_ASSERT(cond, format, ...) \
-    do { \
-        if (!(cond)) \
-        { \
-            HL_LOG_RAW("Assertion '%s' failed.\n  msg: ", #cond); \
-            HL_LOG_RAW(format, ##__VA_ARGS__); \
-            HL_LOG_RAW("\n  in %s:%i\n  func: %s\n", __FILE__, __LINE__, __FUNCTION__); \
-            std::cin.ignore(); \
-            exit(1); \
-        } \
+#define HL_ASSERT(cond, format, ...)                                                                                   \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (!(cond))                                                                                                   \
+        {                                                                                                              \
+            HL_LOG_RAW("Assertion '%s' failed.\n  msg: ", #cond);                                                      \
+            HL_LOG_RAW(format, ##__VA_ARGS__);                                                                         \
+            HL_LOG_RAW("\n  in %s:%i\n  func: %s\n", __FILE__, __LINE__, __FUNCTION__);                                \
+            std::cin.ignore();                                                                                         \
+            exit(1);                                                                                                   \
+        }                                                                                                              \
     } while (false)
 
-#define HL_TEST(testBody) \
-    do { \
-        hl::CrashHandler([&]{ \
-            try \
-            { \
-                HL_LOG_RAW("Starting test: \"%s\"\n", #testBody); \
-                testBody(); \
-            } \
-            catch (std::exception& e) \
-            { \
-                HL_ASSERT(false, "Test failed with C++ exception: %s", e.what()); \
-            } \
-            catch (...) \
-            { \
-                HL_ASSERT(false, "Test failed with unknown C++ exception"); \
-            } \
-        }, [](uint32_t code){ \
-            HL_ASSERT(false, "Test failed with system exception code %08X", code); \
-        }); \
+#define HL_TEST(testBody)                                                                                              \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        hl::CrashHandler(                                                                                              \
+            [&] {                                                                                                      \
+                try                                                                                                    \
+                {                                                                                                      \
+                    HL_LOG_RAW("Starting test: \"%s\"\n", #testBody);                                                  \
+                    testBody();                                                                                        \
+                }                                                                                                      \
+                catch (std::exception & e)                                                                             \
+                {                                                                                                      \
+                    HL_ASSERT(false, "Test failed with C++ exception: %s", e.what());                                  \
+                }                                                                                                      \
+                catch (...)                                                                                            \
+                {                                                                                                      \
+                    HL_ASSERT(false, "Test failed with unknown C++ exception");                                        \
+                }                                                                                                      \
+            },                                                                                                         \
+            [](uint32_t code) { HL_ASSERT(false, "Test failed with system exception code %08X", code); });             \
     } while (false)
 
 
@@ -59,7 +61,7 @@ void SetupLogging(bool silent = false)
     hl::LogConfig logCfg;
     logCfg.logToFile = false;
     logCfg.logTime = false;
-    logCfg.logFunc = [](const std::string& msg){ printf("%s", msg.c_str()); };
+    logCfg.logFunc = [](const std::string& msg) { printf("%s", msg.c_str()); };
     hl::ConfigLog(logCfg);
 
     if (!silent)
@@ -71,13 +73,13 @@ void SetupLogging(bool silent = false)
 
 void TestCrashHandler()
 {
-    hl::CrashHandler([]{ }, [](uint32_t){ HL_ASSERT(false, "CrashHandler handler called without error"); });
+    hl::CrashHandler([] {}, [](uint32_t) { HL_ASSERT(false, "CrashHandler handler called without error"); });
 
     bool handlerCalled = false;
     bool fellThrough = false;
     try
     {
-        hl::CrashHandler([]{ throw int(); }, [&](uint32_t){ handlerCalled = true; });
+        hl::CrashHandler([] { throw int(); }, [&](uint32_t) { handlerCalled = true; });
     }
     catch (...)
     {
@@ -87,7 +89,7 @@ void TestCrashHandler()
     HL_ASSERT(fellThrough, "CrashHandler did not let C++ exception fall through");
 
     handlerCalled = false;
-    hl::CrashHandler([]{ int crash = *(volatile int*)nullptr; }, [&](uint32_t){ handlerCalled = true; });
+    hl::CrashHandler([] { int crash = *(volatile int*)nullptr; }, [&](uint32_t) { handlerCalled = true; });
     HL_ASSERT(handlerCalled, "CrashHandler not called on system exception");
 }
 
@@ -95,16 +97,17 @@ void TestCrashHandler()
 class Process
 {
 public:
-    Process(int id, uintptr_t handle) : m_id(id), m_handle(handle) { }
+    Process(int id, uintptr_t handle) : m_id(id), m_handle(handle) {}
     Process(const Process&) = delete;
-    Process(Process&& other) { m_id = other.m_id; m_handle = other.m_handle; } // = default
+    Process(Process&& other) = default;
     int id() const { return m_id; }
     int join();
+
 private:
     int m_id;
     uintptr_t m_handle;
 };
-Process LaunchProcess(const std::string& command, const std::vector<std::string>& args = { });
+Process LaunchProcess(const std::string& command, const std::vector<std::string>& args = {});
 #ifdef WIN32
 #include <Windows.h>
 int Process::join()
@@ -135,20 +138,11 @@ Process LaunchProcess(const std::string& command, const std::vector<std::string>
         cmdline += arg;
     }
 
-    STARTUPINFOA startupInfo = { };
+    STARTUPINFOA startupInfo = {};
     startupInfo.cb = sizeof(startupInfo);
     PROCESS_INFORMATION processInfo;
-    BOOL result = CreateProcessA(
-        NULL,
-        const_cast<char*>(cmdline.c_str()),
-        NULL,
-        NULL,
-        false,
-        0,
-        NULL,
-        NULL,
-        &startupInfo,
-        &processInfo);
+    BOOL result = CreateProcessA(NULL, const_cast<char*>(cmdline.c_str()), NULL, NULL, false, 0, NULL, NULL,
+                                 &startupInfo, &processInfo);
 
     if (!result)
     {
@@ -158,9 +152,9 @@ Process LaunchProcess(const std::string& command, const std::vector<std::string>
     return Process(processInfo.dwProcessId, (uintptr_t)processInfo.hProcess);
 }
 #else
-#include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <unistd.h>
 int Process::join()
 {
     if (!m_id)
@@ -217,31 +211,31 @@ Process LaunchProcess(const std::string& command, const std::vector<std::string>
 
 // Set up dummy code.
 #ifdef ARCH_64BIT
-hl::code_page_vector g_dummyCode {
-    0x55,                   // PUSH RBP
-    0x48,0x89,0xe5,         // MOV RBP, RSP
-    0x48,0x31,0xc0,         // XOR RAX, RAX
-    0x48,0xff,0xc0,         // INC RAX
-    0x48,0xff,0xc0,         // INC RAX
-    0x48,0xff,0xc0,         // INC RAX
-    0x48,0xff,0xc0,         // INC RAX
-    0x48,0xff,0xc0,         // INC RAX
-    0x5d,                   // POP RBP
-    0xc3,                   // RET
+hl::code_page_vector g_dummyCode{
+    0x55,             // PUSH RBP
+    0x48, 0x89, 0xe5, // MOV RBP, RSP
+    0x48, 0x31, 0xc0, // XOR RAX, RAX
+    0x48, 0xff, 0xc0, // INC RAX
+    0x48, 0xff, 0xc0, // INC RAX
+    0x48, 0xff, 0xc0, // INC RAX
+    0x48, 0xff, 0xc0, // INC RAX
+    0x48, 0xff, 0xc0, // INC RAX
+    0x5d,             // POP RBP
+    0xc3,             // RET
 };
 int g_dummyHookOffset = 16;
 #else
-hl::code_page_vector g_dummyCode {
-    0x55,                   // PUSH EBP
-    0x89,0xe5,              // MOV EBP, ESP
-    0x31,0xc0,              // XOR EAX, EAX
-    0x40,                   // INC EAX
-    0x40,                   // INC EAX
-    0x40,                   // INC EAX
-    0x40,                   // INC EAX
-    0x40,                   // INC EAX
-    0x5d,                   // POP EBP
-    0xc3,                   // RET
+hl::code_page_vector g_dummyCode{
+    0x55,       // PUSH EBP
+    0x89, 0xe5, // MOV EBP, ESP
+    0x31, 0xc0, // XOR EAX, EAX
+    0x40,       // INC EAX
+    0x40,       // INC EAX
+    0x40,       // INC EAX
+    0x40,       // INC EAX
+    0x40,       // INC EAX
+    0x5d,       // POP EBP
+    0xc3,       // RET
 };
 int g_dummyHookOffset = 6;
 #endif
@@ -264,39 +258,35 @@ void ExpectException(F func)
 
 void TestMemory()
 {
-    void *mem = g_dummyCode.data();
+    void* mem = g_dummyCode.data();
 
-    auto readFunc = [&]{
+    auto readFunc = [&] {
         bool crashed = false;
-        hl::CrashHandler([&]{
-            *(volatile char*)mem;
-            *((volatile char*)mem + g_dummyCode.size());
-        }, [&](uint32_t){
-            crashed = true;
-        });
+        hl::CrashHandler(
+            [&] {
+                *(volatile char*)mem;
+                *((volatile char*)mem + g_dummyCode.size());
+            },
+            [&](uint32_t) { crashed = true; });
         return crashed;
     };
     auto backupFirst = g_dummyCode[0];
-    auto backupLast = g_dummyCode[g_dummyCode.size()-1];
-    auto writeFunc = [&](){
+    auto backupLast = g_dummyCode[g_dummyCode.size() - 1];
+    auto writeFunc = [&]() {
         bool crashed = false;
-        hl::CrashHandler([&]{
-            *(volatile char*)mem = 0;
-            *((volatile char*)mem + g_dummyCode.size()) = 0;
-            *(volatile unsigned char*)mem = backupFirst;
-            *((volatile unsigned char*)mem + g_dummyCode.size()) = backupLast;
-        }, [&](uint32_t){
-            crashed = true;
-        });
+        hl::CrashHandler(
+            [&] {
+                *(volatile char*)mem = 0;
+                *((volatile char*)mem + g_dummyCode.size()) = 0;
+                *(volatile unsigned char*)mem = backupFirst;
+                *((volatile unsigned char*)mem + g_dummyCode.size()) = backupLast;
+            },
+            [&](uint32_t) { crashed = true; });
         return crashed;
     };
-    auto execFunc = [&]{
+    auto execFunc = [&] {
         bool crashed = false;
-        hl::CrashHandler([&]{
-            ((void(*)())mem)();
-        }, [&](uint32_t){
-            crashed = true;
-        });
+        hl::CrashHandler([&] { ((void (*)())mem)(); }, [&](uint32_t) { crashed = true; });
         return crashed;
     };
 
@@ -335,7 +325,7 @@ void TestMemory()
 
 
     // Test across page boundary.
-    hl::data_page_vector<unsigned char> twoPages(2*hl::GetPageSize());
+    hl::data_page_vector<unsigned char> twoPages(2 * hl::GetPageSize());
     auto offset = hl::GetPageSize() - g_dummyCode.size() + 1;
     mem = twoPages.data() + offset;
     std::copy(g_dummyCode.begin(), g_dummyCode.end(), twoPages.begin() + offset);
@@ -390,7 +380,8 @@ void TestModules()
 
     auto hModule = hl::GetCurrentModule();
     uintptr_t ownFuncAdr = (uintptr_t)&TestModules;
-    HL_ASSERT(ownFuncAdr > (uintptr_t)hModule && ownFuncAdr - (uintptr_t)hModule < 0x100000, "Module base address is wrong");
+    HL_ASSERT(ownFuncAdr > (uintptr_t)hModule && ownFuncAdr - (uintptr_t)hModule < 0x100000,
+              "Module base address is wrong");
 
     auto hModuleByName = hl::GetModuleByName(modPath);
     HL_ASSERT(hModule == hModuleByName, "hl::GetModuleByName does not work");
@@ -409,27 +400,25 @@ void TestPatch()
     char testData[] = "\x12\34\x56";
     char backupData[3];
 
-    std::copy((char*)testAdr, ((char*)testAdr)+3, backupData);
+    std::copy((char*)testAdr, ((char*)testAdr) + 3, backupData);
 
     {
         hl::Patch patch;
         patch.apply(testAdr, testData, 3);
 
-        HL_ASSERT(std::equal(testData, testData+3, (char*)testAdr), "Patch not applied");
+        HL_ASSERT(std::equal(testData, testData + 3, (char*)testAdr), "Patch not applied");
     }
 
-    HL_ASSERT(std::equal(backupData, backupData+3, (char*)testAdr), "Patch not undone");
+    HL_ASSERT(std::equal(backupData, backupData + 3, (char*)testAdr), "Patch not undone");
 
     {
         hl::Patch patch;
         patch.apply(testAdr, (uint16_t)0xabcd);
 
         HL_ASSERT(*(uint16_t*)testAdr == 0xabcd, "Patch not applied");
-
-
     }
 
-    HL_ASSERT(std::equal(backupData, backupData+3, (char*)testAdr), "Patch not undone");
+    HL_ASSERT(std::equal(backupData, backupData + 3, (char*)testAdr), "Patch not undone");
 }
 
 void TestPatternScan()
@@ -452,22 +441,22 @@ void TestPatternScan()
     HL_ASSERT(pattern4 == testAdr, "String with wildcard");
     HL_ASSERT(pattern5 == testAdr, "Uppercase");
 
-    ExpectException<std::runtime_error>([&]{ hl::FindPattern("12 34 g0 78", testAdr, 0x100); });
-    ExpectException<std::runtime_error>([&]{ hl::FindPattern("12 34 ?0 78", testAdr, 0x100); });
+    ExpectException<std::runtime_error>([&] { hl::FindPattern("12 34 g0 78", testAdr, 0x100); });
+    ExpectException<std::runtime_error>([&] { hl::FindPattern("12 34 ?0 78", testAdr, 0x100); });
 
     // Surround the search area with noaccess pages to check for out of bounds accesses.
     auto pageSize = hl::GetPageSize();
-    hl::code_page_vector guardMem(3*pageSize);
+    hl::code_page_vector guardMem(3 * pageSize);
     hl::PageProtect(guardMem.data(), pageSize, hl::PROTECTION_NOACCESS);
-    hl::PageProtect((void*)((uintptr_t)guardMem.data() + 2*pageSize), pageSize, hl::PROTECTION_NOACCESS);
+    hl::PageProtect((void*)((uintptr_t)guardMem.data() + 2 * pageSize), pageSize, hl::PROTECTION_NOACCESS);
     hl::Patch baitPatch;
-    baitPatch.apply((uintptr_t)guardMem.data() + 2*pageSize - 4, (uint32_t)0xcccccccc);
+    baitPatch.apply((uintptr_t)guardMem.data() + 2 * pageSize - 4, (uint32_t)0xcccccccc);
 
     auto patternGuard1 = hl::FindPattern("cc cc cc cc cc", (uintptr_t)guardMem.data() + pageSize, pageSize);
     auto patternGuard2 = hl::FindPattern("cc cc cc cc", (uintptr_t)guardMem.data() + pageSize, pageSize);
 
     HL_ASSERT(patternGuard1 == 0, "Should not find this");
-    HL_ASSERT(patternGuard2 == (uintptr_t)guardMem.data() + 2*pageSize - 4, "Should find this");
+    HL_ASSERT(patternGuard2 == (uintptr_t)guardMem.data() + 2 * pageSize - 4, "Should find this");
 }
 
 static int cbCounter = 0;
@@ -475,13 +464,13 @@ static void CallbackFunc()
 {
     cbCounter++;
 }
-static void DetourFunc(hl::CpuContext *ctx)
+static void DetourFunc(hl::CpuContext* ctx)
 {
     cbCounter++;
 }
 void TestHooks()
 {
-    auto dummyFunc = (int(*)())g_dummyCode.data();
+    auto dummyFunc = (int (*)())g_dummyCode.data();
 
     hl::Hooker hooker;
 
@@ -528,7 +517,7 @@ void TestHooks()
     HL_ASSERT(**(uintptr_t**)memInstance == (uintptr_t)&CallbackFunc, "Virtual function was not replaced");
 
     cbCounter = 0;
-    ((void(*)())**(uintptr_t**)memInstance)();
+    ((void (*)()) * *(uintptr_t**)memInstance)();
     HL_ASSERT(cbCounter == 1, "Hook had no effect");
 
     hooker.unhook(vtHook);
@@ -536,7 +525,7 @@ void TestHooks()
     HL_ASSERT(*(uintptr_t*)memInstance == (uintptr_t)memVt, "Virtual table pointer was not restored");
 
     cbCounter = 0;
-    ((void(*)())**(uintptr_t**)memInstance)();
+    ((void (*)()) * *(uintptr_t**)memInstance)();
     HL_ASSERT(cbCounter == 0, "Hook not undone");
 }
 

@@ -1,14 +1,13 @@
 #ifndef HACKLIB_EXEFILE_H
 #define HACKLIB_EXEFILE_H
 
-#include <vector>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 
-namespace hl {
-
-
+namespace hl
+{
 // Represents an executable image in PE or EFI format.
 class ExeFile
 {
@@ -32,9 +31,7 @@ private:
     bool m_valid = false;
     std::vector<uintptr_t> m_relocs;
     std::unordered_map<std::string, uintptr_t> m_exports;
-
 };
-
 }
 
 #endif

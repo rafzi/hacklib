@@ -4,9 +4,8 @@
 #include "hacklib/IDrawer.h"
 
 
-namespace hl {
-
-
+namespace hl
+{
 class DrawerOpenGL : public hl::IDrawer
 {
 public:
@@ -18,9 +17,7 @@ public:
 
 protected:
     void updateDimensions() override;
-
 };
-
 }
 
 #endif

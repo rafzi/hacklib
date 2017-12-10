@@ -7,9 +7,8 @@
 #endif
 
 
-namespace hl {
-
-
+namespace hl
+{
 #ifdef _WIN32
 
 // Can interpreted as pointer to the module base address.
@@ -30,7 +29,6 @@ typedef void* GraphicsContext;
 static const ModuleHandle NullModuleHandle = nullptr;
 
 #endif
-
 }
 
 #endif

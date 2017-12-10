@@ -1,8 +1,8 @@
 #ifndef HACKLIB_LOGGING_H
 #define HACKLIB_LOGGING_H
 
-#include <string>
 #include <functional>
+#include <string>
 
 
 #ifdef _DEBUG
@@ -15,9 +15,8 @@
 #define HL_LOG_RAW(format, ...) hl::LogRaw(format, ##__VA_ARGS__);
 
 
-namespace hl {
-
-
+namespace hl
+{
 struct LogConfig
 {
     // To turn off logging to file.
@@ -32,11 +31,10 @@ struct LogConfig
 
 void ConfigLog(const LogConfig& config);
 
-void LogDebug(const char *file, const char *func, int line, const char *format, ...);
-void LogError(const char *file, const char *func, int line, const char *format, ...);
-void LogError(const char *format, ...);
-void LogRaw(const char *format, ...);
-
+void LogDebug(const char* file, const char* func, int line, const char* format, ...);
+void LogError(const char* file, const char* func, int line, const char* format, ...);
+void LogError(const char* format, ...);
+void LogRaw(const char* format, ...);
 }
 
 #endif

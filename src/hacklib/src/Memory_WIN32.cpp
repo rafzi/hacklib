@@ -1,6 +1,6 @@
 #include "hacklib/Memory.h"
-#include <stdexcept>
 #include <Windows.h>
+#include <stdexcept>
 
 
 static DWORD ToWindowsProt(hl::Protection protection)
@@ -93,17 +93,17 @@ uintptr_t hl::GetPageSize()
 }
 
 
-void *hl::PageAlloc(size_t n, hl::Protection protection)
+void* hl::PageAlloc(size_t n, hl::Protection protection)
 {
     return VirtualAlloc(NULL, n, MEM_COMMIT, ToWindowsProt(protection));
 }
 
-void hl::PageFree(void *p, size_t n)
+void hl::PageFree(void* p, size_t n)
 {
     VirtualFree(p, 0, MEM_RELEASE);
 }
 
-void hl::PageProtect(const void *p, size_t n, hl::Protection protection)
+void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
 {
     DWORD dwOldProt;
 
@@ -128,11 +128,8 @@ hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
 {
     hl::ModuleHandle hModule = hl::NullModuleHandle;
 
-    if (GetModuleHandleEx(
-            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            (LPCTSTR)adr,
-            &hModule
-        ) == 0)
+    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                          (LPCTSTR)adr, &hModule) == 0)
     {
         if (GetLastError() != ERROR_MOD_NOT_FOUND)
         {
@@ -158,7 +155,7 @@ std::string hl::GetModulePath(hl::ModuleHandle hModule)
 
 hl::MemoryRegion hl::GetMemoryByAddress(uintptr_t adr, int pid)
 {
-    MEMORY_BASIC_INFORMATION mbi = { };
+    MEMORY_BASIC_INFORMATION mbi = {};
     hl::MemoryRegion region;
 
     if (pid)

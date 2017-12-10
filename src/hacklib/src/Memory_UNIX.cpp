@@ -1,10 +1,10 @@
 #include "hacklib/Memory.h"
-#include <stdexcept>
-#include <fstream>
 #include <algorithm>
+#include <dlfcn.h>
+#include <fstream>
+#include <stdexcept>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <dlfcn.h>
 
 
 static int ToUnixProt(hl::Protection protection)
@@ -51,12 +51,12 @@ uintptr_t hl::GetPageSize()
 }
 
 
-void *hl::PageAlloc(size_t n, hl::Protection protection)
+void* hl::PageAlloc(size_t n, hl::Protection protection)
 {
-    return mmap(nullptr, n, ToUnixProt(protection), MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    return mmap(nullptr, n, ToUnixProt(protection), MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
-void hl::PageFree(void *p, size_t n)
+void hl::PageFree(void* p, size_t n)
 {
     if (!n)
         throw std::runtime_error("you must specify the free size on linux");
@@ -64,7 +64,7 @@ void hl::PageFree(void *p, size_t n)
     munmap(p, n);
 }
 
-void hl::PageProtect(const void *p, size_t n, hl::Protection protection)
+void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
 {
     // Align to page boundary.
     auto pAligned = (const void*)((uintptr_t)p & ~(hl::GetPageSize() - 1));
@@ -77,7 +77,7 @@ void hl::PageProtect(const void *p, size_t n, hl::Protection protection)
 
 hl::ModuleHandle hl::GetModuleByName(const std::string& name)
 {
-    void *handle;
+    void* handle;
     if (name == "")
     {
         handle = dlopen(NULL, RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
@@ -128,9 +128,8 @@ hl::MemoryRegion hl::GetMemoryByAddress(uintptr_t adr, int pid)
     hl::MemoryRegion region;
 
     auto memoryMap = hl::GetMemoryMap(pid);
-    auto itRegion = std::find_if(memoryMap.begin(), memoryMap.end(), [adr](const hl::MemoryRegion& r){
-        return adr > r.base && adr < r.base + r.size;
-    });
+    auto itRegion = std::find_if(memoryMap.begin(), memoryMap.end(),
+                                 [adr](const hl::MemoryRegion& r) { return adr > r.base && adr < r.base + r.size; });
     if (itRegion != memoryMap.end())
     {
         region = *itRegion;
@@ -162,16 +161,16 @@ std::vector<hl::MemoryRegion> hl::GetMemoryMap(int pid)
     while (std::getline(file, line))
     {
         path[0] = '\0';
-        sscanf(line.c_str(), "%Lx-%Lx %31s %Lx %x:%x %Lu %511s", &start, &end, flags, &file_offset, &dev_major, &dev_minor, &inode, path);
+        sscanf(line.c_str(), "%Lx-%Lx %31s %Lx %x:%x %Lu %511s", &start, &end, flags, &file_offset, &dev_major,
+               &dev_minor, &inode, path);
 
         hl::MemoryRegion region;
         region.status = hl::MemoryRegion::Status::Valid;
         region.base = (uintptr_t)start;
         region.size = (size_t)(end - start);
-        region.protection =
-            ((flags[0] == 'r') ? hl::PROTECTION_READ : 0) |
-            ((flags[1] == 'w') ? hl::PROTECTION_WRITE : 0) |
-            ((flags[2] == 'x') ? hl::PROTECTION_EXECUTE : 0);
+        region.protection = ((flags[0] == 'r') ? hl::PROTECTION_READ : 0) |
+                            ((flags[1] == 'w') ? hl::PROTECTION_WRITE : 0) |
+                            ((flags[2] == 'x') ? hl::PROTECTION_EXECUTE : 0);
         region.hModule = hl::GetModuleByAddress(region.base);
         region.name = path;
 

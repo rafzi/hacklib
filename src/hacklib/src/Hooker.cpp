@@ -1,9 +1,9 @@
 #include "hacklib/Hooker.h"
 #include "hacklib/PageAllocator.h"
 #include <algorithm>
+#include <cstring>
 #include <mutex>
 #include <unordered_map>
-#include <cstring>
 
 
 #ifdef ARCH_64BIT
@@ -18,10 +18,7 @@ using namespace hl;
 
 struct FakeVT
 {
-    FakeVT(uintptr_t **instance, int vtBackupSize) :
-        m_data(vtBackupSize),
-        m_orgVT(*instance),
-        m_refs(1)
+    FakeVT(uintptr_t** instance, int vtBackupSize) : m_data(vtBackupSize), m_orgVT(*instance), m_refs(1)
     {
         // Copy original VT.
         for (int i = 0; i < vtBackupSize; i++)
@@ -30,18 +27,18 @@ struct FakeVT
         }
     }
     hl::data_page_vector<uintptr_t> m_data;
-    uintptr_t *m_orgVT;
+    uintptr_t* m_orgVT;
     int m_refs;
 };
 
 class VTHookManager
 {
 public:
-    uintptr_t getOrgFunc(uintptr_t **instance, int functionIndex)
+    uintptr_t getOrgFunc(uintptr_t** instance, int functionIndex)
     {
         return m_fakeVTs[instance]->m_orgVT[functionIndex];
     }
-    void addHook(uintptr_t **instance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
+    void addHook(uintptr_t** instance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
     {
         auto& fakeVT = m_fakeVTs[instance];
         if (fakeVT)
@@ -66,7 +63,7 @@ public:
         // Make the fake VT read-only like a real VT would be.
         hl::PageProtectVec(fakeVT->m_data, PROTECTION_READ);
     }
-    void removeHook(uintptr_t **instance, int functionIndex)
+    void removeHook(uintptr_t** instance, int functionIndex)
     {
         auto& fakeVT = m_fakeVTs[instance];
         if (fakeVT)
@@ -89,6 +86,7 @@ public:
             }
         }
     }
+
 private:
     std::unordered_map<uintptr_t**, std::unique_ptr<FakeVT>> m_fakeVTs;
 };
@@ -100,33 +98,23 @@ static VTHookManager g_vtHookManager;
 class VTHook : public IHook
 {
 public:
-    VTHook(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize) :
-        instance((uintptr_t**)classInstance),
-        functionIndex(functionIndex)
+    VTHook(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
+        : instance((uintptr_t**)classInstance), functionIndex(functionIndex)
     {
         g_vtHookManager.addHook(instance, functionIndex, cbHook, vtBackupSize);
     }
-    ~VTHook() override
-    {
-        g_vtHookManager.removeHook(instance, functionIndex);
-    }
+    ~VTHook() override { g_vtHookManager.removeHook(instance, functionIndex); }
 
-    uintptr_t getLocation() const override
-    {
-        return g_vtHookManager.getOrgFunc(instance, functionIndex);
-    }
+    uintptr_t getLocation() const override { return g_vtHookManager.getOrgFunc(instance, functionIndex); }
 
-    uintptr_t **instance;
+    uintptr_t** instance;
     int functionIndex;
 };
 
 class JMPHook : public IHook
 {
 public:
-    JMPHook(uintptr_t location, int offset) :
-        location(location),
-        offset(offset),
-        wrapperCode(offset, 0xcc)
+    JMPHook(uintptr_t location, int offset) : location(location), offset(offset), wrapperCode(offset, 0xcc)
     {
         memcpy(wrapperCode.data(), (void*)location, offset);
     }
@@ -137,10 +125,7 @@ public:
         hl::PageProtect((void*)location, offset, PROTECTION_READ_EXECUTE);
     }
 
-    uintptr_t getLocation() const override
-    {
-        return location;
-    }
+    uintptr_t getLocation() const override { return location; }
 
     uintptr_t location;
     int offset;
@@ -150,11 +135,8 @@ public:
 class DetourHook : public IHook
 {
 public:
-    DetourHook(uintptr_t location, int offset, Hooker::HookCallback_t cbHook) :
-        location(location),
-        offset(offset),
-        cbHook(cbHook),
-        wrapperCode(0x1000, 0xcc)
+    DetourHook(uintptr_t location, int offset, Hooker::HookCallback_t cbHook)
+        : location(location), offset(offset), cbHook(cbHook), wrapperCode(0x1000, 0xcc)
     {
     }
     ~DetourHook() override
@@ -170,22 +152,19 @@ public:
         // will crash when trying to return because the wrapper code is gone.
     }
 
-    uintptr_t getLocation() const override
-    {
-        return location;
-    }
+    uintptr_t getLocation() const override { return location; }
 
     uintptr_t location;
     int offset;
     uintptr_t ipBackup = 0;
-    unsigned char *originalCode = nullptr;
+    unsigned char* originalCode = nullptr;
     hl::code_page_vector wrapperCode;
     Hooker::HookCallback_t cbHook;
     std::mutex mutex;
 };
 
 
-static void JMPHookLocker(DetourHook *pHook, CpuContext *ctx)
+static void JMPHookLocker(DetourHook* pHook, CpuContext* ctx)
 {
     std::lock_guard<std::mutex> lock(pHook->mutex);
 
@@ -193,7 +172,7 @@ static void JMPHookLocker(DetourHook *pHook, CpuContext *ctx)
 }
 
 
-const IHook *Hooker::hookVT(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
+const IHook* Hooker::hookVT(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
 {
     // Check for invalid parameters.
     if (!classInstance || functionIndex < 0 || functionIndex >= vtBackupSize || !cbHook)
@@ -221,9 +200,9 @@ static std::vector<unsigned char> GenJumpOverwrite_x86(uintptr_t target, uintptr
     return jmpPatch;
 }
 
-static void GenWrapper_x86(DetourHook *pHook)
+static void GenWrapper_x86(DetourHook* pHook)
 {
-    unsigned char *buffer = pHook->wrapperCode.data();
+    unsigned char* buffer = pHook->wrapperCode.data();
 
     // Calculate delta.
     uintptr_t callFromWrapperToLocker = (uintptr_t)JMPHookLocker - (uintptr_t)buffer - 13 - 5;
@@ -287,13 +266,13 @@ static std::vector<unsigned char> GenJumpOverwrite_x86_64(uintptr_t target, int 
     return jmpPatch;
 }
 
-static void GenWrapper_x86_64(DetourHook *pHook)
+static void GenWrapper_x86_64(DetourHook* pHook)
 {
     uintptr_t returnAdr = pHook->location + pHook->offset;
     uint32_t return_lo = (uint32_t)returnAdr;
     uint32_t return_hi = (uint32_t)(returnAdr >> 32);
 
-    unsigned char *buffer = pHook->wrapperCode.data();
+    unsigned char* buffer = pHook->wrapperCode.data();
 
     // TODO: Respect red zone for System V ABI! 128 bytes above rsp may not be clobbered!
     // I think this must be done in the overwrite code
@@ -347,7 +326,7 @@ static void GenWrapper_x86_64(DetourHook *pHook)
     buffer += 7;
 
     // Call the locker function.
-#if defined(_WIN64) // Microsoft x64 calling convention
+#if defined(_WIN64)                                         // Microsoft x64 calling convention
     // Second parameter: CpuContext*
     buffer[0] = 0x48; // MOV RDX, RBX
     buffer[1] = 0x89;
@@ -449,7 +428,7 @@ static void GenWrapper_x86_64(DetourHook *pHook)
 #endif
 
 
-const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook, uintptr_t *jmpBack)
+const IHook* Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook, uintptr_t* jmpBack)
 {
     // Check for invalid parameters.
     if (!location || nextInstructionOffset < JMPHOOKSIZE || !cbHook)
@@ -463,7 +442,9 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 #ifdef ARCH_64BIT
         auto jmpBackPatch = GenJumpOverwrite_x86_64(location + nextInstructionOffset, JMPHOOKSIZE);
 #else
-        auto jmpBackPatch = GenJumpOverwrite_x86(location + nextInstructionOffset, (uintptr_t)pHook->wrapperCode.data() + nextInstructionOffset, JMPHOOKSIZE);
+        auto jmpBackPatch =
+            GenJumpOverwrite_x86(location + nextInstructionOffset,
+                                 (uintptr_t)pHook->wrapperCode.data() + nextInstructionOffset, JMPHOOKSIZE);
 #endif
         // It is safe to write out of bounds here, because we allocated a whole page.
         memcpy(pHook->wrapperCode.data() + nextInstructionOffset, jmpBackPatch.data(), JMPHOOKSIZE);
@@ -487,7 +468,7 @@ const IHook *Hooker::hookJMP(uintptr_t location, int nextInstructionOffset, uint
 }
 
 
-const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook)
+const IHook* Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook)
 {
     // Check for invalid parameters.
     if (!location || nextInstructionOffset < JMPHOOKSIZE || !cbHook)
@@ -514,11 +495,9 @@ const IHook *Hooker::hookDetour(uintptr_t location, int nextInstructionOffset, H
 }
 
 
-void Hooker::unhook(const IHook *pHook)
+void Hooker::unhook(const IHook* pHook)
 {
-    auto cond = [pHook](const auto& uptr) {
-        return uptr.get() == pHook;
-    };
+    auto cond = [pHook](const auto& uptr) { return uptr.get() == pHook; };
 
     m_hooks.erase(std::remove_if(m_hooks.begin(), m_hooks.end(), cond), m_hooks.end());
 }

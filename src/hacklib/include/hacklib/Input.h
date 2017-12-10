@@ -4,9 +4,8 @@
 #include <array>
 
 
-namespace hl {
-
-
+namespace hl
+{
 class Input
 {
 public:
@@ -31,9 +30,7 @@ private:
     };
 
     std::array<InputStatus, 256> m_status;
-
 };
-
 }
 
 #endif

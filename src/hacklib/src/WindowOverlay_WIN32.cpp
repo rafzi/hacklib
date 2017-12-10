@@ -15,10 +15,12 @@ static BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
     */
     DWORD pid = 0;
     GetWindowThreadProcessId(hWnd, &pid);
-    if (pid == GetCurrentProcessId()) {
+    if (pid == GetCurrentProcessId())
+    {
         LONG_PTR styles = GetWindowLongPtr(hWnd, GWL_STYLE);
         HINSTANCE hinst = (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE);
-        if ((styles & WS_VISIBLE) && !(styles & WS_CHILDWINDOW) && hinst == GetModuleHandle(NULL)) {
+        if ((styles & WS_VISIBLE) && !(styles & WS_CHILDWINDOW) && hinst == GetModuleHandle(NULL))
+        {
             RECT rect;
             GetClientRect(hWnd, &rect);
             if (rect.right != 0 && rect.bottom != 0)
@@ -47,9 +49,8 @@ void WindowOverlay::cbWindowLoop()
     UINT setWndPosFlags = SWP_NOACTIVATE;
 
     // window position changes
-    POINT pt = { };
-    if (!ClientToScreen(m_targetWindow, &pt) ||
-        (m_posX == pt.x && m_posY == pt.y))
+    POINT pt = {};
+    if (!ClientToScreen(m_targetWindow, &pt) || (m_posX == pt.x && m_posY == pt.y))
     {
         setWndPosFlags |= SWP_NOMOVE;
     }
@@ -61,9 +62,8 @@ void WindowOverlay::cbWindowLoop()
     }
 
     // window size changes
-    RECT rect = { };
-    if (!GetClientRect(m_targetWindow, &rect) ||
-        (m_width == rect.right && m_height == rect.bottom))
+    RECT rect = {};
+    if (!GetClientRect(m_targetWindow, &rect) || (m_width == rect.right && m_height == rect.bottom))
     {
         setWndPosFlags |= SWP_NOSIZE;
     }

@@ -14,25 +14,12 @@
 hl::StaticInit<class ExampleMain> g_main;
 
 
-const GLchar *vertexSource = GLSL_SRC(
-    in vec2 position;
-    uniform mat4 world;
-    uniform mat4 view;
-    uniform mat4 proj;
+const GLchar* vertexSource = GLSL_SRC(in vec2 position; uniform mat4 world; uniform mat4 view; uniform mat4 proj;
 
-    void main()
-    {
-        gl_Position = proj * view * world * vec4(position, 0.0, 1.0);
-    }
-);
-const GLchar *fragmentSource = GLSL_SRC(
-    out vec4 outColor;
+                                      void main() { gl_Position = proj * view * world * vec4(position, 0.0, 1.0); });
+const GLchar* fragmentSource = GLSL_SRC(out vec4 outColor;
 
-    void main()
-    {
-        outColor = vec4(1.0, 1.0, 1.0, 1.0);
-    }
-);
+                                        void main() { outColor = vec4(1.0, 1.0, 1.0, 1.0); });
 
 
 class GLDTest
@@ -66,20 +53,12 @@ public:
         glBindVertexArray(m_vaTest);
 
         glGenBuffers(1, &m_vbTest);
-        GLfloat verts[] = {
-            -0.5f, 0.5f,
-            0.5f, 0.5f,
-            0.5f, -0.5f,
-            -0.5f, -0.5f
-        };
+        GLfloat verts[] = { -0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f, -0.5f, -0.5f };
         glBindBuffer(GL_ARRAY_BUFFER, m_vbTest);
         glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
         glGenBuffers(1, &m_ibTest);
-        GLuint inds[] = {
-            0, 1, 2,
-            2, 3, 0
-        };
+        GLuint inds[] = { 0, 1, 2, 2, 3, 0 };
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibTest);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(inds), inds, GL_STATIC_DRAW);
 
@@ -193,7 +172,7 @@ public:
 
     bool step() override
     {
-        //printf("hl::Main::step\n");
+        // printf("hl::Main::step\n");
 
         if (std::chrono::system_clock::now() - m_started > std::chrono::seconds(5))
             return false;
@@ -251,13 +230,9 @@ public:
         return true;
     }
 
-    void shutdown() override
-    {
-        printf("hl::Main::shutdown\n");
-    }
+    void shutdown() override { printf("hl::Main::shutdown\n"); }
 
 private:
     std::chrono::system_clock::time_point m_started;
     hl::WindowOverlay m_overlay;
-
 };

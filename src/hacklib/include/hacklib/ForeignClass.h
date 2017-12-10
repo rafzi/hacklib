@@ -4,9 +4,8 @@
 #include <cstdint>
 
 
-namespace hl {
-
-
+namespace hl
+{
 /* C++ style casting is avoided for readability. */
 
 
@@ -14,9 +13,7 @@ namespace hl {
 class ForeignClass
 {
 public:
-    ForeignClass(void *ptr) : m_ptr(ptr)
-    {
-    }
+    ForeignClass(void* ptr) : m_ptr(ptr) {}
 
     template <typename T>
     T get(uintptr_t offset) const
@@ -40,29 +37,17 @@ public:
     template <typename T, typename... Ts>
     T call(uintptr_t offset, Ts... args)
     {
-        return (
-            (T(__thiscall*)(void*, Ts...))
-            (*(uintptr_t*)((*(uintptr_t*)m_ptr) + offset)))(m_ptr, args...);
+        return ((T(__thiscall*)(void*, Ts...))(*(uintptr_t*)((*(uintptr_t*)m_ptr) + offset)))(m_ptr, args...);
     }
 
-    explicit operator bool() const
-    {
-        return m_ptr != nullptr;
-    }
+    explicit operator bool() const { return m_ptr != nullptr; }
 
-    void *data()
-    {
-        return m_ptr;
-    }
+    void* data() { return m_ptr; }
 
-    const void *data() const
-    {
-        return m_ptr;
-    }
+    const void* data() const { return m_ptr; }
 
 private:
-    void *m_ptr;
-
+    void* m_ptr;
 };
 
 
@@ -116,8 +101,6 @@ inline ForeignClass operator-(uintptr_t offset, const ForeignClass& base)
 {
     return base - offset;
 }
-
-
 }
 
 #endif

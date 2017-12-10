@@ -4,17 +4,14 @@
 #include <chrono>
 
 
-namespace hl {
-
-
+namespace hl
+{
 class Timer
 {
     typedef std::chrono::high_resolution_clock Clock;
+
 public:
-    void reset()
-    {
-        m_timestamp = Clock::now();
-    }
+    void reset() { m_timestamp = Clock::now(); }
 
     template <typename T = float>
     T diff() const
@@ -25,9 +22,7 @@ public:
 
 private:
     Clock::time_point m_timestamp = Clock::now();
-
 };
-
 }
 
 #endif

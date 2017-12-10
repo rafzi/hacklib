@@ -1,6 +1,6 @@
 #include "hacklib/ExeFile.h"
-#include <fstream>
 #include <algorithm>
+#include <fstream>
 
 
 bool hl::ExeFile::loadFromFile(const std::string& path)

@@ -2,15 +2,14 @@
 #define HACKLIB_CONSOLEEX_H
 
 #include <Windows.h>
+#include <functional>
+#include <future>
 #include <string>
 #include <thread>
-#include <future>
-#include <functional>
 
 
-namespace hl {
-
-
+namespace hl
+{
 struct CONSOLEEX_PARAMETERS
 {
     // width of console buffer in characters
@@ -33,8 +32,8 @@ struct CONSOLEEX_PARAMETERS
  */
 class ConsoleEx
 {
-    ConsoleEx(const ConsoleEx &) = delete;
-    ConsoleEx &operator= (const ConsoleEx &) = delete;
+    ConsoleEx(const ConsoleEx&) = delete;
+    ConsoleEx& operator=(const ConsoleEx&) = delete;
 
 public:
     // fetches default initialisation of parameter struct
@@ -47,10 +46,10 @@ public:
 
     // opens console and starts handling of all events
     // waits for private thread to run (eg. will deadlock when called in DllMain)
-    bool create(const std::string& windowTitle, CONSOLEEX_PARAMETERS *parameters = nullptr);
+    bool create(const std::string& windowTitle, CONSOLEEX_PARAMETERS* parameters = nullptr);
 
     // registers a callback that will be called on input
-    void registerInputCallback(void(*cbInput)(std::string));
+    void registerInputCallback(void (*cbInput)(std::string));
     template <class F>
     void registerInputCallback(F cbInput)
     {
@@ -62,9 +61,8 @@ public:
     HWND getWindowHandle() const;
 
     // member functions to send output to console
-    void vprintf(const char *format, va_list valist);
-    void printf(const char *format, ...);
-
+    void vprintf(const char* format, va_list valist);
+    void printf(const char* format, ...);
 
 
 private:
@@ -74,10 +72,10 @@ private:
 private:
     // member functions to process window and thread callbacks
     LRESULT wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
-    void threadProc(std::promise<bool> &p);
+    void threadProc(std::promise<bool>& p);
 
     // writes arbitrary string to ConsoleBuffer
-    void writeStringToRawBuffer(char *strOut);
+    void writeStringToRawBuffer(char* strOut);
 
 
     std::thread m_thread;
@@ -95,8 +93,8 @@ private:
     // abstraction of dirty raw buffer modifications
     class ConsoleBuffer
     {
-        ConsoleBuffer(const ConsoleBuffer &) = delete;
-        ConsoleBuffer &operator= (const ConsoleBuffer &) = delete;
+        ConsoleBuffer(const ConsoleBuffer&) = delete;
+        ConsoleBuffer& operator=(const ConsoleBuffer&) = delete;
 
     public:
         ConsoleBuffer();
@@ -113,7 +111,7 @@ private:
         void clear();
 
         // function expects input string to not contain special characters like '\r','\n','\t', etc
-        void write(wchar_t *str);
+        void write(wchar_t* str);
         void scrollUp();
 
     private:
@@ -121,14 +119,12 @@ private:
 
         mutable std::mutex m_writeMutex;
         HLOCAL m_bufferHandle;
-        wchar_t *m_buffer;
+        wchar_t* m_buffer;
         int m_cursorPos;
         int m_wid, m_hei;
 
     } m_rawBuffer;
-
 };
-
 }
 
 #endif

@@ -1,14 +1,14 @@
 #include "hacklib/GfxOverlay.h"
 #include <Windows.h>
-#include <dwmapi.h>
 #include <atomic>
 #include <chrono>
+#include <dwmapi.h>
 
 
 using namespace hl;
 
 
-static std::atomic<int> g_wndClassRefCount { 0 };
+static std::atomic<int> g_wndClassRefCount{ 0 };
 static const char WNDCLASS_OVERLAY[] = "HL_GFXOVERLAY";
 
 
@@ -18,10 +18,9 @@ public:
     D3DPRESENT_PARAMETERS getPresentParams() const;
 
 public:
-    GfxOverlay *overlay = nullptr;
-    IDirect3D9 *d3d = nullptr;
-    IDirect3DDevice9 *device = nullptr;
-
+    GfxOverlay* overlay = nullptr;
+    IDirect3D9* d3d = nullptr;
+    IDirect3DDevice9* device = nullptr;
 };
 
 
@@ -42,19 +41,22 @@ D3DPRESENT_PARAMETERS GfxOverlayImpl::getPresentParams() const
     DWORD multiSampleQuality = 0;
     D3DFORMAT depthFormat = D3DFMT_D16;
 
-    D3DDISPLAYMODE D3Ddm = { };
+    D3DDISPLAYMODE D3Ddm = {};
     if (d3d->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &D3Ddm) == D3D_OK)
     {
         // use best multisampling available
-        if (d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, TRUE, D3DMULTISAMPLE_NONMASKABLE, &multiSampleQuality) != D3D_OK)
+        if (d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, TRUE,
+                                            D3DMULTISAMPLE_NONMASKABLE, &multiSampleQuality) != D3D_OK)
         {
             // D3D may set this value even on failure, so reset it.
             multiSampleQuality = 0;
         }
 
         // use a better depth buffer if available and compatible with our backbuffer
-        if (d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_SURFACE, D3DFMT_D24S8) == D3D_OK &&
-            d3d->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, D3DFMT_A8R8G8B8, D3DFMT_D24S8) == D3D_OK)
+        if (d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, D3DUSAGE_DEPTHSTENCIL,
+                                   D3DRTYPE_SURFACE, D3DFMT_D24S8) == D3D_OK &&
+            d3d->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3Ddm.Format, D3DFMT_A8R8G8B8,
+                                        D3DFMT_D24S8) == D3D_OK)
         {
             depthFormat = D3DFMT_D24S8;
         }
@@ -64,13 +66,13 @@ D3DPRESENT_PARAMETERS GfxOverlayImpl::getPresentParams() const
     // so when drawing something the alphachannel will not be calculated and combined to a opaque color.
     // instead the alpha value is written to the backbuffer and can be presented to the alphablendable frontbuffer.
 
-    D3DPRESENT_PARAMETERS D3Dparams = { };
+    D3DPRESENT_PARAMETERS D3Dparams = {};
     D3Dparams.BackBufferWidth = 0;
     D3Dparams.BackBufferHeight = 0;
     D3Dparams.BackBufferFormat = D3DFMT_A8R8G8B8; // Alpha is needed in the backbuffer.
     D3Dparams.BackBufferCount = 0;
     D3Dparams.MultiSampleType = multiSampleQuality ? D3DMULTISAMPLE_NONMASKABLE : D3DMULTISAMPLE_NONE;
-    D3Dparams.MultiSampleQuality = multiSampleQuality ? multiSampleQuality-1 : 0; // Must be valid even if not used.
+    D3Dparams.MultiSampleQuality = multiSampleQuality ? multiSampleQuality - 1 : 0; // Must be valid even if not used.
     D3Dparams.SwapEffect = D3DSWAPEFFECT_DISCARD;
     D3Dparams.hDeviceWindow = overlay->m_hWnd;
     D3Dparams.Windowed = TRUE;
@@ -128,7 +130,7 @@ void GfxOverlay::resetContext()
 void GfxOverlay::beginDraw()
 {
     m_impl->device->BeginScene();
-    m_impl->device->Clear(0, 0, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, D3DCOLOR_ARGB(0,0,0,0), 1.0f, 0);
+    m_impl->device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_ARGB(0, 0, 0, 0), 1.0f, 0);
 }
 
 void GfxOverlay::swapBuffers()
@@ -154,16 +156,16 @@ void GfxOverlay::impl_construct()
 
     if (!g_wndClassRefCount.fetch_add(1))
     {
-        WNDCLASSEX wndClass = { };
+        WNDCLASSEX wndClass = {};
         wndClass.cbSize = sizeof(WNDCLASSEX);
-        wndClass.style = CS_HREDRAW|CS_VREDRAW;
+        wndClass.style = CS_HREDRAW | CS_VREDRAW;
         wndClass.lpfnWndProc = s_WndProc;
         wndClass.cbClsExtra = 0;
         wndClass.cbWndExtra = sizeof(this);
         wndClass.hInstance = m_hModule;
-        wndClass.hIcon = NULL;                  // the icon will not be visible (WS_EX_NOACTIVATE, WS_POPUP)
-        wndClass.hCursor = NULL;                // the cursor will not be visible (WS_EX_TRANSPARENT)
-        wndClass.hbrBackground = NULL;          // tell windows that we draw the background
+        wndClass.hIcon = NULL;         // the icon will not be visible (WS_EX_NOACTIVATE, WS_POPUP)
+        wndClass.hCursor = NULL;       // the cursor will not be visible (WS_EX_TRANSPARENT)
+        wndClass.hbrBackground = NULL; // tell windows that we draw the background
         wndClass.lpszMenuName = NULL;
         wndClass.lpszClassName = WNDCLASS_OVERLAY;
         wndClass.hIconSm = NULL;
@@ -191,17 +193,18 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
 {
     // create a layered window. a layered window has a frontbuffer that is alphablendable.
 
-    m_hWnd = CreateWindowEx(
-        WS_EX_LAYERED|          // window can be alphablended
-        WS_EX_TRANSPARENT|      // window does not obscure any windows beneath eg clicks fall through
-        WS_EX_TOPMOST|          // window placed and stays above all nontopmost windows
-        WS_EX_NOACTIVATE,       // window does not appear in the taskbar
-        WNDCLASS_OVERLAY, "Hacklib Overlay",
-        WS_VISIBLE|             // window is initially visible
-        WS_POPUP,               // window has no frame or border
-        m_posX, m_posY, m_width, m_height, HWND_DESKTOP, NULL, m_hModule, m_impl);
+    m_hWnd =
+        CreateWindowEx(WS_EX_LAYERED |         // window can be alphablended
+                           WS_EX_TRANSPARENT | // window does not obscure any windows beneath eg clicks fall through
+                           WS_EX_TOPMOST |     // window placed and stays above all nontopmost windows
+                           WS_EX_NOACTIVATE,   // window does not appear in the taskbar
+                       WNDCLASS_OVERLAY, "Hacklib Overlay",
+                       WS_VISIBLE |  // window is initially visible
+                           WS_POPUP, // window has no frame or border
+                       m_posX, m_posY, m_width, m_height, HWND_DESKTOP, NULL, m_hModule, m_impl);
 
-    if (!m_hWnd) {
+    if (!m_hWnd)
+    {
         p.set_value(Error::Window);
         return;
     }
@@ -212,22 +215,28 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     // set the layered window to be fully opaque and not use a transparency key.
     // it still has an alphablendable frontbuffer though.
 
-    if (!SetLayeredWindowAttributes(m_hWnd, 0, 255, LWA_ALPHA)) {
+    if (!SetLayeredWindowAttributes(m_hWnd, 0, 255, LWA_ALPHA))
+    {
         p.set_value(Error::Other);
         return;
     }
 
     // create a usual d3d9 device, but with alphablendable backbuffer, see getPresentParams
     m_impl->d3d = Direct3DCreate9(D3D_SDK_VERSION);
-    if (!m_impl->d3d) {
+    if (!m_impl->d3d)
+    {
         p.set_value(Error::Context);
         return;
     }
 
     D3DPRESENT_PARAMETERS D3Dparams = m_impl->getPresentParams();
 
-    if (m_impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd, D3DCREATE_MULTITHREADED|D3DCREATE_HARDWARE_VERTEXPROCESSING, &D3Dparams, &m_impl->device) != D3D_OK &&
-        m_impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd, D3DCREATE_MULTITHREADED|D3DCREATE_SOFTWARE_VERTEXPROCESSING, &D3Dparams, &m_impl->device) != D3D_OK)
+    if (m_impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd,
+                                  D3DCREATE_MULTITHREADED | D3DCREATE_HARDWARE_VERTEXPROCESSING, &D3Dparams,
+                                  &m_impl->device) != D3D_OK &&
+        m_impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd,
+                                  D3DCREATE_MULTITHREADED | D3DCREATE_SOFTWARE_VERTEXPROCESSING, &D3Dparams,
+                                  &m_impl->device) != D3D_OK)
     {
         p.set_value(Error::Context);
         return;

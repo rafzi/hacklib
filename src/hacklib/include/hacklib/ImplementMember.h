@@ -48,27 +48,18 @@
 */
 
 
-#define IMPLMEMBER(type, name, offset) \
-    protected: \
-        static const uintptr_t o##name = offset; \
-        typedef type t##name; \
-    public: \
-        type const& get##name() const \
-        { \
-            return *(type*)((uintptr_t)this + o##name); \
-        } \
-        type& get##name() \
-        { \
-            return *(type*)((uintptr_t)this + o##name); \
-        } \
-        void set##name(type value) \
-        { \
-            *(type*)((uintptr_t)this + o##name) = value; \
-        }
+#define IMPLMEMBER(type, name, offset)                                                                                 \
+protected:                                                                                                             \
+    static const uintptr_t o##name = offset;                                                                           \
+    typedef type t##name;                                                                                              \
+                                                                                                                       \
+public:                                                                                                                \
+    type const& get##name() const { return *(type*)((uintptr_t)this + o##name); }                                      \
+    type& get##name() { return *(type*)((uintptr_t)this + o##name); }                                                  \
+    void set##name(type value) { *(type*)((uintptr_t)this + o##name) = value; }
 
 
-#define IMPLMEMBER_REL(type, name, offset, from) \
-    IMPLMEMBER(type, name, offset + o##from + sizeof(t##from))
+#define IMPLMEMBER_REL(type, name, offset, from) IMPLMEMBER(type, name, offset + o##from + sizeof(t##from))
 
 
 #define EXPAND(x) x
@@ -88,26 +79,30 @@
 #define EXPAND_ARGS__(how, N, ...) EXPAND(EXPAND_ARGS_##N(ARGS_COMMA, how, __VA_ARGS__))
 #define EXPAND_ARGS_1(...)
 #define EXPAND_ARGS_2(comma, how, argtype, argname, ...) how(comma, argtype, argname)
-#define EXPAND_ARGS_4(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_2(ARGS_NOCOMMA, how, __VA_ARGS__))
-#define EXPAND_ARGS_6(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_4(ARGS_NOCOMMA, how, __VA_ARGS__))
-#define EXPAND_ARGS_8(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_6(ARGS_NOCOMMA, how, __VA_ARGS__))
-#define EXPAND_ARGS_10(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_8(ARGS_NOCOMMA, how, __VA_ARGS__))
-#define EXPAND_ARGS_12(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_10(ARGS_NOCOMMA, how, __VA_ARGS__))
-#define EXPAND_ARGS_14(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_12(ARGS_NOCOMMA, how, __VA_ARGS__))
-#define EXPAND_ARGS_16(comma, how, argtype, argname, ...) how(comma, argtype, argname), EXPAND(EXPAND_ARGS_14(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_4(comma, how, argtype, argname, ...)                                                               \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_2(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_6(comma, how, argtype, argname, ...)                                                               \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_4(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_8(comma, how, argtype, argname, ...)                                                               \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_6(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_10(comma, how, argtype, argname, ...)                                                              \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_8(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_12(comma, how, argtype, argname, ...)                                                              \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_10(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_14(comma, how, argtype, argname, ...)                                                              \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_12(ARGS_NOCOMMA, how, __VA_ARGS__))
+#define EXPAND_ARGS_16(comma, how, argtype, argname, ...)                                                              \
+    how(comma, argtype, argname), EXPAND(EXPAND_ARGS_14(ARGS_NOCOMMA, how, __VA_ARGS__))
 
-#define IMPLVTFUNC_OR(rettype, name, ordinal, ...) \
-    public: \
-        rettype name(EXPAND_ARGS(ARGS_FULL, __VA_ARGS__)) \
-        { \
-            return (\
-                (rettype(__thiscall*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__))) \
-                (*(uintptr_t*)((*(uintptr_t**)this) + ordinal))) \
-                ((uintptr_t)this EXPAND_ARGS(ARGS_NAMES, __VA_ARGS__)); \
-        }
+#define IMPLVTFUNC_OR(rettype, name, ordinal, ...)                                                                     \
+public:                                                                                                                \
+    rettype name(EXPAND_ARGS(ARGS_FULL, __VA_ARGS__))                                                                  \
+    {                                                                                                                  \
+        return ((rettype(__thiscall*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__)))(                                \
+            *(uintptr_t*)((*(uintptr_t**)this) + ordinal)))((uintptr_t)this EXPAND_ARGS(ARGS_NAMES, __VA_ARGS__));     \
+    }
 
-#define IMPLVTFUNC(rettype, name, offset, ...) \
-    IMPLVTFUNC_OR(rettype, name, (offset/sizeof(void*)), __VA_ARGS__)
+#define IMPLVTFUNC(rettype, name, offset, ...) IMPLVTFUNC_OR(rettype, name, (offset / sizeof(void*)), __VA_ARGS__)
 
 
 #endif

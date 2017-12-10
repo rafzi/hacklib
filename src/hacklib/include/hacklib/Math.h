@@ -9,11 +9,10 @@
 #include "glm/glm.hpp"
 
 
-namespace hl {
-
+namespace hl
+{
 typedef glm::vec3 Vec3;
 typedef glm::mat4x4 Mat4x4;
-
 }
 
 #endif

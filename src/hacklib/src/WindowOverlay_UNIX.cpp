@@ -1,9 +1,9 @@
-#include "hacklib/WindowOverlay.h"
 #include "hacklib/GfxOverlay_UNIX.h"
+#include "hacklib/WindowOverlay.h"
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
-#include <unistd.h>
 #include <stack>
+#include <unistd.h>
 
 
 using namespace hl;
@@ -29,17 +29,18 @@ WindowHandle WindowOverlay::GetTargetWindow()
         int format;
         unsigned long numitems;
         unsigned long bytesafter;
-        unsigned char *propPID = nullptr;
-        auto result = XGetWindowProperty(display, hWnd, atomPID, 0, 1, False, XA_CARDINAL, &type, &format, &numitems, &bytesafter, &propPID);
+        unsigned char* propPID = nullptr;
+        auto result = XGetWindowProperty(display, hWnd, atomPID, 0, 1, False, XA_CARDINAL, &type, &format, &numitems,
+                                         &bytesafter, &propPID);
         if (result == Success && propPID != nullptr)
         {
             if (*(pid_t*)propPID == getpid())
             {
-                XWindowAttributes attrs = { };
+                XWindowAttributes attrs = {};
                 XGetWindowAttributes(display, hWnd, &attrs);
 
-                if (attrs.width > 0 && attrs.height > 0 &&
-                    attrs.c_class == InputOutput && attrs.map_state == IsViewable)
+                if (attrs.width > 0 && attrs.height > 0 && attrs.c_class == InputOutput &&
+                    attrs.map_state == IsViewable)
                 {
                     XFree(propPID);
                     return hWnd;
@@ -51,7 +52,7 @@ WindowHandle WindowOverlay::GetTargetWindow()
 
         Window outRoot;
         Window outParent;
-        Window *outChildren;
+        Window* outChildren;
         unsigned int numchildren = 0;
         if (XQueryTree(display, hWnd, &outRoot, &outParent, &outChildren, &numchildren))
         {
@@ -73,10 +74,10 @@ void WindowOverlay::cbWindowLoop()
     auto display = m_impl->display;
     auto root = RootWindow(display, m_impl->screen);
 
-    XWindowChanges changes = { };
+    XWindowChanges changes = {};
     unsigned int changeMask = 0;
 
-    XWindowAttributes attrs = { };
+    XWindowAttributes attrs = {};
     XGetWindowAttributes(display, m_targetWindow, &attrs);
 
     int absX, absY;

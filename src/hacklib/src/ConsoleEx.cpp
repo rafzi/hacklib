@@ -18,12 +18,12 @@ static const int IDC_EDITIN = 101;
 
 CONSOLEEX_PARAMETERS ConsoleEx::GetDefaultParameters()
 {
-    CONSOLEEX_PARAMETERS parameters = { };
+    CONSOLEEX_PARAMETERS parameters = {};
     parameters.cellsX = 80;
     parameters.cellsYVisible = 20;
     parameters.cellsYBuffer = 500;
-    parameters.bgColor = RGB(0,0,0);
-    parameters.textColor = RGB(192,192,192);
+    parameters.bgColor = RGB(0, 0, 0);
+    parameters.textColor = RGB(192, 192, 192);
     parameters.closemenu = false;
     return parameters;
 }
@@ -38,15 +38,15 @@ ConsoleEx::ConsoleEx(HINSTANCE hModule)
 
     if (!g_wndClassRefCount++)
     {
-        WNDCLASSA wc = { };
-        wc.style = CS_HREDRAW|CS_VREDRAW;
+        WNDCLASSA wc = {};
+        wc.style = CS_HREDRAW | CS_VREDRAW;
         wc.lpfnWndProc = s_WndProc;
         wc.cbClsExtra = 0;
         wc.cbWndExtra = sizeof(this);
         wc.hInstance = m_hModule;
         wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
         wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-        wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_GRAYTEXT+1);
+        wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_GRAYTEXT + 1);
         wc.lpszMenuName = NULL;
         wc.lpszClassName = WNDCLASS_CONSOLEEX;
 
@@ -64,7 +64,7 @@ ConsoleEx::~ConsoleEx()
 }
 
 
-bool ConsoleEx::create(const std::string& windowTitle, CONSOLEEX_PARAMETERS *parameters)
+bool ConsoleEx::create(const std::string& windowTitle, CONSOLEEX_PARAMETERS* parameters)
 {
     // dont allow displaying twice
     close();
@@ -114,7 +114,7 @@ HWND ConsoleEx::getWindowHandle() const
 }
 
 
-void ConsoleEx::vprintf(const char *format, va_list valist)
+void ConsoleEx::vprintf(const char* format, va_list valist)
 {
     va_list valist_copy;
     va_copy(valist_copy, valist);
@@ -122,17 +122,17 @@ void ConsoleEx::vprintf(const char *format, va_list valist)
     // get size of formatted string
     int size = vsnprintf(nullptr, 0, format, valist);
     // allocate buffer to hold formatted string + null terminator
-    char *pBuffer = new char[size+1];
+    char* pBuffer = new char[size + 1];
     // write formatted string to buffer
-    vsnprintf(pBuffer, size+1, format, valist_copy);
+    vsnprintf(pBuffer, size + 1, format, valist_copy);
 
     writeStringToRawBuffer(pBuffer);
 
-    delete [] pBuffer;
+    delete[] pBuffer;
     va_end(valist_copy);
 }
 
-void ConsoleEx::printf(const char *format, ...)
+void ConsoleEx::printf(const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);
@@ -141,26 +141,27 @@ void ConsoleEx::printf(const char *format, ...)
 }
 
 
-
 // WndProc for CONSOLEEX window class
-LRESULT CALLBACK ConsoleEx::s_WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK ConsoleEx::s_WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
     // if msg is WM_NCCREATE, associate instance ptr from createparameter to this window
     // note: WM_NCCREATE is not the first msg to be sent to a window
-    if (msg == WM_NCCREATE) {
+    if (msg == WM_NCCREATE)
+    {
         LPCREATESTRUCT cs = reinterpret_cast<LPCREATESTRUCT>(lparam);
         SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(cs->lpCreateParams));
     }
     // get instance ptr associated with this window
-    ConsoleEx *pInstance = reinterpret_cast<ConsoleEx*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    ConsoleEx* pInstance = reinterpret_cast<ConsoleEx*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
     // call member function to handle messages indiviually for each instance
     // always check ptr because wndproc is called before association
-    if (pInstance) {
+    if (pInstance)
+    {
         return pInstance->wndProc(hWnd, msg, wparam, lparam);
     }
     // else
     return DefWindowProc(hWnd, msg, wparam, lparam);
 }
-
 
 
 LRESULT ConsoleEx::wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -179,64 +180,64 @@ LRESULT ConsoleEx::wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
         PostQuitMessage(0);
         return 0;
     case WM_CREATE:
+    {
+        // create brush for edit control backgrounds
+        m_hbrBackGround = CreateSolidBrush(m_parameters.bgColor);
+
+        // input edit control
+        m_hEditIn = CreateWindowA("EDIT", 0,
+                                  // styles for console input edit control
+                                  WS_CHILD | WS_VISIBLE | ES_LEFT |
+                                      // will make sure EN_MAXTEXT is sent when hitting enter key
+                                      ES_MULTILINE | ES_AUTOHSCROLL,
+                                  // metrics
+                                  0, m_parameters.cellsYVisible * CELLHEIGHT + SPACING, m_parameters.cellsX * CELLWIDTH,
+                                  CELLHEIGHT, hWnd, reinterpret_cast<HMENU>(IDC_EDITIN), m_hModule, NULL);
+
+        // output edit control
+        m_hEditOut = CreateWindowW(L"EDIT", 0,
+                                   // styles for console output edit box
+                                   WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE |
+                                       // will prevent line endings from jumping to the next line
+                                       ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_READONLY |
+                                       // raw buffer will be accessable from this program
+                                       DS_LOCALEDIT,
+                                   // metrics
+                                   0, 0, m_parameters.cellsX * CELLWIDTH + GetSystemMetrics(SM_CXVSCROLL),
+                                   m_parameters.cellsYVisible * CELLHEIGHT, hWnd, reinterpret_cast<HMENU>(IDC_EDITOUT),
+                                   m_hModule, NULL);
+
+        if (!m_hbrBackGround || !m_hEditOut || !m_hEditIn)
         {
-            // create brush for edit control backgrounds
-            m_hbrBackGround = CreateSolidBrush(m_parameters.bgColor);
-
-            // input edit control
-            m_hEditIn = CreateWindowA(
-                "EDIT", 0,
-                // styles for console input edit control
-                WS_CHILD|WS_VISIBLE|ES_LEFT|
-                // will make sure EN_MAXTEXT is sent when hitting enter key
-                ES_MULTILINE|ES_AUTOHSCROLL,
-                // metrics
-                0, m_parameters.cellsYVisible*CELLHEIGHT + SPACING, m_parameters.cellsX*CELLWIDTH, CELLHEIGHT,
-                hWnd, reinterpret_cast<HMENU>(IDC_EDITIN), m_hModule, NULL);
-
-            // output edit control
-            m_hEditOut = CreateWindowW(
-                L"EDIT", 0,
-                // styles for console output edit box
-                WS_CHILD|WS_VISIBLE|WS_VSCROLL|ES_LEFT|ES_MULTILINE|
-                // will prevent line endings from jumping to the next line
-                ES_AUTOHSCROLL|
-                ES_AUTOVSCROLL|ES_READONLY|
-                // raw buffer will be accessable from this program
-                DS_LOCALEDIT,
-                // metrics
-                0, 0, m_parameters.cellsX*CELLWIDTH + GetSystemMetrics(SM_CXVSCROLL), m_parameters.cellsYVisible*CELLHEIGHT,
-                hWnd, reinterpret_cast<HMENU>(IDC_EDITOUT), m_hModule, NULL);
-
-            if (!m_hbrBackGround || !m_hEditOut || !m_hEditIn) {
-                // createwindow of parent will return 0
-                return -1;
-            }
-
-            // set font in edit controls to system monospaced font
-            HGDIOBJ fixedFont = GetStockObject(SYSTEM_FIXED_FONT);
-            SendMessageA(m_hEditOut, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE,0));
-            SendMessageA(m_hEditIn, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE,0));
-
-            // get edit control raw buffer
-            m_rawBuffer.setBuffer(reinterpret_cast<HLOCAL>(SendMessageA(m_hEditOut, EM_GETHANDLE, 0, 0)));
-
-            // resize raw edit control buffer
-            if (!m_rawBuffer.resize(m_parameters.cellsX, m_parameters.cellsYBuffer)) {
-                // createwindow of parent will return 0
-                return -1;
-            }
-
-            // set up raw edit control buffer with spaces, CRLF and null termination
-            m_rawBuffer.lock();
-            m_rawBuffer.clear();
-            m_rawBuffer.unlock();
-
-            SendMessageA(m_hEditOut, EM_SETHANDLE, reinterpret_cast<WPARAM>(m_rawBuffer.getBuffer()), 0);
-
-            // scroll to bottom
-            SendMessageA(m_hEditOut, WM_VSCROLL, MAKEWPARAM(SB_BOTTOM,0), 0);
+            // createwindow of parent will return 0
+            return -1;
         }
+
+        // set font in edit controls to system monospaced font
+        HGDIOBJ fixedFont = GetStockObject(SYSTEM_FIXED_FONT);
+        SendMessageA(m_hEditOut, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE, 0));
+        SendMessageA(m_hEditIn, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE, 0));
+
+        // get edit control raw buffer
+        m_rawBuffer.setBuffer(reinterpret_cast<HLOCAL>(SendMessageA(m_hEditOut, EM_GETHANDLE, 0, 0)));
+
+        // resize raw edit control buffer
+        if (!m_rawBuffer.resize(m_parameters.cellsX, m_parameters.cellsYBuffer))
+        {
+            // createwindow of parent will return 0
+            return -1;
+        }
+
+        // set up raw edit control buffer with spaces, CRLF and null termination
+        m_rawBuffer.lock();
+        m_rawBuffer.clear();
+        m_rawBuffer.unlock();
+
+        SendMessageA(m_hEditOut, EM_SETHANDLE, reinterpret_cast<WPARAM>(m_rawBuffer.getBuffer()), 0);
+
+        // scroll to bottom
+        SendMessageA(m_hEditOut, WM_VSCROLL, MAKEWPARAM(SB_BOTTOM, 0), 0);
+    }
         return 0;
     case WM_CTLCOLORSTATIC:
         SetBkColor(reinterpret_cast<HDC>(wparam), m_parameters.bgColor);
@@ -247,33 +248,36 @@ LRESULT ConsoleEx::wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
         SetTextColor(reinterpret_cast<HDC>(wparam), m_parameters.textColor);
         return reinterpret_cast<INT_PTR>(m_hbrBackGround);
     case WM_COMMAND:
+    {
+        // message when enter was pressed in input edit
+        if (LOWORD(wparam) == IDC_EDITIN && HIWORD(wparam) == EN_MAXTEXT)
         {
-            // message when enter was pressed in input edit
-            if (LOWORD(wparam) == IDC_EDITIN && HIWORD(wparam) == EN_MAXTEXT) {
-                // truncate input when it is longer that 256 characters
-                // GetWindowTextA nullterminates string correctly
-                char inputBuffer[256];
-                GetWindowTextA(m_hEditIn, inputBuffer, 256);
+            // truncate input when it is longer that 256 characters
+            // GetWindowTextA nullterminates string correctly
+            char inputBuffer[256];
+            GetWindowTextA(m_hEditIn, inputBuffer, 256);
 
-                // only call callback when input is not empty
-                if (inputBuffer[0] != '\0') {
-                    // clear content of input edit
-                    SetWindowTextA(m_hEditIn, "");
+            // only call callback when input is not empty
+            if (inputBuffer[0] != '\0')
+            {
+                // clear content of input edit
+                SetWindowTextA(m_hEditIn, "");
 
-                    // callback for input
-                    if (m_cbInput) {
-                        m_cbInput(inputBuffer);
-                    }
+                // callback for input
+                if (m_cbInput)
+                {
+                    m_cbInput(inputBuffer);
                 }
             }
         }
+    }
         return 0;
     }
 
     return DefWindowProcA(hWnd, msg, wparam, lparam);
 }
 
-void ConsoleEx::threadProc(std::promise<bool> &p)
+void ConsoleEx::threadProc(std::promise<bool>& p)
 {
     // calculate window size that will have the matching client size
     // height: number of output cells + input edit line + spacing between the two
@@ -285,18 +289,18 @@ void ConsoleEx::threadProc(std::promise<bool> &p)
     AdjustWindowRect(&rect, WS_CAPTION, FALSE);
 
     // create parent window. WM_CREATE will be executed before returning
-    m_hWnd = CreateWindowA(
-        WNDCLASS_CONSOLEEX, m_title.c_str(),
-        // clip children to prevent flicker
-        WS_CAPTION|WS_CLIPCHILDREN| (m_parameters.closemenu ? WS_SYSMENU : 0),
-        // metrics
-        CW_USEDEFAULT, CW_USEDEFAULT, rect.right-rect.left, rect.bottom-rect.top,
-        HWND_DESKTOP, NULL, m_hModule,
-        // pass a ptr to this instance as creation parameter
-        this);
+    m_hWnd = CreateWindowA(WNDCLASS_CONSOLEEX, m_title.c_str(),
+                           // clip children to prevent flicker
+                           WS_CAPTION | WS_CLIPCHILDREN | (m_parameters.closemenu ? WS_SYSMENU : 0),
+                           // metrics
+                           CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, HWND_DESKTOP,
+                           NULL, m_hModule,
+                           // pass a ptr to this instance as creation parameter
+                           this);
 
     // any errors that could occur at creation will result in m_hWnd to be 0
-    if (!m_hWnd) {
+    if (!m_hWnd)
+    {
         // cleanup partially initialized stuff
         m_rawBuffer.free();
 
@@ -325,54 +329,62 @@ void ConsoleEx::threadProc(std::promise<bool> &p)
 
 // function splits argument pBuffer into strings that can be drawn to a single console line
 // splits occur at line feed
-void ConsoleEx::writeStringToRawBuffer(char *strOut)
+void ConsoleEx::writeStringToRawBuffer(char* strOut)
 {
     int len = static_cast<int>(strlen(strOut));
 
     // convert string to wide chars
-    wchar_t *strOutW = new wchar_t[len+1];
+    wchar_t* strOutW = new wchar_t[len + 1];
     size_t copied;
-    mbstowcs_s(&copied, strOutW, len+1, strOut, len);
+    mbstowcs_s(&copied, strOutW, len + 1, strOut, len);
 
-    // remove special characters: horizontal tab ('\t'), vertical tab ('\v'), backspace ('\b'), carriage return ('\r'), form feed ('\f'), alert ('\a')
-    for (int i = 0; i < len; i++) {
-        if (strOutW[i] == L'\t' || strOutW[i] == L'\v' || strOutW[i] == L'\b' || strOutW[i] == L'\r' || strOutW[i] == L'\f' || strOutW[i] == L'\a') {
-            memmove(&strOutW[i], &strOutW[i+1], (len - i + 1) * sizeof(wchar_t));
+    // remove special characters: horizontal tab ('\t'), vertical tab ('\v'), backspace ('\b'), carriage return ('\r'),
+    // form feed ('\f'), alert ('\a')
+    for (int i = 0; i < len; i++)
+    {
+        if (strOutW[i] == L'\t' || strOutW[i] == L'\v' || strOutW[i] == L'\b' || strOutW[i] == L'\r' ||
+            strOutW[i] == L'\f' || strOutW[i] == L'\a')
+        {
+            memmove(&strOutW[i], &strOutW[i + 1], (len - i + 1) * sizeof(wchar_t));
             i--;
             len--;
         }
     }
 
     // replace LF ('\n') with null terminator ('\0') to split string
-    for (int i = 0; i < len; i++) {
-        if (strOutW[i] == L'\n') {
+    for (int i = 0; i < len; i++)
+    {
+        if (strOutW[i] == L'\n')
+        {
             strOutW[i] = L'\0';
         }
     }
 
     m_rawBuffer.lock();
-    wchar_t *pOut = strOutW;
-    for (int i = 0; i < len; i++) {
+    wchar_t* pOut = strOutW;
+    for (int i = 0; i < len; i++)
+    {
         // if premature null terminator is found, write and scroll
-        if (strOutW[i] == L'\0') {
+        if (strOutW[i] == L'\0')
+        {
             m_rawBuffer.write(pOut);
             m_rawBuffer.scrollUp();
-            pOut = &strOutW[i+1];
+            pOut = &strOutW[i + 1];
         }
         // write last chunk
-        if (i == len-1) {
+        if (i == len - 1)
+        {
             m_rawBuffer.write(pOut);
         }
     }
     m_rawBuffer.unlock();
 
-    delete [] strOutW;
+    delete[] strOutW;
 
     // queue redraw
     if (m_hEditOut)
         InvalidateRect(m_hEditOut, NULL, FALSE);
 }
-
 
 
 // =============================================
@@ -393,7 +405,8 @@ ConsoleEx::ConsoleBuffer::~ConsoleBuffer()
 
 void ConsoleEx::ConsoleBuffer::free()
 {
-    if (m_bufferHandle) {
+    if (m_bufferHandle)
+    {
         LocalFree(m_bufferHandle);
         m_bufferHandle = NULL;
     }
@@ -404,7 +417,8 @@ HLOCAL ConsoleEx::ConsoleBuffer::getBuffer() const
 }
 void ConsoleEx::ConsoleBuffer::setBuffer(HLOCAL buffer)
 {
-    if (!m_bufferHandle) {
+    if (!m_bufferHandle)
+    {
         m_bufferHandle = buffer;
     }
 }
@@ -423,7 +437,8 @@ void ConsoleEx::ConsoleBuffer::unlock()
 
 bool ConsoleEx::ConsoleBuffer::resize(int width, int height)
 {
-    if (!m_bufferHandle) {
+    if (!m_bufferHandle)
+    {
         return false;
     }
     m_wid = width;
@@ -432,22 +447,26 @@ bool ConsoleEx::ConsoleBuffer::resize(int width, int height)
     // size: a line has 'width' characters and CRLF ('\r','\n')
     // last line doesnt need CRLF but a null terminator ('\0')
     m_bufferHandle = LocalReAlloc(m_bufferHandle, ((width + 2) * height - 1) * sizeof(wchar_t), LMEM_MOVEABLE);
-    if (!m_bufferHandle) {
+    if (!m_bufferHandle)
+    {
         return false;
     }
     return true;
 }
 void ConsoleEx::ConsoleBuffer::clear()
 {
-    if (m_buffer) {
+    if (m_buffer)
+    {
         // buffer will contain spaces (' ') in the usable buffer area
-        for (int i = 0; i < (m_wid + 2) * m_hei - 2; i++) {
+        for (int i = 0; i < (m_wid + 2) * m_hei - 2; i++)
+        {
             m_buffer[i] = L' ';
         }
         // buffer ends with null terminator ('\0')
         m_buffer[(m_wid + 2) * m_hei - 2] = L'\0';
         // every line but the last will end with CRLF ('\r','\n')
-        for (int i = 0; i < m_hei-1; i++) {
+        for (int i = 0; i < m_hei - 1; i++)
+        {
             m_buffer[(m_wid + 2) * i + m_wid] = L'\r';
             m_buffer[(m_wid + 2) * i + m_wid + 1] = L'\n';
         }
@@ -463,17 +482,20 @@ void ConsoleEx::ConsoleBuffer::clear()
 }
 
 // function expects input string to not contain '\r','\n','\t'
-void ConsoleEx::ConsoleBuffer::write(wchar_t *str)
+void ConsoleEx::ConsoleBuffer::write(wchar_t* str)
 {
-    if (m_buffer) {
+    if (m_buffer)
+    {
         // ptr to start of snippet that is drawn
-        wchar_t *pStr = str;
+        wchar_t* pStr = str;
 
-        while (pStr) {
+        while (pStr)
+        {
             int len = static_cast<int>(wcslen(pStr));
 
             int copyLen = len;
-            if (copyLen > m_wid - m_cursorPos) {
+            if (copyLen > m_wid - m_cursorPos)
+            {
                 copyLen = m_wid - m_cursorPos;
             }
 
@@ -483,15 +505,19 @@ void ConsoleEx::ConsoleBuffer::write(wchar_t *str)
             // adjust cursor position
             m_cursorPos += copyLen;
             // draw cursor when it is visible
-            if (m_cursorPos < m_wid) {
+            if (m_cursorPos < m_wid)
+            {
                 m_buffer[getBufferOffsetFromCursorPos()] = L'_';
             }
 
             // if string was not fully outputed, adjust ptr and continue
-            if (copyLen != len) {
+            if (copyLen != len)
+            {
                 scrollUp();
                 pStr = &pStr[copyLen];
-            } else {
+            }
+            else
+            {
                 pStr = nullptr;
             }
         }
@@ -499,9 +525,11 @@ void ConsoleEx::ConsoleBuffer::write(wchar_t *str)
 }
 void ConsoleEx::ConsoleBuffer::scrollUp()
 {
-    if (m_buffer) {
+    if (m_buffer)
+    {
         // erase cursor when it is visible
-        if (m_cursorPos < m_wid) {
+        if (m_cursorPos < m_wid)
+        {
             m_buffer[getBufferOffsetFromCursorPos()] = L' ';
         }
 
@@ -511,7 +539,8 @@ void ConsoleEx::ConsoleBuffer::scrollUp()
         m_buffer[(m_wid + 2) * (m_hei - 2) + m_wid] = L'\r';
         m_buffer[(m_wid + 2) * (m_hei - 2) + m_wid + 1] = L'\n';
         // erase new line
-        for (int i = 0; i < m_wid; i++) {
+        for (int i = 0; i < m_wid; i++)
+        {
             m_buffer[((m_wid + 2) * (m_hei - 1)) + i] = L' ';
         }
 

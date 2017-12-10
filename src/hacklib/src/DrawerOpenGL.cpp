@@ -35,9 +35,9 @@ void DrawerOpenGL::drawRect(float x, float y, float w, float h, hl::Color color)
     glBegin(GL_LINE_LOOP);
     color.glSet();
     glVertex2f(x, y);
-    glVertex2f(x, y+h);
-    glVertex2f(x+w, y+h);
-    glVertex2f(x+w, y);
+    glVertex2f(x, y + h);
+    glVertex2f(x + w, y + h);
+    glVertex2f(x + w, y);
     glEnd();
 }
 
@@ -52,9 +52,9 @@ void DrawerOpenGL::drawRectFilled(float x, float y, float w, float h, hl::Color 
     glBegin(GL_QUADS);
     color.glSet();
     glVertex2f(x, y);
-    glVertex2f(x, y+h);
-    glVertex2f(x+w, y+h);
-    glVertex2f(x+w, y);
+    glVertex2f(x, y + h);
+    glVertex2f(x + w, y + h);
+    glVertex2f(x + w, y);
     glEnd();
 }
 
@@ -70,10 +70,8 @@ void DrawerOpenGL::drawCircle(float mx, float my, float r, hl::Color color) cons
     color.glSet();
     for (int i = 0; i < CIRCLE_RESOLUTION; i++)
     {
-        glVertex2f(
-            mx + r * cos(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f))),
-            my + r * sin(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f)))
-        );
+        glVertex2f(mx + r * cos(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))),
+                   my + r * sin(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))));
     }
     glEnd();
 }
@@ -88,12 +86,10 @@ void DrawerOpenGL::drawCircleFilled(float mx, float my, float r, hl::Color color
 
     glBegin(GL_TRIANGLE_FAN);
     color.glSet();
-    for (int i = 0; i < CIRCLE_RESOLUTION+1; i++)
+    for (int i = 0; i < CIRCLE_RESOLUTION + 1; i++)
     {
-        glVertex2f(
-            mx + r * cos(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f))),
-            my + r * sin(M_PI * (i / (CIRCLE_RESOLUTION / 2.0f)))
-        );
+        glVertex2f(mx + r * cos(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))),
+                   my + r * sin(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))));
     }
     glEnd();
 }

@@ -8,16 +8,16 @@
 class Injection
 {
 public:
-    Injection(std::string *error) : m_error(error)
-    {
-    }
+    Injection(std::string* error) : m_error(error) {}
 
     ~Injection()
     {
-        if (m_remoteMem != NULL) {
+        if (m_remoteMem != NULL)
+        {
             VirtualFreeEx(m_hProc, m_remoteMem, 0, MEM_RELEASE);
         }
-        if (m_hProc != NULL) {
+        if (m_hProc != NULL)
+        {
             CloseHandle(m_hProc);
         }
     }
@@ -35,7 +35,8 @@ public:
         LPCSTR path = file.data();
 
         DWORD written = GetFullPathName(path, MAX_PATH, m_fileName, NULL);
-        if (written == 0) {
+        if (written == 0)
+        {
             writeErr("Fatal: Could not get the full library file name\n");
             return false;
         }
@@ -44,7 +45,8 @@ public:
 
         WIN32_FIND_DATA info;
         HANDLE hFile = FindFirstFile(m_fileName, &info);
-        if (hFile == INVALID_HANDLE_VALUE) {
+        if (hFile == INVALID_HANDLE_VALUE)
+        {
             writeErr("Fatal: Could not find the library file\n");
             return false;
         }
@@ -52,7 +54,8 @@ public:
         FindClose(hFile);
 
         written = GetCurrentDirectory(MAX_PATH, m_currentDir);
-        if (written == 0) {
+        if (written == 0)
+        {
             writeErr("Fatal: Could not get the current directory\n");
             return false;
         }
@@ -64,17 +67,20 @@ public:
     bool findApi()
     {
         HMODULE hMod = GetModuleHandle("kernel32");
-        if (hMod == NULL) {
+        if (hMod == NULL)
+        {
             writeErr("Fatal: Could not get kernel32 module handle\n");
             return false;
         }
         m_apiLoadLib = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
-        if (m_apiLoadLib == NULL) {
+        if (m_apiLoadLib == NULL)
+        {
             writeErr("Fatal: Could not get LoadLibraryA api address\n");
             return false;
         }
         m_apiSetDllDir = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "SetDllDirectoryA");
-        if (m_apiLoadLib == NULL) {
+        if (m_apiLoadLib == NULL)
+        {
             writeErr("Fatal: Could not get SetDllDirectoryA api address\n");
             return false;
         }
@@ -82,7 +88,9 @@ public:
     }
     bool openProc(int pid)
     {
-        m_hProc = OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_CREATE_THREAD|PROCESS_VM_OPERATION|PROCESS_VM_WRITE|PROCESS_VM_READ, FALSE, pid);
+        m_hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION |
+                                  PROCESS_VM_WRITE | PROCESS_VM_READ,
+                              FALSE, pid);
         if (m_hProc == NULL)
         {
             writeErr("Fatal: Could not open process\n");
@@ -129,7 +137,7 @@ public:
             int numModules = resultSize / sizeof(HMODULE);
             for (int i = 0; i < numModules; i++)
             {
-                CHAR moduleName[MAX_PATH+1];
+                CHAR moduleName[MAX_PATH + 1];
                 DWORD written = GetModuleFileNameEx(m_hProc, hModules[i], moduleName, MAX_PATH);
                 if (written == 0)
                 {
@@ -137,7 +145,7 @@ public:
                 }
                 else
                 {
-                    if (std::equal(moduleName, moduleName+written, m_fileName))
+                    if (std::equal(moduleName, moduleName + written, m_fileName))
                     {
                         writeErr("Fatal: The specified module is already loaded\n");
                         return false;
@@ -153,45 +161,60 @@ public:
         SIZE_T totalSize = m_fileNameSize + m_currentDirSize;
 
         m_remoteMem = VirtualAllocEx(m_hProc, NULL, totalSize, MEM_COMMIT, PAGE_READWRITE);
-        if (m_remoteMem == NULL) {
+        if (m_remoteMem == NULL)
+        {
             writeErr("Fatal: Could not allocate remote memory\n");
             return false;
         }
         SIZE_T written;
-        if (!WriteProcessMemory(m_hProc, m_remoteMem, m_fileName, m_fileNameSize, &written) || written != m_fileNameSize) {
+        if (!WriteProcessMemory(m_hProc, m_remoteMem, m_fileName, m_fileNameSize, &written) ||
+            written != m_fileNameSize)
+        {
             writeErr("Fatal: Could not write to remote memory\n");
             return false;
         }
-        if (!WriteProcessMemory(m_hProc, (LPVOID)((char*)m_remoteMem + m_fileNameSize), m_currentDir, m_currentDirSize, &written) || written != m_currentDirSize) {
+        if (!WriteProcessMemory(m_hProc, (LPVOID)((char*)m_remoteMem + m_fileNameSize), m_currentDir, m_currentDirSize,
+                                &written) ||
+            written != m_currentDirSize)
+        {
             writeErr("Fatal: Could not write to remote memory\n");
         }
         return true;
     }
     bool runRemoteThreads()
     {
-        return runRemoteThread(m_apiSetDllDir, (LPVOID)((char*)m_remoteMem + m_fileNameSize))
-            && runRemoteThread(m_apiLoadLib, m_remoteMem);
+        return runRemoteThread(m_apiSetDllDir, (LPVOID)((char*)m_remoteMem + m_fileNameSize)) &&
+               runRemoteThread(m_apiLoadLib, m_remoteMem);
     }
 
 private:
     bool runRemoteThread(LPTHREAD_START_ROUTINE entryFunc, LPVOID param)
     {
         HANDLE hRemoteThread = CreateRemoteThread(m_hProc, NULL, 0, entryFunc, param, 0, NULL);
-        if (hRemoteThread == NULL) {
+        if (hRemoteThread == NULL)
+        {
             writeErr("Fatal: Could not create remote thread\n");
             return false;
         }
-        if (!SetThreadPriority(hRemoteThread, THREAD_PRIORITY_TIME_CRITICAL)) {
+        if (!SetThreadPriority(hRemoteThread, THREAD_PRIORITY_TIME_CRITICAL))
+        {
             writeErr("Warning: Could not set remote thread priority");
         }
-        if (WaitForSingleObject(hRemoteThread, 2000) != WAIT_OBJECT_0) {
+        if (WaitForSingleObject(hRemoteThread, 2000) != WAIT_OBJECT_0)
+        {
             writeErr("Warning: The remote thread did not respond\n");
-        } else {
+        }
+        else
+        {
             DWORD exitCode;
-            if (!GetExitCodeThread(hRemoteThread, &exitCode)) {
+            if (!GetExitCodeThread(hRemoteThread, &exitCode))
+            {
                 writeErr("Warning: Could not get remote thread exit code\n");
-            } else {
-                if (exitCode == 0) {
+            }
+            else
+            {
+                if (exitCode == 0)
+                {
                     writeErr("Warning: Could not confirm that the library was loaded\n");
                 }
             }
@@ -201,8 +224,8 @@ private:
     }
 
 private:
-    CHAR m_fileName[MAX_PATH+1];
-    CHAR m_currentDir[MAX_PATH+1];
+    CHAR m_fileName[MAX_PATH + 1];
+    CHAR m_currentDir[MAX_PATH + 1];
     SIZE_T m_fileNameSize = 0;
     SIZE_T m_currentDirSize = 0;
     HANDLE m_hProc = NULL;
@@ -210,16 +233,16 @@ private:
     LPTHREAD_START_ROUTINE m_apiLoadLib = NULL;
     LPTHREAD_START_ROUTINE m_apiSetDllDir = NULL;
 
-    std::string *m_error;
-
+    std::string* m_error;
 };
 
 
-bool hl::Inject(int pid, const std::string& libFileName, std::string *error)
+bool hl::Inject(int pid, const std::string& libFileName, std::string* error)
 {
     Injection inj(error);
 
-    return inj.findFile(libFileName) && inj.findApi() && inj.openProc(pid) && inj.remoteStoreFileName() && inj.runRemoteThreads();
+    return inj.findFile(libFileName) && inj.findApi() && inj.openProc(pid) && inj.remoteStoreFileName() &&
+           inj.runRemoteThreads();
 }
 
 std::vector<int> hl::GetPIDsByProcName(const std::string& pname)

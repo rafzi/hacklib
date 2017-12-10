@@ -1,12 +1,12 @@
-#include "hacklib/GfxOverlay.h"
 #include "hacklib/GfxOverlay_UNIX.h"
+#include "hacklib/GfxOverlay.h"
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glxext.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
-#include <X11/extensions/Xrender.h>
 #include <X11/extensions/Xfixes.h>
+#include <X11/extensions/Xrender.h>
 #include <X11/extensions/shape.h>
 #include <string.h>
 
@@ -20,17 +20,23 @@ GLXFBConfig GfxOverlayImpl::getFBConfig(int depthBits) const
 
     GLXFBConfig chosenConfig = 0;
 
-    int fbAttributes[] = {
-        GLX_RENDER_TYPE, GLX_RGBA_BIT,
-        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-        GLX_DOUBLEBUFFER, True,
-        GLX_RED_SIZE, 8,
-        GLX_GREEN_SIZE, 8,
-        GLX_BLUE_SIZE, 8,
-        GLX_ALPHA_SIZE, 8,
-        GLX_DEPTH_SIZE, depthBits,
-        None
-    };
+    int fbAttributes[] = { GLX_RENDER_TYPE,
+                           GLX_RGBA_BIT,
+                           GLX_DRAWABLE_TYPE,
+                           GLX_WINDOW_BIT,
+                           GLX_DOUBLEBUFFER,
+                           True,
+                           GLX_RED_SIZE,
+                           8,
+                           GLX_GREEN_SIZE,
+                           8,
+                           GLX_BLUE_SIZE,
+                           8,
+                           GLX_ALPHA_SIZE,
+                           8,
+                           GLX_DEPTH_SIZE,
+                           depthBits,
+                           None };
 
     int numfbconfigs = 0;
     auto fbconfigs = glXChooseFBConfig(display, screen, fbAttributes, &numfbconfigs);
@@ -132,7 +138,7 @@ void GfxOverlay::impl_close()
 {
     auto display = m_impl->display;
 
-    XEvent event = { };
+    XEvent event = {};
     event.xclient.type = ClientMessage;
     event.xclient.window = m_hWnd;
     event.xclient.message_type = XInternAtom(display, "WM_PROTOCOLS", True);
@@ -169,25 +175,16 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
         return;
     }
 
-    XSetWindowAttributes attributes = { };
+    XSetWindowAttributes attributes = {};
     attributes.colormap = cmap;
     attributes.background_pixmap = None;
     attributes.border_pixmap = None;
     attributes.border_pixel = 0;
-    attributes.event_mask =
-        StructureNotifyMask |
-        EnterWindowMask |
-        LeaveWindowMask |
-        ExposureMask |
-        ButtonPressMask |
-        ButtonReleaseMask |
-        OwnerGrabButtonMask |
-        KeyPressMask |
-        KeyReleaseMask;
+    attributes.event_mask = StructureNotifyMask | EnterWindowMask | LeaveWindowMask | ExposureMask | ButtonPressMask |
+                            ButtonReleaseMask | OwnerGrabButtonMask | KeyPressMask | KeyReleaseMask;
 
-    m_hWnd = XCreateWindow(display, root, m_posX, m_posY, m_width, m_height, 0,
-        visual->depth, InputOutput, visual->visual,
-        CWColormap|CWBorderPixel|CWEventMask, &attributes);
+    m_hWnd = XCreateWindow(display, root, m_posX, m_posY, m_width, m_height, 0, visual->depth, InputOutput,
+                           visual->visual, CWColormap | CWBorderPixel | CWEventMask, &attributes);
     if (!m_hWnd)
     {
         p.set_value(Error::Window);
@@ -216,22 +213,22 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     sizeHints.height = m_height;
     sizeHints.flags = USPosition | USSize;
 
-    XWMHints *wmHints = XAllocWMHints();
+    XWMHints* wmHints = XAllocWMHints();
     wmHints->initial_state = NormalState;
     wmHints->flags = StateHint;
 
-    XSetWMProperties(display, m_hWnd, &nameProp, &nameProp, NULL, 0,
-        &sizeHints, wmHints, NULL);
+    XSetWMProperties(display, m_hWnd, &nameProp, &nameProp, NULL, 0, &sizeHints, wmHints, NULL);
 
     XFree(wmHints);
 
     XMapWindow(display, m_hWnd);
 
     XEvent event;
-    XIfEvent(display, &event, [](Display *display, XEvent *event, XPointer arg) -> Bool {
-        return display && event && arg &&
-            (event->type == MapNotify) && (event->xmap.window == *(Window*)arg);
-    }, (XPointer)&m_hWnd);
+    XIfEvent(display, &event,
+             [](Display* display, XEvent* event, XPointer arg) -> Bool {
+                 return display && event && arg && (event->type == MapNotify) && (event->xmap.window == *(Window*)arg);
+             },
+             (XPointer)&m_hWnd);
 
     auto deleteAtom = XInternAtom(display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(display, m_hWnd, &deleteAtom, 1);
@@ -245,7 +242,7 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     // Set always-on-top.
     auto windowState = XInternAtom(display, "_NET_WM_STATE", False);
     auto stateAbove = XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
-    XClientMessageEvent topEvent = { };
+    XClientMessageEvent topEvent = {};
     topEvent.type = ClientMessage;
     topEvent.window = m_hWnd;
     topEvent.message_type = windowState;
@@ -286,8 +283,7 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
         {
             XEvent event;
             XNextEvent(display, &event);
-            if (event.type == ClientMessage &&
-                (Atom)event.xclient.data.l[0] == deleteAtom)
+            if (event.type == ClientMessage && (Atom)event.xclient.data.l[0] == deleteAtom)
             {
                 running = false;
             }

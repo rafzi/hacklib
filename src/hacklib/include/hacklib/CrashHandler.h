@@ -1,12 +1,12 @@
 #ifndef HACKLIB_CRASHHANDLER_H
 #define HACKLIB_CRASHHANDLER_H
 
-#include <functional>
 #include <cstdint>
+#include <functional>
 
 
-namespace hl {
-
+namespace hl
+{
 /*
  * Runs the body in a protected environment that catches native platform errors.
  * If the body causes an error, the handler is executed. The argument of the
@@ -15,7 +15,6 @@ namespace hl {
  * Note that no actions of the body will be reverted. No destructors are called.
  */
 void CrashHandler(const std::function<void()>& body, const std::function<void(uint32_t)>& handler);
-
 }
 
 #endif

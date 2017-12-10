@@ -4,13 +4,12 @@
 #include <random>
 
 
-namespace hl {
-
-
+namespace hl
+{
 class Rng
 {
 public:
-    Rng() : m_rng(std::random_device()()) { }
+    Rng() : m_rng(std::random_device()()) {}
 
     template <typename T>
     T nextInt(T min, T max)
@@ -28,9 +27,7 @@ public:
 
 private:
     std::mt19937 m_rng;
-
 };
-
 }
 
 #endif
