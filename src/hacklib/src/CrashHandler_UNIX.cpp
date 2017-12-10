@@ -1,9 +1,9 @@
 #include "hacklib/CrashHandler.h"
+#include <cstring>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <cstring>
 
 
 thread_local sigjmp_buf t_currentEnv;

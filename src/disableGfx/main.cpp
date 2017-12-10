@@ -6,17 +6,20 @@
 
 
 hl::StaticInit<class MyMain> g_main;
-const hl::IHook *g_indexedHook;
+const hl::IHook* g_indexedHook;
 
 
 long __stdcall cbDrawIndexed(uintptr_t pInst, long a1, long a2, long a3, long a4, long a5, long a6)
 {
-    if (rand()%2)
+    if (rand() % 2)
     {
         // Call the original function.
         auto orgFunc = g_indexedHook->getLocation();
-        return ((long(__thiscall*)(uintptr_t, uintptr_t, long, long, long, long, long, long))orgFunc)(pInst, pInst, a1, a2, a3, a4, a5, a6);
-    } else {
+        return ((long(__thiscall*)(uintptr_t, uintptr_t, long, long, long, long, long, long))orgFunc)(
+            pInst, pInst, a1, a2, a3, a4, a5, a6);
+    }
+    else
+    {
         // Don't do anything. Return D3D_OK to signal success.
         return 0;
     }
@@ -65,5 +68,4 @@ public:
 
     hl::Hooker m_hooker;
     hl::ConsoleEx m_con;
-
 };

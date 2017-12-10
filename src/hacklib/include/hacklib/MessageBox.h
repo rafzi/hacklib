@@ -6,7 +6,7 @@
 
 namespace hl
 {
-    void MsgBox(const std::string& title, const std::string& message);
+void MsgBox(const std::string& title, const std::string& message);
 }
 
 #endif

@@ -276,9 +276,9 @@ while (true)
 
 ## Dependencies ##
 
-Hacklib is written in modern C++ and requires a recent compiler. The build was tested with Visual Studio 2015, GCC 4.8, GCC 4.9, Clang 3.3 and Clang 3.5 with C++14 support enabled. Use the ``vs2013`` tag for an outdated version that works for Visual Studio 2013.
+Hacklib is written in modern C++ and requires a recent compiler. The build was tested with Visual Studio 2017, GCC 4.8, GCC 4.9, Clang 3.3 and Clang 3.5 with C++14 support enabled. Use the ``vs2013`` or ``vs2015`` tag for an outdated version that works for Visual Studio 2013 or 2015.
 
-The project is using CMake and requires version 2.8.11.2 or later.
+The project is using CMake and requires version 3.1 or later.
 
 Graphics related components require the DirectX SDK June 2010 on Windows or on Linux the X11 and OpenGL libraries. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev`.
 

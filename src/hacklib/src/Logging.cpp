@@ -1,10 +1,10 @@
 #include "hacklib/Logging.h"
 #include "hacklib/Main.h"
 #include <chrono>
-#include <fstream>
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
+#include <fstream>
 
 
 static hl::LogConfig g_cfg;
@@ -13,27 +13,22 @@ static hl::LogConfig g_cfg;
 class FormatStr
 {
 public:
-    FormatStr(const char *format, va_list vl)
+    FormatStr(const char* format, va_list vl)
     {
         va_list vl_copy;
         va_copy(vl_copy, vl);
 
         int size = vsnprintf(nullptr, 0, format, vl);
-        m_str = new char[size+1];
-        vsnprintf(m_str, size+1, format, vl_copy);
+        m_str = new char[size + 1];
+        vsnprintf(m_str, size + 1, format, vl_copy);
 
         va_end(vl_copy);
     }
-    ~FormatStr()
-    {
-        delete[] m_str;
-    }
-    const char *str() const
-    {
-        return m_str;
-    }
+    ~FormatStr() { delete[] m_str; }
+    const char* str() const { return m_str; }
+
 private:
-    char *m_str;
+    char* m_str;
 };
 
 
@@ -47,7 +42,7 @@ static std::string GetTimeStr()
     return std::string(strtime);
 }
 
-static std::string GetCodeStr(const char *file, const char *func, int line)
+static std::string GetCodeStr(const char* file, const char* func, int line)
 {
     std::string fileStr = file;
     fileStr = fileStr.substr(fileStr.find_last_of('\\') + 1);
@@ -79,7 +74,7 @@ static void LogString(const std::string& str)
 
     if (g_cfg.logToFile)
     {
-        std::ofstream logfile(g_cfg.fileName, std::ios::out|std::ios::app);
+        std::ofstream logfile(g_cfg.fileName, std::ios::out | std::ios::app);
         logfile << logStr;
     }
 }
@@ -96,7 +91,7 @@ void hl::ConfigLog(const LogConfig& config)
 }
 
 
-void hl::LogDebug(const char *file, const char *func, int line, const char *format, ...)
+void hl::LogDebug(const char* file, const char* func, int line, const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);
@@ -107,7 +102,7 @@ void hl::LogDebug(const char *file, const char *func, int line, const char *form
     va_end(vl);
 }
 
-void hl::LogError(const char *file, const char *func, int line, const char *format, ...)
+void hl::LogError(const char* file, const char* func, int line, const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);
@@ -118,7 +113,7 @@ void hl::LogError(const char *file, const char *func, int line, const char *form
     va_end(vl);
 }
 
-void hl::LogError(const char *format, ...)
+void hl::LogError(const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);
@@ -129,7 +124,7 @@ void hl::LogError(const char *format, ...)
     va_end(vl);
 }
 
-void hl::LogRaw(const char *format, ...)
+void hl::LogRaw(const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);

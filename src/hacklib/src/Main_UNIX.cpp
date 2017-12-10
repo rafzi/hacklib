@@ -1,22 +1,20 @@
 #include "hacklib/Main.h"
-#include "hacklib/PageAllocator.h"
 #include "hacklib/MessageBox.h"
+#include "hacklib/PageAllocator.h"
+#include <cstring>
 #include <dlfcn.h>
 #include <pthread.h>
-#include <cstring>
 #include <thread>
 
 
-void FreeLibAndExitThread(void *hModule, int(*adr_dlclose)(void*), void(*adr_pthread_exit)(void*))
+void FreeLibAndExitThread(void* hModule, int (*adr_dlclose)(void*), void (*adr_pthread_exit)(void*))
 {
     // This can not be executed from inside the module.
     // Don't generate any code that uses relative addressing to the IP.
     adr_dlclose(hModule);
     adr_pthread_exit((void*)0);
 }
-void FreeLibAndExitThread_after()
-{
-}
+void FreeLibAndExitThread_after() {}
 
 void hl::StaticInitImpl::runMainThread()
 {
@@ -43,5 +41,5 @@ void hl::StaticInitImpl::unloadSelf()
     size_t codeSize = (size_t)((uintptr_t)&FreeLibAndExitThread_after - (uintptr_t)&FreeLibAndExitThread);
     hl::code_page_vector code(codeSize);
     memcpy(code.data(), (void*)&FreeLibAndExitThread, codeSize);
-    decltype(&FreeLibAndExitThread)(code.data())(hModule, &dlclose, &pthread_exit);
+    decltype (&FreeLibAndExitThread)(code.data())(hModule, &dlclose, &pthread_exit);
 }

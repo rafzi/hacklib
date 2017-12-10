@@ -1,9 +1,9 @@
 #include "hacklib/Hooker.h"
-#include "hacklib/PageAllocator.h"
 #include "hacklib/Main.h"
-#include <mutex>
-#include <map>
+#include "hacklib/PageAllocator.h"
 #include <Windows.h>
+#include <map>
+#include <mutex>
 
 
 using namespace hl;
@@ -21,12 +21,7 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc);
 
 struct Page
 {
-    Page(uintptr_t begin, uintptr_t end) :
-        m_begin(begin),
-        m_end(end),
-        m_refs(1)
-    {
-    }
+    Page(uintptr_t begin, uintptr_t end) : m_begin(begin), m_end(end), m_refs(1) {}
     uintptr_t m_begin;
     uintptr_t m_end;
     int m_refs;
@@ -35,10 +30,7 @@ struct Page
 class VEHHookManager
 {
 public:
-    VEHHookManager()
-    {
-        m_pages[0] = nullptr;
-    }
+    VEHHookManager() { m_pages[0] = nullptr; }
     hl::Hooker::HookCallback_t getHook(uintptr_t adr) const
     {
         auto it = m_hooks.find(adr);
@@ -47,7 +39,7 @@ public:
 
         return nullptr;
     }
-    Page *getPage(uintptr_t adr)
+    Page* getPage(uintptr_t adr)
     {
         std::lock_guard<std::mutex> lock(m_pagesMutex);
 
@@ -98,14 +90,16 @@ public:
             {
                 // Trigger the guard page violation to remove it. VEH will not handle the
                 // exception so we can be sure the guard page protection was removed.
-                [&]{
+                [&] {
                     __try
                     {
                         while (true)
                         {
                             auto x = *(volatile int*)adr;
                         }
-                    } __except (EXCEPTION_EXECUTE_HANDLER) {
+                    }
+                    __except (EXCEPTION_EXECUTE_HANDLER)
+                    {
                     }
                 }();
 
@@ -126,6 +120,7 @@ public:
             m_pExHandler = nullptr;
         }
     }
+
 private:
     PVOID m_pExHandler = nullptr;
     std::map<uintptr_t, hl::Hooker::HookCallback_t> m_hooks;
@@ -140,26 +135,19 @@ static VEHHookManager g_vehHookManager;
 class VEHHook : public IHook
 {
 public:
-    VEHHook(uintptr_t location, hl::Hooker::HookCallback_t cbHook) :
-        location(location)
+    VEHHook(uintptr_t location, hl::Hooker::HookCallback_t cbHook) : location(location)
     {
         g_vehHookManager.addHook(location, cbHook);
     }
-    ~VEHHook() override
-    {
-        g_vehHookManager.removeHook(location);
-    }
+    ~VEHHook() override { g_vehHookManager.removeHook(location); }
 
-    uintptr_t getLocation() const override
-    {
-        return location;
-    }
+    uintptr_t getLocation() const override { return location; }
 
     uintptr_t location;
 };
 
 
-const IHook *Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
+const IHook* Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
 {
     // Check for invalid parameters.
     if (!location || !cbHook)
@@ -169,7 +157,7 @@ const IHook *Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
 
     // Apply hook.
     DWORD dwOldProt;
-    if (!VirtualProtect((LPVOID)location, 1, PAGE_EXECUTE_READ|PAGE_GUARD, &dwOldProt))
+    if (!VirtualProtect((LPVOID)location, 1, PAGE_EXECUTE_READ | PAGE_GUARD, &dwOldProt))
     {
         return nullptr;
     }
@@ -180,7 +168,7 @@ const IHook *Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
 }
 
 
-static void checkForHookAndCall(uintptr_t adr, CONTEXT *pCtx)
+static void checkForHookAndCall(uintptr_t adr, CONTEXT* pCtx)
 {
     // Check for hooks and call them.
     auto cbHook = g_vehHookManager.getHook(adr);
@@ -257,7 +245,7 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
 {
     static uintptr_t guardFaultAdr;
 
-    CONTEXT *pCtx = exc->ContextRecord;
+    CONTEXT* pCtx = exc->ContextRecord;
 
     if (exc->ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION)
     {
@@ -267,11 +255,8 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
         if (exc->ExceptionRecord->ExceptionInformation[0] == EXCEPTION_READ_FAULT)
         {
             HMODULE hModule;
-            GetModuleHandleEx(
-                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
-                GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                (LPCTSTR)exc->ContextRecord->REG_INSTRUCTIONPTR,
-                &hModule);
+            GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                              (LPCTSTR)exc->ContextRecord->REG_INSTRUCTIONPTR, &hModule);
 
             if (hModule == hl::GetCurrentModule())
             {
@@ -315,7 +300,7 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
             {
                 // Restore guard page protection.
                 DWORD oldProt;
-                VirtualProtect((LPVOID)guardFaultAdr, 1, PAGE_EXECUTE_READ|PAGE_GUARD, &oldProt);
+                VirtualProtect((LPVOID)guardFaultAdr, 1, PAGE_EXECUTE_READ | PAGE_GUARD, &oldProt);
             }
         }
 

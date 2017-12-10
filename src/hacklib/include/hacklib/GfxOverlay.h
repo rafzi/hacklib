@@ -2,14 +2,13 @@
 #define HACKLIB_GFXOVERLAY_H
 
 #include "hacklib/Handles.h"
-#include <thread>
-#include <future>
 #include <chrono>
+#include <future>
+#include <thread>
 
 
-namespace hl {
-
-
+namespace hl
+{
 class GfxOverlay
 {
     friend class GfxOverlayImpl;
@@ -17,10 +16,10 @@ class GfxOverlay
 public:
     enum class Error
     {
-        Okay,       // Success.
-        Window,     // The window could not be created.
-        Context,    // The graphics context could not be created.
-        Other       // Other error.
+        Okay,    // Success.
+        Window,  // The window could not be created.
+        Context, // The graphics context could not be created.
+        Other    // Other error.
     };
 
 public:
@@ -29,8 +28,8 @@ public:
 
 public:
     GfxOverlay(ModuleHandle hModule = NULL);
-    GfxOverlay(const GfxOverlay &) = delete;
-    GfxOverlay &operator= (const GfxOverlay &) = delete;
+    GfxOverlay(const GfxOverlay&) = delete;
+    GfxOverlay& operator=(const GfxOverlay&) = delete;
     ~GfxOverlay();
 
     Error create(int posX, int posY, int width, int height);
@@ -62,7 +61,7 @@ protected:
     virtual void cbWindowLoop();
 
 protected:
-    class GfxOverlayImpl *m_impl = nullptr;
+    class GfxOverlayImpl* m_impl = nullptr;
 
     std::thread m_thread;
     ModuleHandle m_hModule = NULL;
@@ -77,9 +76,7 @@ protected:
     typedef std::chrono::high_resolution_clock Clock;
     Clock::time_point m_lastSwap;
     std::chrono::nanoseconds m_frameTime{ 1000000000ull / 60 };
-
 };
-
 }
 
 #endif

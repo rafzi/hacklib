@@ -4,9 +4,7 @@
 using namespace hl;
 
 
-WindowOverlay::WindowOverlay(ModuleHandle hModule) : GfxOverlay(hModule)
-{
-}
+WindowOverlay::WindowOverlay(ModuleHandle hModule) : GfxOverlay(hModule) {}
 
 
 GfxOverlay::Error WindowOverlay::create()

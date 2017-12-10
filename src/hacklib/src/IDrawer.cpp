@@ -7,20 +7,11 @@
 using namespace hl;
 
 
-Color::Color() : Color(0, 0, 0, 0)
-{
-}
-Color::Color(uint8_t red, uint8_t green, uint8_t blue)
-    : Color(255, red, green, blue)
-{
-}
+Color::Color() : Color(0, 0, 0, 0) {}
+Color::Color(uint8_t red, uint8_t green, uint8_t blue) : Color(255, red, green, blue) {}
 Color::Color(uint8_t alpha, uint8_t red, uint8_t green, uint8_t blue)
 {
-    m_data =
-        (alpha << 24) |
-        (red << 16) |
-        (green << 8) |
-        blue;
+    m_data = (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 Color::Color(uint32_t combined)
 {
@@ -29,19 +20,11 @@ Color::Color(uint32_t combined)
 
 void Color::glSet() const
 {
-    glColor4ub(
-        (m_data >> 16) & 0xff,
-        (m_data >> 8) & 0xff,
-        m_data & 0xff,
-        (m_data >> 24) & 0xff
-    );
+    glColor4ub((m_data >> 16) & 0xff, (m_data >> 8) & 0xff, m_data & 0xff, (m_data >> 24) & 0xff);
 }
 
 
-
-void IDrawer::clearRessources()
-{
-}
+void IDrawer::clearRessources() {}
 
 
 void IDrawer::setContext(hl::GraphicsContext context)
@@ -76,7 +59,7 @@ float IDrawer::getHeight() const
 }
 
 
-void IDrawer::project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::Mat4x4 *worldMatrix) const
+void IDrawer::project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::Mat4x4* worldMatrix) const
 {
     hl::Mat4x4 modelMatrix = m_viewMatrix;
     if (worldMatrix)
@@ -138,10 +121,6 @@ void IDrawer::drawCircleFilled(float mx, float my, float r, hl::Color color) con
 }
 
 
-void IDrawer::onLostDevice()
-{
-}
+void IDrawer::onLostDevice() {}
 
-void IDrawer::onResetDevice()
-{
-}
+void IDrawer::onResetDevice() {}

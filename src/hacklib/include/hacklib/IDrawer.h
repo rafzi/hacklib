@@ -5,9 +5,8 @@
 #include "hacklib/Math.h"
 
 
-namespace hl {
-
-
+namespace hl
+{
 // Represents an A8R8G8B8 color.
 class Color
 {
@@ -17,10 +16,7 @@ public:
     Color(uint8_t alpha, uint8_t red, uint8_t green, uint8_t blue);
     Color(uint32_t combined);
 
-    operator uint32_t() const
-    {
-        return m_data;
-    }
+    operator uint32_t() const { return m_data; }
     void glSet() const;
 
 private:
@@ -52,7 +48,7 @@ public:
     float getHeight() const;
 
     // Projects a position in world coordiantes to screen coordinates.
-    void project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::Mat4x4 *worldMatrix = nullptr) const;
+    void project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::Mat4x4* worldMatrix = nullptr) const;
     // Returns true if the screen position is in front of the camera.
     virtual bool isInfrontCam(const hl::Vec3& screenPos) const;
     // Checks if a screen position would be visible on the viewport. The offScreenTolerance is measured in pixels.
@@ -79,9 +75,7 @@ protected:
     float m_height = 0;
     hl::Mat4x4 m_viewMatrix;
     hl::Mat4x4 m_projMatrix;
-
 };
-
 }
 
 #endif

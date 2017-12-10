@@ -1,8 +1,8 @@
-#include "hacklib/WindowOverlay.h"
 #include "hacklib/DrawerOpenGL.h"
+#include "hacklib/WindowOverlay.h"
 #include <GL/gl.h>
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 
 
 int main()
@@ -10,8 +10,8 @@ int main()
     bool running = true;
     hl::GfxOverlay overlay;
     if (overlay.create(200, 200, 800, 600) == hl::GfxOverlay::Error::Okay)
-    //hl::WindowOverlay overlay;
-    //if (overlay.create() == hl::GfxOverlay::Error::Okay)
+    // hl::WindowOverlay overlay;
+    // if (overlay.create() == hl::GfxOverlay::Error::Okay)
     {
         printf("okay\n");
     }
@@ -24,7 +24,7 @@ int main()
     hl::DrawerOpenGL drawer;
     drawer.setContext(overlay.getContext());
 
-    auto renderLoop = [&]{
+    auto renderLoop = [&] {
         while (running)
         {
             overlay.beginDraw();

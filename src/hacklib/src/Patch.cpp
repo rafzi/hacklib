@@ -12,7 +12,7 @@ Patch::~Patch()
 }
 
 
-void Patch::apply(uintptr_t location, const char *patch, size_t size)
+void Patch::apply(uintptr_t location, const char* patch, size_t size)
 {
     // Can only hold one patch at a time.
     revert();
@@ -43,7 +43,7 @@ void Patch::revert()
 }
 
 
-hl::Patch MakePatch(uintptr_t location, const char *patch, size_t size)
+hl::Patch MakePatch(uintptr_t location, const char* patch, size_t size)
 {
     Patch p;
     p.apply(location, patch, size);

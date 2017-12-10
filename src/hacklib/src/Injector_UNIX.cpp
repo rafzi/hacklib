@@ -1,20 +1,20 @@
-#include "hacklib/Injector.h"
 #include "hacklib/ExeFile.h"
+#include "hacklib/Injector.h"
 #include "hacklib/Memory.h"
-#include <sys/ptrace.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/user.h>
-#include <sys/uio.h>
-#include <unistd.h>
+#include <algorithm>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <elf.h>
-#include <limits.h>
-#include <string.h>
 #include <fstream>
+#include <limits.h>
 #include <sstream>
-#include <algorithm>
+#include <string.h>
+#include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/user.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 
 #ifdef ARCH_64BIT
@@ -31,9 +31,7 @@
 class Injection
 {
 public:
-    Injection(std::string *error) : m_error(error)
-    {
-    }
+    Injection(std::string* error) : m_error(error) {}
     ~Injection()
     {
         if (m_pid)
@@ -104,7 +102,7 @@ public:
         }
         else
         {
-            bool isTarget64 = regSet.iov_len != 17*sizeof(uint32_t);
+            bool isTarget64 = regSet.iov_len != 17 * sizeof(uint32_t);
 #ifdef ARCH_64BIT
             if (!isTarget64)
             {
@@ -138,8 +136,8 @@ public:
     {
         auto memoryMap = hl::GetMemoryMap(m_pid);
 
-        auto findLib = [&](const std::string& libName){
-            return std::find_if(memoryMap.begin(), memoryMap.end(), [&](const hl::MemoryRegion& r){
+        auto findLib = [&](const std::string& libName) {
+            return std::find_if(memoryMap.begin(), memoryMap.end(), [&](const hl::MemoryRegion& r) {
                 auto pos = r.name.find(libName);
                 if (pos != std::string::npos)
                 {
@@ -150,7 +148,8 @@ public:
             });
         };
 
-        auto itCheck = std::find_if(memoryMap.begin(), memoryMap.end(), [this](const hl::MemoryRegion& r){ return r.name == m_fileName; });
+        auto itCheck = std::find_if(memoryMap.begin(), memoryMap.end(),
+                                    [this](const hl::MemoryRegion& r) { return r.name == m_fileName; });
         if (itCheck != memoryMap.end())
         {
             writeErr("Fatal: The specified module is already loaded\n");
@@ -260,10 +259,10 @@ public:
                     size_t remoteStrLen = 0;
                     uintptr_t value = 0;
                     std::string errorMsg;
-                    auto hasNull = [](uintptr_t word){
+                    auto hasNull = [](uintptr_t word) {
                         for (size_t i = 0; i < sizeof(uintptr_t); i++)
                         {
-                            if ((word & ((uintptr_t)0xff << 8*i)) == 0)
+                            if ((word & ((uintptr_t)0xff << 8 * i)) == 0)
                                 return true;
                         }
                         return false;
@@ -336,7 +335,7 @@ private:
             writeErr("Fatal: ptrace POKEDATA failed\n");
             return false;
         }
-        if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs) + 2*sizeof(uintptr_t), (void*)arg2) < 0)
+        if (ptrace(PTRACE_POKEDATA, m_pid, USER_REG_SP(m_regs) + 2 * sizeof(uintptr_t), (void*)arg2) < 0)
         {
             writeErr("Fatal: ptrace POKEDATA failed\n");
             return false;
@@ -401,12 +400,11 @@ private:
     bool m_restoreBackup = false;
     uintptr_t m_remoteLibName = 0;
 
-    std::string *m_error;
-
+    std::string* m_error;
 };
 
 
-bool hl::Inject(int pid, const std::string& libFileName, std::string *error)
+bool hl::Inject(int pid, const std::string& libFileName, std::string* error)
 {
     Injection inj(error);
 
@@ -417,10 +415,10 @@ std::vector<int> hl::GetPIDsByProcName(const std::string& pname)
 {
     std::vector<int> result;
 
-    DIR *dir = opendir("/proc");
+    DIR* dir = opendir("/proc");
     if (dir)
     {
-        struct dirent *entryPID;
+        struct dirent* entryPID;
         while ((entryPID = readdir(dir)))
         {
             bool isPID = true;

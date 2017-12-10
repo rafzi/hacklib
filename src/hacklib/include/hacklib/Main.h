@@ -3,14 +3,12 @@
 
 #include "hacklib/Handles.h"
 #include "hacklib/MessageBox.h"
-#include <string>
 #include <memory>
+#include <string>
 
 
 namespace hl
 {
-
-
 /*
  * This class can be used to define behaviour of a dynamic library inside a foreign process.
  * Use the StaticInit helper for actual initialization.
@@ -18,7 +16,7 @@ namespace hl
 class Main
 {
 public:
-    virtual ~Main() { }
+    virtual ~Main() {}
 
     // Is called on initialization. If returning false, the dll will detach.
     // The default implementation just returns true.
@@ -29,7 +27,6 @@ public:
     // Is called on shutdown. Is still called when init returns false.
     // The default implementation does nothing.
     virtual void shutdown();
-
 };
 
 // Returns the module handle to the own dynamic library.
@@ -44,13 +41,16 @@ class StaticInitImpl
 public:
     StaticInitImpl();
     void mainThread();
+
 protected:
     virtual std::unique_ptr<hl::Main> makeMain() const = 0;
+
 private:
     void runMainThread();
     void unloadSelf();
+
 protected:
-    hl::Main *m_pMain = nullptr;
+    hl::Main* m_pMain = nullptr;
 };
 
 /*
@@ -61,24 +61,13 @@ template <typename T>
 class StaticInit : private StaticInitImpl
 {
 public:
-    T* getMain()
-    {
-        return dynamic_cast<T*>(m_pMain);
-    }
-    const T* getMain() const
-    {
-        return dynamic_cast<T*>(m_pMain);
-    }
+    T* getMain() { return dynamic_cast<T*>(m_pMain); }
+    const T* getMain() const { return dynamic_cast<T*>(m_pMain); }
 
 protected:
     // Override this for non-default constructors.
-    virtual std::unique_ptr<hl::Main> makeMain() const override
-    {
-        return std::make_unique<T>();
-    }
-
+    virtual std::unique_ptr<hl::Main> makeMain() const override { return std::make_unique<T>(); }
 };
-
 }
 
 #endif

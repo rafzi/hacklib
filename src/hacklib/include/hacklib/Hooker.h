@@ -2,13 +2,12 @@
 #define HACKLIB_HOOKER_H
 
 #include <cstdint>
-#include <vector>
 #include <memory>
+#include <vector>
 
 
-namespace hl {
-
-
+namespace hl
+{
 class Hooker;
 
 
@@ -66,7 +65,7 @@ typedef CpuContext_x86 CpuContext;
 class Hooker
 {
 public:
-    typedef void(*HookCallback_t)(CpuContext *);
+    typedef void (*HookCallback_t)(CpuContext*);
 
     // Hook by replacing an object instances virtual table pointer.
     // This method can only target virtual functions. It should always
@@ -76,7 +75,7 @@ public:
     // param functionIndex: Zero based ordinal number of the targeted virtual function.
     // param cbHook: The hook target location.
     // param vtBackupSize: Amount of memory to use for backing up the original virtual table.
-    const IHook *hookVT(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize = 1024);
+    const IHook* hookVT(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize = 1024);
 
     // Hook by patching the target location with a jump instruction.
     // Simple but has maximum flexibility. Your code has the responsibility
@@ -87,35 +86,35 @@ public:
     // param jmpBack: Optional output parameter to receive the address of wrapper code that
     //     executes the overwritten code and jumps back. Do a jump to this address
     //     at the end of your hook to resume execution.
-    const IHook *hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook, uintptr_t *jmpBack = nullptr);
+    const IHook* hookJMP(uintptr_t location, int nextInstructionOffset, uintptr_t cbHook, uintptr_t* jmpBack = nullptr);
 
     // Hook by patching the location with a jump like hookJMP, but jumps to
     // wrapper code that preserves registers, calls the given hook callback and
     // executes the overwritten instructions for maximum convenience.
-    const IHook *hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook);
+    const IHook* hookDetour(uintptr_t location, int nextInstructionOffset, HookCallback_t cbHook);
 
     // Hook by using memory protection and a global exception handler.
     // This method is very slow.
     // No memory in the target is modified at all.
-    const IHook *hookVEH(uintptr_t location, HookCallback_t cbHook);
+    const IHook* hookVEH(uintptr_t location, HookCallback_t cbHook);
 
-    void unhook(const IHook *pHook);
+    void unhook(const IHook* pHook);
 
 
-    template<typename T, typename C>
-    const IHook *hookVT(T *classInstance, int functionIndex, C cbHook, int vtBackupSize = 1024)
+    template <typename T, typename C>
+    const IHook* hookVT(T* classInstance, int functionIndex, C cbHook, int vtBackupSize = 1024)
     {
         return hookVT((uintptr_t)classInstance, functionIndex, (uintptr_t)cbHook, vtBackupSize);
     }
 
-    template<typename F, typename C>
-    const IHook *hookJMP(F location, int nextInstructionOffset, C cbHook, uintptr_t *jmpBack = nullptr)
+    template <typename F, typename C>
+    const IHook* hookJMP(F location, int nextInstructionOffset, C cbHook, uintptr_t* jmpBack = nullptr)
     {
         return hookJMP((uintptr_t)location, nextInstructionOffset, (uintptr_t)cbHook, jmpBack);
     }
 
-    template<typename F>
-    const IHook *hookDetour(F location, int nextInstructionOffset, HookCallback_t cbHook)
+    template <typename F>
+    const IHook* hookDetour(F location, int nextInstructionOffset, HookCallback_t cbHook)
     {
         return hookDetour((uintptr_t)location, nextInstructionOffset, cbHook);
     }
@@ -123,9 +122,7 @@ public:
 
 private:
     std::vector<std::unique_ptr<IHook>> m_hooks;
-
 };
-
 }
 
 #endif

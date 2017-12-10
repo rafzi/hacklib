@@ -1,7 +1,7 @@
-#include <thread>
 #include <chrono>
-#include <iostream>
 #include <cstdio>
+#include <iostream>
+#include <thread>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -17,7 +17,7 @@ data with hl_test_lib. This would cause hacklib to misbehave.
 */
 
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     if (argc == 2 && std::string(argv[1]) == "--child")
     {

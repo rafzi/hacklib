@@ -4,9 +4,8 @@
 #include "GfxOverlay.h"
 
 
-namespace hl {
-
-
+namespace hl
+{
 /*
  * Wrapper for GfxOverlay that follows the main window of the current process.
  */
@@ -40,11 +39,9 @@ private:
 private:
     WindowHandle m_targetWindow = 0;
     bool m_isTargetForeground = false;
-    std::function <void()> m_cbPreReset;
-    std::function <void()> m_cbPostReset;
-
+    std::function<void()> m_cbPreReset;
+    std::function<void()> m_cbPostReset;
 };
-
 }
 
 #endif
