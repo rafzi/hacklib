@@ -194,7 +194,7 @@ const Font* DrawerD3D::allocFont(std::string fontname, int size, bool bold)
     return alloc(m_fonts, pFont);
 }
 
-void DrawerD3D::drawFont(const Font* pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const
+void DrawerD3D::drawFont(const Font* pFont, float x, float y, hl::Color color, std::string format, va_list valist) const
 {
     float ww = getWidth();
     float wh = getHeight();
@@ -208,8 +208,8 @@ void DrawerD3D::drawFont(const Font* pFont, float x, float y, D3DCOLOR color, st
     char* cStr = new char[size + 1];
     vsnprintf(cStr, size + 1, format.c_str(), valist_copy);
 
-    D3DXVECTOR2 ti = textInfo(pFont, cStr);
-    if (x + ti.x < 0 || y + ti.y < 0)
+    auto textSz = getTextSize(pFont, cStr);
+    if (x + textSz.x < 0 || y + textSz.y < 0)
         return;
 
     RECT rect;
@@ -223,7 +223,7 @@ void DrawerD3D::drawFont(const Font* pFont, float x, float y, D3DCOLOR color, st
     va_end(valist_copy);
 }
 
-void DrawerD3D::drawFont(const Font* pFont, float x, float y, D3DCOLOR color, std::string format, ...) const
+void DrawerD3D::drawFont(const Font* pFont, float x, float y, hl::Color color, std::string format, ...) const
 {
     va_list vl;
     va_start(vl, format);
@@ -231,14 +231,11 @@ void DrawerD3D::drawFont(const Font* pFont, float x, float y, D3DCOLOR color, st
     va_end(vl);
 }
 
-D3DXVECTOR2 DrawerD3D::textInfo(const Font* pFont, std::string str) const
+hl::Vec2 DrawerD3D::getTextSize(const Font* pFont, std::string str) const
 {
-    D3DXVECTOR2 ret = { 0, 0 };
-    RECT rect = { 0, 0, 0, 0 };
+    RECT rect = {};
     pFont->m_pFont->DrawText(NULL, str.c_str(), -1, &rect, DT_CALCRECT, 0);
-    ret.x = float(rect.right - rect.left);
-    ret.y = float(rect.bottom - rect.top);
-    return ret;
+    return { (float)(rect.right - rect.left), (float)(rect.bottom - rect.top) };
 }
 
 void DrawerD3D::releaseFont(const Font* pFont)

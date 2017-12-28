@@ -9,21 +9,23 @@
 
 namespace hl
 {
+/// Represents a transparent overlay with graphics acceleration.
 class GfxOverlay
 {
     friend class GfxOverlayImpl;
 
 public:
+    /// Status code for overlay creation.
     enum class Error
     {
-        Okay,    // Success.
-        Window,  // The window could not be created.
-        Context, // The graphics context could not be created.
-        Other    // Other error.
+        Okay,    /// Success.
+        Window,  /// The window could not be created.
+        Context, /// The graphics context could not be created.
+        Other    /// Other error.
     };
 
 public:
-    // Determines the current window manager mode.
+    /// Determines the current window manager mode.
     static bool IsCompositionEnabled();
 
 public:
@@ -34,21 +36,29 @@ public:
 
     Error create(int posX, int posY, int width, int height);
 
+    /// Closes the overlay window.
     void close();
-    // Has no effect on OpenGL implementation as it will always use monitor refresh rate.
+    /// Has no effect on OpenGL implementation as it will always use monitor refresh rate.
     void setTargetRefreshRate(int rate);
+    /// Returns whether the overlay window is opened.
     bool isOpen() const;
 
+    /// Returns the window x position.
     int getPosX() const;
+    /// Returns the window y position.
     int getPosY() const;
+    /// Returns the window width.
     int getWidth() const;
+    /// Returns the window height.
     int getHeight() const;
+    /// Returns the hl::GraphicsContext.
     GraphicsContext getContext() const;
 
+    /// Resets the hl::GraphicsContext.
     void resetContext();
-    // Helper for starting to draw. Also clears the backbuffer accordingly.
+    /// Helper for starting to draw. Also clears the backbuffer accordingly.
     void beginDraw();
-    // Helper for finishing to draw by swapping backbuffer and frontbuffer.
+    /// Helper for finishing to draw by swapping backbuffer and frontbuffer.
     void swapBuffers();
 
 private:
