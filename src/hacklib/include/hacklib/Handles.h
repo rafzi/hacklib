@@ -11,21 +11,26 @@ namespace hl
 {
 #ifdef _WIN32
 
-// Can interpreted as pointer to the module base address.
+/// Represents a module handle. Can interpreted as pointer to the module base address.
 typedef HINSTANCE ModuleHandle;
+/// Represents a window handle.
 typedef HWND WindowHandle;
+/// Represents a graphics context.
 typedef IDirect3DDevice9* GraphicsContext;
 
+/// Represents a null value for hl::ModuleHandle.
 static const ModuleHandle NullModuleHandle = NULL;
 
 #else
 
-// Analogous to Windows this represents the module base address, not a dlopen handle!
+/// Represents a module handle. Analogous to Windows this represents the module base address, not a dlopen handle!
 typedef void* ModuleHandle;
-// Must be compatible with X11 Window type.
+/// Represents a window handle. Must be compatible with X11 Window type.
 typedef long unsigned int WindowHandle;
+/// Represent a graphics context.
 typedef void* GraphicsContext;
 
+/// Represents a null value for hl::ModuleHandle.
 static const ModuleHandle NullModuleHandle = nullptr;
 
 #endif

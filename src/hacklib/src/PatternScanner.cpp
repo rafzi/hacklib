@@ -318,10 +318,10 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
 }
 
 
-uintptr_t hl::FollowRelativeAddress(uintptr_t adr, int ext)
+uintptr_t hl::FollowRelativeAddress(uintptr_t adr, int trail)
 {
     // Hardcoded 32-bit dereference to make it work with 64-bit code.
-    return *(int32_t*)adr + adr + 4 + ext;
+    return *(int32_t*)adr + adr + 4 + trail;
 }
 
 

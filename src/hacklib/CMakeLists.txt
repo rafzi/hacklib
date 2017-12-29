@@ -11,6 +11,7 @@ SET(FILES_CPP
     src/ExeFile.cpp
     src/IDrawer.cpp
     src/DrawerOpenGL.cpp
+    src/CrashHandler.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
