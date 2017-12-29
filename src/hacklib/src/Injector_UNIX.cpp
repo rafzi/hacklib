@@ -98,7 +98,7 @@ public:
         regSet.iov_len = sizeof(regsBuffer);
         if (ptrace(PTRACE_GETREGSET, m_pid, NT_PRSTATUS, &regSet) < 0)
         {
-            writeErr("Warning: Could not determine bitness of target process\n");
+            writeErr("Warning: Could not determine bitness of target process (errno = " + std::to_string(errno) + ")\n");
         }
         else
         {

@@ -12,36 +12,42 @@
 
 namespace hl
 {
+/// Vertex structure for transformed colorizable verts.
 struct VERTEX_2D_COL
-{ // transformed colorizable
+{
     float x, y, z, rhw;
     static const DWORD FVF = D3DFVF_XYZRHW;
 };
+/// Vertex structure for transformed colorized verts.
 struct VERTEX_2D_DIF
-{ // transformed colorized
+{
     float x, y, z, rhw;
     D3DCOLOR color;
     static const DWORD FVF = D3DFVF_XYZRHW | D3DFVF_DIFFUSE;
 };
+/// Vertex strucutre for transformed texture mapped verts.
 struct VERTEX_2D_TEX
 {
     float x, y, z, rhw;
     float u, v;
     static const DWORD FVF = D3DFVF_XYZRHW | D3DFVF_TEX1;
 };
+/// Vertex structure for transformable colorizable verts.
 struct VERTEX_3D_COL
-{ // transformable colorizable
+{
     float x, y, z;
     static const DWORD FVF = D3DFVF_XYZ;
 };
+/// Vertex structure for transformable colorized verts.
 struct VERTEX_3D_DIF
-{ // transformable colorzed
+{
     float x, y, z;
     D3DCOLOR color;
     static const DWORD FVF = D3DFVF_XYZ | D3DFVF_DIFFUSE;
 };
 
 
+/// Represents a prerendered set of glyphs of a font.
 class Font
 {
     friend class DrawerD3D;
@@ -53,6 +59,7 @@ public:
 private:
     ID3DXFont* m_pFont;
 };
+/// Represents a loaded texture.
 class Texture
 {
     friend class DrawerD3D;
@@ -64,6 +71,7 @@ public:
 private:
     IDirect3DTexture9* m_pTexture;
 };
+/// Represents a loaded vertex buffer.
 class VertexBuffer
 {
     friend class DrawerD3D;
@@ -80,6 +88,7 @@ private:
     IDirect3DVertexBuffer9* m_pVertexBuffer;
     unsigned int m_numVertices;
 };
+/// Represents a loaded index buffer.
 class IndexBuffer
 {
     friend class DrawerD3D;
@@ -96,6 +105,7 @@ private:
     IDirect3DIndexBuffer9* m_pIndexBuffer;
     unsigned int m_numIndices;
 };
+/// Represents a loaded sprite.
 class Sprite
 {
     friend class DrawerD3D;
@@ -112,6 +122,9 @@ private:
 };
 
 
+/**
+ * \brief Drawer implementation for Direct3D 9.
+ */
 class DrawerD3D : public hl::IDrawer
 {
 public:
@@ -124,29 +137,52 @@ public:
     void drawCircle(float mx, float my, float r, hl::Color color) const override;
     void drawCircleFilled(float mx, float my, float r, hl::Color color) const override;
 
+    /// Allocates a hl::Font object.
+    /// \param fontname The name of the font to load.
+    /// \param size The size of the font.
+    /// \param bold Set to false to load a non-bold font.
+    /// \return A Font object or nullptr.
     const Font* allocFont(std::string fontname, int size, bool bold = true);
-    void drawFont(const Font* pFont, float x, float y, D3DCOLOR color, std::string format, va_list valist) const;
-    void drawFont(const Font* pFont, float x, float y, D3DCOLOR color, std::string format, ...) const;
-    D3DXVECTOR2 textInfo(const Font* pFont, std::string str) const;
+    /// Draws text at the screen coordinates x,y with color.
+    void drawFont(const Font* pFont, float x, float y, hl::Color color, std::string format, va_list valist) const;
+    /// \overload
+    void drawFont(const Font* pFont, float x, float y, hl::Color color, std::string format, ...) const;
+    /// Returns the size in screen coordinates that the given text would occupy with the given hl::Font.
+    hl::Vec2 getTextSize(const Font* pFont, std::string str) const;
+    /// Releases the given hl::Font.
     void releaseFont(const Font* pFont);
 
+    /// Allocates a hl::Texture object.
     const Texture* allocTexture(std::string filename);
+    /// \overload
     const Texture* allocTexture(const void* buffer, size_t size);
+    /// Draws the texture at the screen coordinates x,y with width w and height h.
     void drawTexture(const Texture* pTexture, float x, float y, float w, float h) const;
+    /// Releases the given hl::Texture.
     void releaseTexture(const Texture* pTexture);
 
+    /// Allocates a hl::VectexBuffer object.
+    /// \tparam T The type of the vertex structure. Use the predefined hl::VERTEX_ structures.
+    /// \param vertices A vector containing the vertex data.
+    /// \return A hl::VertexBuffer or nullptr.
     template <class T>
     const VertexBuffer* allocVertexBuffer(const std::vector<T>& vertices);
+    /// Allocates a hl::IndexBuffer.
     const IndexBuffer* allocIndexBuffer(const std::vector<unsigned int>& indices);
-    // Draws a primitive. The IndexBuffer is optional. See d3d documentation for primitive types.
+    /// Draws a primitive. The IndexBuffer is optional. See d3d documentation for primitive types.
     void drawPrimitive(const VertexBuffer* pVertBuf, const IndexBuffer* pIndBuf, D3DPRIMITIVETYPE type,
                        const D3DXMATRIX& worldMatrix) const;
+    /// \overload
     void drawPrimitive(const VertexBuffer* pVertBuf, const IndexBuffer* pIndBuf, D3DPRIMITIVETYPE type,
                        const D3DXMATRIX& worldMatrix, D3DCOLOR color) const;
+    /// Releases the given hl::VertexBuffer.
     void releaseVertexBuffer(const VertexBuffer* pVertBuf);
+    /// Releases the given hl::IndexBuffer.
     void releaseIndexBuffer(const IndexBuffer* pIndBuf);
 
+    /// Allocates a hl::Sprite object.
     const Sprite* allocSprite();
+    /// Releases the given hl::Sprite.
     void releaseSprite(const Sprite* pSprite);
 
 private:

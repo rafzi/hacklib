@@ -11,6 +11,7 @@
 
 namespace hl
 {
+typedef glm::vec2 Vec2;
 typedef glm::vec3 Vec3;
 typedef glm::mat4x4 Mat4x4;
 }

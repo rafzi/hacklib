@@ -6,6 +6,9 @@
 
 namespace hl
 {
+/**
+ * \brief Drawer implementation for OpenGL.
+ */
 class DrawerOpenGL : public hl::IDrawer
 {
 public:
