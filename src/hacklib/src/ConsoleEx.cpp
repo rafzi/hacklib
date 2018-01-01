@@ -12,8 +12,8 @@ static const int CELLWIDTH = 8;
 static const int CELLHEIGHT = 15;
 static const int SPACING = 3;
 
-static const int IDC_EDITOUT = 100;
-static const int IDC_EDITIN = 101;
+static const uintptr_t IDC_EDITOUT = 100;
+static const uintptr_t IDC_EDITIN = 101;
 
 
 CONSOLEEX_PARAMETERS ConsoleEx::GetDefaultParameters()
