@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <iterator>
 #include <cstring>
+#include <stdexcept>
 
 
 using namespace hl;
