@@ -1,5 +1,6 @@
 #include "hacklib/Main.h"
 #include <Windows.h>
+#include <stdexcept>
 
 
 static DWORD WINAPI ThreadFunc(LPVOID param)
