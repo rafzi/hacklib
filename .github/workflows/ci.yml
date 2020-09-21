@@ -1,0 +1,30 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        config:
+          - {name: "Linux", os: ubuntu-latest}
+          - {name: "Windows", os: windows-latest}
+
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Requirements (Linux)
+      if: matrix.config.name == 'Linux'
+      run: sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev
+
+    - name: Configure
+      run: mkdir build && cd build && cmake ..
+
+    - name: Build
+      run: cd build && cmake --build .
+
+    - name: Test
+      run: cd bin && ./hl_test
