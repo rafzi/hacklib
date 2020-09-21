@@ -27,4 +27,4 @@ jobs:
       run: cd build && cmake --build .
 
     - name: Test
-      run: cd bin && ./hl_test
+      run: cd bin64 && ./hl_test
