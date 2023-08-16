@@ -2,6 +2,7 @@
 #define HACKLIB_EXEFILE_H
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
