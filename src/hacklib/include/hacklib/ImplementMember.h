@@ -94,11 +94,17 @@ public:                                                                         
 #define EXPAND_ARGS_16(comma, how, argtype, argname, ...)                                                              \
     how(comma, argtype, argname), EXPAND(EXPAND_ARGS_14(ARGS_NOCOMMA, how, __VA_ARGS__))
 
+#ifdef _WIN32
+#define THISCALL __thiscall
+#else
+#define THISCALL
+#endif
+
 #define IMPLVTFUNC_OR(rettype, name, ordinal, ...)                                                                     \
 public:                                                                                                                \
     rettype name(EXPAND_ARGS(ARGS_FULL, __VA_ARGS__))                                                                  \
     {                                                                                                                  \
-        return ((rettype(__thiscall*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__)))(                                \
+        return ((rettype(THISCALL*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__)))(                                \
             *(uintptr_t*)((*(uintptr_t**)this) + ordinal)))((uintptr_t)this EXPAND_ARGS(ARGS_NAMES, __VA_ARGS__));     \
     }
 

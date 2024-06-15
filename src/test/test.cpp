@@ -1,5 +1,6 @@
 #include "hacklib/CrashHandler.h"
 #include "hacklib/Hooker.h"
+#include "hacklib/ImplementMember.h"
 #include "hacklib/Injector.h"
 #include "hacklib/Logging.h"
 #include "hacklib/Main.h"
@@ -420,6 +421,13 @@ void TestPatch()
 
     HL_ASSERT(std::equal(backupData, backupData + 3, (char*)testAdr), "Patch not undone");
 }
+
+class TestImplMember
+{
+public:
+    IMPLMEMBER(int, Member1, 0x20);
+    IMPLVTFUNC_OR(void, SomeFunction, 13, int, argument1);
+};
 
 void TestPatternScan()
 {
