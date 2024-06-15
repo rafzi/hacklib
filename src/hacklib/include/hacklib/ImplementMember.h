@@ -68,11 +68,11 @@ public:                                                                         
 #define COUNT_ARGS_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
 #define COUNT_ARGS_RSEQ() 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-#define ARGS_COMMA ,
-#define ARGS_NOCOMMA
+#define ARGS_COMMA() ,
+#define ARGS_NOCOMMA()
 #define ARGS_FULL(comma, argtype, argname) argtype argname
-#define ARGS_TYPES(comma, argtype, argname) comma argtype
-#define ARGS_NAMES(comma, argtype, argname) comma argname
+#define ARGS_TYPES(comma, argtype, argname) comma() argtype
+#define ARGS_NAMES(comma, argtype, argname) comma() argname
 
 #define EXPAND_ARGS(how, ...) EXPAND_ARGS_(how, COUNT_ARGS(__VA_ARGS__), __VA_ARGS__)
 #define EXPAND_ARGS_(how, N, ...) EXPAND_ARGS__(how, N, __VA_ARGS__)
