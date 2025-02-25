@@ -39,15 +39,10 @@ public:
 
         return nullptr;
     }
-    Page* getPage(uintptr_t adr)
+    bool isPageHooked(uintptr_t adr)
     {
-        std::lock_guard<std::mutex> lock(m_pagesMutex);
-
-        auto it = m_pages.upper_bound(adr);
-        if (it != m_pages.end())
-            return (--it)->second.get();
-
-        return nullptr;
+        std::lock_guard lock(m_pagesMutex);
+        return getPage(adr) != nullptr;
     }
     void addHook(uintptr_t adr, hl::Hooker::HookCallback_t cbHook)
     {
@@ -63,6 +58,7 @@ public:
             }
         }
 
+        std::lock_guard lock(m_pagesMutex);
         auto page = getPage(adr);
         if (page)
         {
@@ -74,42 +70,45 @@ public:
             uintptr_t lowerBound = region.base;
             uintptr_t upperBound = lowerBound + hl::GetPageSize();
 
-            std::lock_guard<std::mutex> lock(m_pagesMutex);
             m_pages[lowerBound] = std::make_unique<Page>(lowerBound, upperBound);
-            m_pages[upperBound] = nullptr;
+            m_pages.try_emplace(upperBound, nullptr);
         }
     }
     void removeHook(uintptr_t adr)
     {
         m_hooks.erase(adr);
 
-        auto page = getPage(adr);
-        if (page)
         {
-            if (page->m_refs == 1)
+            std::unique_lock lock(m_pagesMutex);
+            auto page = getPage(adr);
+            if (page)
             {
-                // Trigger the guard page violation to remove it. VEH will not handle the
-                // exception so we can be sure the guard page protection was removed.
-                [&] {
-                    __try
+                if (page->m_refs == 1)
+                {
+                    lock.unlock();
+                    // Trigger the guard page violation to remove it. VEH will not handle the
+                    // exception so we can be sure the guard page protection was removed.
+                    [&]
                     {
-                        while (true)
+                        __try
                         {
-                            auto x = *(volatile int*)adr;
+                            while (true)
+                            {
+                                auto x = *(volatile int*)adr;
+                            }
                         }
-                    }
-                    __except (EXCEPTION_EXECUTE_HANDLER)
-                    {
-                    }
-                }();
+                        __except (EXCEPTION_EXECUTE_HANDLER)
+                        {
+                        }
+                    }();
 
-                std::lock_guard<std::mutex> lock(m_pagesMutex);
-                m_pages.erase(page->m_end);
-                m_pages.erase(page->m_begin);
-            }
-            else
-            {
-                page->m_refs--;
+                    lock.lock();
+                    m_pages.erase(page->m_begin);
+                }
+                else
+                {
+                    page->m_refs--;
+                }
             }
         }
 
@@ -119,6 +118,17 @@ public:
             RemoveVectoredExceptionHandler(m_pExHandler);
             m_pExHandler = nullptr;
         }
+    }
+
+private:
+    // Caller must lock.
+    Page* getPage(uintptr_t adr)
+    {
+        auto it = m_pages.upper_bound(adr);
+        if (it != m_pages.end())
+            return (--it)->second.get();
+
+        return nullptr;
     }
 
 private:
@@ -243,7 +253,7 @@ static void checkForHookAndCall(uintptr_t adr, CONTEXT* pCtx)
 
 static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
 {
-    static uintptr_t guardFaultAdr;
+    thread_local uintptr_t guardFaultAdr;
 
     CONTEXT* pCtx = exc->ContextRecord;
 
@@ -285,7 +295,7 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
         // Single-step exeption occured. Single-step flag is cleared now.
 
         // Check if we are within a page that contains hooks.
-        if (g_vehHookManager.getPage(pCtx->REG_INSTRUCTIONPTR))
+        if (g_vehHookManager.isPageHooked(pCtx->REG_INSTRUCTIONPTR))
         {
             // We are still on a hooked page. Continue single-stepping.
             pCtx->EFlags |= 0x100;
@@ -296,7 +306,7 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
         {
             // We stepped out of a hooked page.
             // Check if the page that was last guarded still contains a hook.
-            if (g_vehHookManager.getPage(guardFaultAdr))
+            if (g_vehHookManager.isPageHooked(guardFaultAdr))
             {
                 // Restore guard page protection.
                 DWORD oldProt;

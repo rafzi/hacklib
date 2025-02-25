@@ -59,10 +59,10 @@ static std::string GetCodeStr(const char* file, const char* func, int line)
     return str;
 }
 
-static void LogString(const std::string& str)
+static void LogString(const std::string& str, bool raw)
 {
     std::string logStr = str;
-    if (g_cfg.logTime)
+    if (!raw && g_cfg.logTime)
     {
         logStr = GetTimeStr() + " " + str;
     }
@@ -97,7 +97,7 @@ void hl::LogDebug(const char* file, const char* func, int line, const char* form
     va_start(vl, format);
     FormatStr str(format, vl);
 
-    LogString(GetCodeStr(file, func, line) + " " + str.str());
+    LogString(GetCodeStr(file, func, line) + " " + str.str(), false);
 
     va_end(vl);
 }
@@ -108,7 +108,7 @@ void hl::LogError(const char* file, const char* func, int line, const char* form
     va_start(vl, format);
     FormatStr str(format, vl);
 
-    LogString(GetCodeStr(file, func, line) + " ERROR: " + str.str());
+    LogString(GetCodeStr(file, func, line) + " ERROR: " + str.str(), false);
 
     va_end(vl);
 }
@@ -119,7 +119,7 @@ void hl::LogError(const char* format, ...)
     va_start(vl, format);
     FormatStr str(format, vl);
 
-    LogString(std::string("ERROR: ") + str.str());
+    LogString(std::string("ERROR: ") + str.str(), false);
 
     va_end(vl);
 }
@@ -130,7 +130,7 @@ void hl::LogRaw(const char* format, ...)
     va_start(vl, format);
     FormatStr str(format, vl);
 
-    LogString(str.str());
+    LogString(str.str(), true);
 
     va_end(vl);
 }

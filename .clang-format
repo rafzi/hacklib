@@ -6,6 +6,7 @@ AllowShortIfStatementsOnASingleLine: false
 AlwaysBreakTemplateDeclarations: true
 BreakBeforeBraces: Allman
 BreakConstructorInitializersBeforeComma: true
+BreakConstructorInitializers: BeforeComma
 ColumnLimit: 120
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 Cpp11BracedListStyle: false
@@ -14,6 +15,7 @@ IndentCaseLabels: false
 IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 2
+PackConstructorInitializers: CurrentLine
 PenaltyReturnTypeOnItsOwnLine: 10000
 PointerBindsToType: true
 SortIncludes: false

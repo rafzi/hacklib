@@ -33,7 +33,8 @@
     do                                                                                                                 \
     {                                                                                                                  \
         hl::CrashHandler(                                                                                              \
-            [&] {                                                                                                      \
+            [&]                                                                                                        \
+            {                                                                                                          \
                 try                                                                                                    \
                 {                                                                                                      \
                     HL_LOG_RAW("Starting test: \"%s\"\n", #testBody);                                                  \
@@ -261,10 +262,12 @@ void TestMemory()
 {
     void* mem = g_dummyCode.data();
 
-    auto readFunc = [&] {
+    auto readFunc = [&]
+    {
         bool crashed = false;
         hl::CrashHandler(
-            [&] {
+            [&]
+            {
                 *(volatile char*)mem;
                 *((volatile char*)mem + g_dummyCode.size());
             },
@@ -273,10 +276,12 @@ void TestMemory()
     };
     auto backupFirst = g_dummyCode[0];
     auto backupLast = g_dummyCode[g_dummyCode.size() - 1];
-    auto writeFunc = [&]() {
+    auto writeFunc = [&]()
+    {
         bool crashed = false;
         hl::CrashHandler(
-            [&] {
+            [&]
+            {
                 *(volatile char*)mem = 0;
                 *((volatile char*)mem + g_dummyCode.size()) = 0;
                 *(volatile unsigned char*)mem = backupFirst;
@@ -285,7 +290,8 @@ void TestMemory()
             [&](uint32_t) { crashed = true; });
         return crashed;
     };
-    auto execFunc = [&] {
+    auto execFunc = [&]
+    {
         bool crashed = false;
         hl::CrashHandler([&] { ((void (*)())mem)(); }, [&](uint32_t) { crashed = true; });
         return crashed;
@@ -512,13 +518,11 @@ void TestHooks()
     HL_ASSERT(cbCounter == 0, "Hook not undone");
     HL_ASSERT(result == 5, "Detour unhook broke the function");
 
-
     auto memVt = hl::PageAlloc(1000, hl::PROTECTION_READ_WRITE_EXECUTE);
     auto memInstance = hl::PageAlloc(1000, hl::PROTECTION_READ_WRITE);
     *(uintptr_t*)memVt = (uintptr_t)g_dummyCode.data();
     *(uintptr_t*)memInstance = (uintptr_t)memVt;
     hl::PageProtect(memVt, 1000, hl::PROTECTION_READ);
-
     auto vtHook = hooker.hookVT(memInstance, 0, &CallbackFunc);
 
     HL_ASSERT(*(uintptr_t*)memInstance != (uintptr_t)memVt, "Virtual table pointer was not replaced");
@@ -537,6 +541,69 @@ void TestHooks()
     HL_ASSERT(cbCounter == 0, "Hook not undone");
 }
 
+static int vehCounter1 = 0;
+static int vehCounter2 = 0;
+static void VEHFunc1(hl::CpuContext* ctx)
+{
+    printf("counter1\n");
+    vehCounter1++;
+}
+static void VEHFunc2(hl::CpuContext* ctx)
+{
+    printf("counter2\n");
+    vehCounter2++;
+}
+void TestVEH()
+{
+#ifdef WIN32
+    hl::code_page_vector dummyCode(2 * hl::GetPageSize());
+    std::copy(g_dummyCode.begin(), g_dummyCode.end(), dummyCode.begin());
+    std::copy(g_dummyCode.begin(), g_dummyCode.end(), dummyCode.begin() + hl::GetPageSize());
+    void* funcPage1 = dummyCode.data();
+    void* funcPage2 = dummyCode.data() + hl::GetPageSize();
+    // Test hooking page 2, then page 1 (overwrites hook for page 2!)
+
+    hl::Hooker hooker;
+    auto hook2 = hooker.hookVEH((uintptr_t)funcPage2, VEHFunc2);
+
+    ((void (*)())funcPage2)();
+    HL_ASSERT(vehCounter2 == 1, "");
+
+    auto hook1 = hooker.hookVEH((uintptr_t)funcPage1, VEHFunc1);
+
+    ((void (*)())funcPage1)();
+    HL_ASSERT(vehCounter1 == 1, "");
+    HL_ASSERT(vehCounter2 == 1, "");
+
+    ((void (*)())funcPage2)();
+    HL_ASSERT(vehCounter1 == 1, "");
+    HL_ASSERT(vehCounter2 == 2, "");
+
+    ((void (*)())funcPage2)();
+    HL_ASSERT(vehCounter1 == 1, "");
+    HL_ASSERT(vehCounter2 == 3, "");
+
+    hooker.unhook(hook1);
+
+    ((void (*)())funcPage1)();
+    ((void (*)())funcPage2)();
+    HL_ASSERT(vehCounter1 == 1, "");
+    HL_ASSERT(vehCounter2 == 4, "");
+
+    ((void (*)())funcPage1)();
+    ((void (*)())funcPage2)();
+    HL_ASSERT(vehCounter1 == 1, "");
+    HL_ASSERT(vehCounter2 == 5, "");
+
+    hooker.unhook(hook2);
+
+    ((void (*)())funcPage1)();
+    ((void (*)())funcPage2)();
+    HL_ASSERT(vehCounter1 == 1, "");
+    HL_ASSERT(vehCounter2 == 5, "");
+#endif
+}
+
 
 class TestMain : public hl::Main
 {
@@ -553,6 +620,7 @@ public:
         HL_TEST(TestPatch);
         HL_TEST(TestPatternScan);
         HL_TEST(TestHooks);
+        HL_TEST(TestVEH);
 
         HL_LOG_RAW("==========\nTests finished successfully.\n");
         return false;

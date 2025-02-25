@@ -50,6 +50,12 @@ public:
         }
         else
         {
+            // Limit backup size by available readable memory region.
+            uintptr_t vtAddr = (uintptr_t)*instance;
+            const auto& memRegion = hl::GetMemoryByAddress(vtAddr);
+            uintptr_t maxSize = memRegion.base + memRegion.size - vtAddr;
+            vtBackupSize = std::min(vtBackupSize, (int)(maxSize / sizeof(void*)));
+
             // Create new fake VT (mirroring the original one).
             fakeVT = std::make_unique<FakeVT>(instance, vtBackupSize);
 
@@ -99,7 +105,8 @@ class VTHook : public IHook
 {
 public:
     VTHook(uintptr_t classInstance, int functionIndex, uintptr_t cbHook, int vtBackupSize)
-        : instance((uintptr_t**)classInstance), functionIndex(functionIndex)
+        : instance((uintptr_t**)classInstance)
+        , functionIndex(functionIndex)
     {
         g_vtHookManager.addHook(instance, functionIndex, cbHook, vtBackupSize);
     }
@@ -136,7 +143,10 @@ class DetourHook : public IHook
 {
 public:
     DetourHook(uintptr_t location, int offset, Hooker::HookCallback_t cbHook)
-        : location(location), offset(offset), cbHook(cbHook), wrapperCode(0x1000, 0xcc)
+        : location(location)
+        , offset(offset)
+        , cbHook(cbHook)
+        , wrapperCode(0x1000, 0xcc)
     {
     }
     ~DetourHook() override
