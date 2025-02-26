@@ -4,6 +4,7 @@
 #include "hacklib/Handles.h"
 #include <string>
 #include <vector>
+#include <cstdint>
 
 
 namespace hl

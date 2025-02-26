@@ -545,12 +545,10 @@ static int vehCounter1 = 0;
 static int vehCounter2 = 0;
 static void VEHFunc1(hl::CpuContext* ctx)
 {
-    printf("counter1\n");
     vehCounter1++;
 }
 static void VEHFunc2(hl::CpuContext* ctx)
 {
-    printf("counter2\n");
     vehCounter2++;
 }
 void TestVEH()
