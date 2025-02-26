@@ -27,9 +27,7 @@ Bigger examples are located in separate repositories:
 A helper / framework for implementing a shared library that runs by itself after it is loaded into the target process.
 
 
-```
-#!c++
-
+```c++
 class MyMain : public hl::Main
 {
 public:
@@ -55,9 +53,7 @@ For an example see Drawer.h section below.
 Wrapper for drawing with D3D or OpenGL in a resource-safe C++ way.
 
 
-```
-#!c++
-
+```c++
 hl::DrawerD3D drawer;
 hl::WindowOverlay overlay;
 
@@ -87,9 +83,7 @@ The implemented VEH hooking mechanism is about 3x faster than the conventional `
 Provides pattern scanning techniques like masked search strings or search by referenced strings in the code of the target process.
 
 
-```
-#!c++
-
+```c++
 uintptr_t MapIdSig = hl::FindPattern("00 ?? 08 00 89 0d");
 
 hl::PatternScanner scanner;
@@ -107,9 +101,7 @@ void *pAgentSelectionCtx = *(void**)(hl::FollowRelativeAddress(results[1] + 0xa)
 
 Convenient printf-like logging macros. Source information with file name, line number and function name are included in debug builds.
 
-```
-#!c++
-
+```c++
 // The default configuration also logs to a file next to the library.
 hl::LogConfig logCfg;
 logCfg.logFunc = [](const std::string& msg){ std::cout << msg << std::flush; };
@@ -130,9 +122,7 @@ Various utilities for memory allocation, protection and mappings.
 
 Object wrapper around a simple code patch. Takes care of memory protection and restores everything on destruction.
 
-```
-#!c++
-
+```c++
 hl::Patch p1, p2;
 p1.apply(0x00111111, (uint8_t)0xeb);
 p2.apply(0x00222222, "\x90\x90\x90", 3);
@@ -154,9 +144,7 @@ A high performance Windows console that accepts input and output simultaneously.
 Finds the D3D device used for rendering by the host application in a generic way.
 
 
-```
-#!c++
-
+```c++
 auto pDev = hl::D3DDeviceFetcher::GetD3D9Device();
 ```
 
@@ -166,9 +154,7 @@ auto pDev = hl::D3DDeviceFetcher::GetD3D9Device();
 Helper class for accessing a foreign class dynamically at runtime, including doing virtual member function calls.
 
 
-```
-#!c++
-
+```c++
 void *ptr = 0x12345678;
 hl::ForeignClass obj = ptr;
 int result = obj.call<int>(0x18, "Hello World", 3.14f, 42);
@@ -182,9 +168,7 @@ obj.set(0x70, value+7);
 Macros for declaring a foreign class statically in a type-safe, const-safe and simply convenient manner.
 
 
-```
-#!c++
-
+```c++
 class CPlayer
 {
     // Declare virtual table function by offset
@@ -204,9 +188,7 @@ class CPlayer
 
 A wrapper that catches system exceptions like memory access faults. The handlers should never be called in working programs, because C++ destructors are not called when a fault occurs.
 
-```
-#!c++
-
+```c++
 hl::CrashHandler([]{
     int crash = *(volatile int*)nullptr;
 }, [](uint32_t code){
@@ -226,9 +208,7 @@ These are not really related to the topic of this library, but might often be us
 
 Rng.h:
 
-```
-#!c++
-
+```c++
 hl::Rng rng;
 
 while (true)
@@ -242,9 +222,7 @@ while (true)
 
 Timer.h:
 
-```
-#!c++
-
+```c++
 hl::Timer t;
 // Some computation.
 std::cout << t.diff() << std::endl;
@@ -255,9 +233,7 @@ std::cout << t.diff() << std::endl;
 
 Input.h:
 
-```
-#!c++
-
+```c++
 hl::Input input;
 
 while (true)
@@ -280,7 +256,7 @@ Hacklib is written in modern C++ and requires a recent compiler. The build was t
 
 The project is using CMake and requires version 3.1 or later.
 
-Graphics related components require the DirectX SDK June 2010 on Windows or on Linux the X11 and OpenGL libraries. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev`.
+Graphics related components require the DirectX SDK June 2010 on Windows or on Linux the X11 and OpenGL libraries. The essential headers and libraries of the DirectX SDK are included in this repository. Required Linux packages would for example be on Debian/Ubuntu: `sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev libxext-dev`.
 
 ## How to build ##
 
@@ -289,9 +265,7 @@ Graphics related components require the DirectX SDK June 2010 on Windows or on L
 * For your own project folders, it is most convenient to put them into the hacklib/src folder. Then provide a CMakeLists file in this folder. For example: hacklib/src/YourProject/CMakeLists.txt. You need to re-run CMake manually after adding your project folder, it will not detect the new folder itself. The basic CMakeLists file is the following, add source files as neccessary to the ADD_LIBRARY command:
 
 
-```
-#!cmake
-
+```cmake
 PROJECT(YourProject)
 
 ADD_LIBRARY(${PROJECT_NAME} SHARED main.cpp)

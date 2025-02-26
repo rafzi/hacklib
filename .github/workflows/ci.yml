@@ -18,7 +18,7 @@ jobs:
 
     - name: Requirements (Linux)
       if: matrix.config.name == 'Linux'
-      run: sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev
+      run: sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libxrender-dev libxfixes-dev libglew-dev libxext-dev
 
     - name: Configure
       run: mkdir build && cd build && cmake ..
