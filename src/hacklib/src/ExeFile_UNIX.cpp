@@ -113,6 +113,7 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
                 symTableSectionIndex = -1;
             }
         default:
+            break;
         }
     }
 

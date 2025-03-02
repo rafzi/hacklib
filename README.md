@@ -252,7 +252,7 @@ while (true)
 
 ## Dependencies ##
 
-Hacklib is written in modern C++ and requires a recent compiler. The build was tested with Visual Studio 2022, GCC 13.3, Clang 3.3 and Clang 3.5 with C++23 support enabled.
+Hacklib is written in modern C++ and requires a recent compiler. The build was tested with Visual Studio 2022, GCC 13.3 and Clang 18.1 with C++23 support enabled.
 
 The project is using CMake and requires version 3.10 or later.
 
