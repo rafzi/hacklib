@@ -23,7 +23,7 @@ jobs:
 
     - name: Requirements (LinuxClang)
       if: matrix.config.name == 'LinuxClang'
-      run: sudo apt-get install clang && "CC=/usr/bin/clang" >> $GITHUB_ENV && "CXX=/usr/bin/clang++" >> $GITHUB_ENV
+      run: sudo apt-get install clang && echo "CC=/usr/bin/clang" >> $GITHUB_ENV && echo "CXX=/usr/bin/clang++" >> $GITHUB_ENV
 
     - name: Configure
       run: mkdir build && cd build && cmake ..
