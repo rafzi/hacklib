@@ -16,7 +16,7 @@ public:
     static WindowHandle GetTargetWindow();
 
 public:
-    WindowOverlay(ModuleHandle hModule = NULL);
+    explicit WindowOverlay(ModuleHandle hModule = NullModuleHandle);
 
     /// Create the overlay.
     /// The overlay dissapears if the target window loses focus. Set
@@ -37,7 +37,7 @@ public:
     }
 
 private:
-    virtual void cbWindowLoop();
+    void cbWindowLoop() override;
 
 private:
     WindowHandle m_targetWindow = 0;

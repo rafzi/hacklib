@@ -29,10 +29,12 @@ public:
     static bool IsCompositionEnabled();
 
 public:
-    GfxOverlay(ModuleHandle hModule = NULL);
+    explicit GfxOverlay(ModuleHandle hModule = NullModuleHandle);
     GfxOverlay(const GfxOverlay&) = delete;
     GfxOverlay& operator=(const GfxOverlay&) = delete;
-    ~GfxOverlay();
+    GfxOverlay(GfxOverlay&&) = delete;
+    GfxOverlay& operator=(GfxOverlay&&) = delete;
+    virtual ~GfxOverlay();
 
     Error create(int posX, int posY, int width, int height);
 
@@ -41,18 +43,18 @@ public:
     /// Has no effect on OpenGL implementation as it will always use monitor refresh rate.
     void setTargetRefreshRate(int rate);
     /// Returns whether the overlay window is opened.
-    bool isOpen() const;
+    [[nodiscard]] bool isOpen() const;
 
     /// Returns the window x position.
-    int getPosX() const;
+    [[nodiscard]] int getPosX() const;
     /// Returns the window y position.
-    int getPosY() const;
+    [[nodiscard]] int getPosY() const;
     /// Returns the window width.
-    int getWidth() const;
+    [[nodiscard]] int getWidth() const;
     /// Returns the window height.
-    int getHeight() const;
+    [[nodiscard]] int getHeight() const;
     /// Returns the hl::GraphicsContext.
-    GraphicsContext getContext() const;
+    [[nodiscard]] GraphicsContext getContext() const;
 
     /// Resets the hl::GraphicsContext.
     void resetContext();
@@ -74,7 +76,7 @@ protected:
     class GfxOverlayImpl* m_impl = nullptr;
 
     std::thread m_thread;
-    ModuleHandle m_hModule = NULL;
+    ModuleHandle m_hModule = NullModuleHandle;
     WindowHandle m_hWnd = 0;
     bool m_isOpen = false;
 
@@ -83,7 +85,7 @@ protected:
     int m_width = 0;
     int m_height = 0;
 
-    typedef std::chrono::high_resolution_clock Clock;
+    using Clock = std::chrono::high_resolution_clock;
     Clock::time_point m_lastSwap;
     std::chrono::nanoseconds m_frameTime{ 1000000000ull / 60 };
 };

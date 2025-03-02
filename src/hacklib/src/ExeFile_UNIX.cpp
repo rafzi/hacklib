@@ -1,18 +1,18 @@
 #include "hacklib/ExeFile.h"
 #include <elf.h>
-#include <string.h>
+#include <cstring>
 
 
 #ifdef ARCH_64BIT
-typedef Elf64_Ehdr Elf_Ehdr;
-typedef Elf64_Phdr Elf_Phdr;
-typedef Elf64_Shdr Elf_Shdr;
-typedef Elf64_Sym Elf_Sym;
+using Elf_Ehdr = Elf64_Ehdr;
+using Elf_Phdr = Elf64_Phdr;
+using Elf_Shdr = Elf64_Shdr;
+using Elf_Sym = Elf64_Sym;
 #else
-typedef Elf32_Ehdr Elf_Ehdr;
-typedef Elf32_Phdr Elf_Phdr;
-typedef Elf32_Shdr Elf_Shdr;
-typedef Elf32_Sym Elf_Sym;
+using Elf_Ehdr = Elf32_Ehdr;
+using Elf_Phdr = Elf32_Phdr;
+using Elf_Shdr = Elf32_Shdr;
+using Elf_Sym = Elf32_Sym;
 #endif
 
 
@@ -26,7 +26,8 @@ public:
 };
 
 
-static std::unordered_map<std::string, uintptr_t> LoadSymbols(Elf_Sym* symTable, size_t symTableNum, char* strTable)
+static std::unordered_map<std::string, uintptr_t> LoadSymbols(Elf_Sym* symTable, size_t symTableNum,
+                                                              const char* strTable)
 {
     std::unordered_map<std::string, uintptr_t> symbols;
 
@@ -49,7 +50,7 @@ hl::ExeFile::ExeFile()
     m_impl = std::make_unique<ExeFileImpl>();
 }
 
-hl::ExeFile::~ExeFile() {}
+hl::ExeFile::~ExeFile() = default;
 
 
 bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
@@ -82,12 +83,12 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         return false;
     }
 
-    size_t strTableSectionIndex = m_impl->elfHeader->e_shstrndx;
+    const size_t strTableSectionIndex = m_impl->elfHeader->e_shstrndx;
     m_impl->sectionHeaders = (Elf_Shdr*)(moduleBase + m_impl->elfHeader->e_shoff);
     m_impl->strTableHeader = &m_impl->sectionHeaders[strTableSectionIndex];
     m_impl->strTable = (char*)(moduleBase + m_impl->strTableHeader->sh_offset);
 
-    size_t numSections = m_impl->elfHeader->e_shnum;
+    const size_t numSections = m_impl->elfHeader->e_shnum;
     size_t symTableSectionIndex = -1;
     for (size_t i = 0; i < numSections; i++)
     {
@@ -105,12 +106,13 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
             {
                 char* strTable = (char*)(moduleBase + m_impl->sectionHeaders[i].sh_offset);
                 Elf_Shdr* symTableSectionHeader = &m_impl->sectionHeaders[symTableSectionIndex];
-                Elf_Sym* symTable = (Elf_Sym*)(moduleBase + symTableSectionHeader->sh_offset);
-                size_t symTableNum = symTableSectionHeader->sh_size / symTableSectionHeader->sh_entsize;
+                auto symTable = (Elf_Sym*)(moduleBase + symTableSectionHeader->sh_offset);
+                const size_t symTableNum = symTableSectionHeader->sh_size / symTableSectionHeader->sh_entsize;
                 auto symbols = LoadSymbols(symTable, symTableNum, strTable);
                 m_exports.insert(symbols.begin(), symbols.end());
                 symTableSectionIndex = -1;
             }
+        default:
         }
     }
 

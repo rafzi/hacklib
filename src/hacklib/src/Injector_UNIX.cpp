@@ -6,9 +6,9 @@
 #include <dlfcn.h>
 #include <elf.h>
 #include <fstream>
-#include <limits.h>
+#include <climits>
 #include <sstream>
-#include <string.h>
+#include <cstring>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -31,7 +31,11 @@
 class Injection
 {
 public:
-    Injection(std::string* error) : m_error(error) {}
+    explicit Injection(std::string* error) : m_error(error) {}
+    Injection(const Injection&) = delete;
+    Injection& operator=(const Injection&) = delete;
+    Injection(Injection&&) = delete;
+    Injection& operator=(Injection&&) = delete;
     ~Injection()
     {
         if (m_pid)
@@ -93,16 +97,17 @@ public:
 
         // Verify matching bitness of injector and target.
         char regsBuffer[256]; // x86_64 GPRs should be 27*sizeof(uint64_t)=216 bytes.
-        struct iovec regSet;
+        struct iovec regSet{};
         regSet.iov_base = &regsBuffer;
         regSet.iov_len = sizeof(regsBuffer);
         if (ptrace(PTRACE_GETREGSET, m_pid, NT_PRSTATUS, &regSet) < 0)
         {
-            writeErr("Warning: Could not determine bitness of target process (errno = " + std::to_string(errno) + ")\n");
+            writeErr("Warning: Could not determine bitness of target process (errno = " + std::to_string(errno) +
+                     ")\n");
         }
         else
         {
-            bool isTarget64 = regSet.iov_len != 17 * sizeof(uint32_t);
+            const bool isTarget64 = regSet.iov_len != 17 * sizeof(uint32_t);
 #ifdef ARCH_64BIT
             if (!isTarget64)
             {
@@ -136,20 +141,23 @@ public:
     {
         auto memoryMap = hl::GetMemoryMap(m_pid);
 
-        auto findLib = [&](const std::string& libName) {
-            return std::find_if(memoryMap.begin(), memoryMap.end(), [&](const hl::MemoryRegion& r) {
-                auto pos = r.name.find(libName);
-                if (pos != std::string::npos)
-                {
-                    pos += libName.size();
-                    return r.name[pos] == '.' || r.name[pos] == '-';
-                }
-                return false;
-            });
+        auto findLib = [&](const std::string& libName)
+        {
+            return std::ranges::find_if(memoryMap,
+                                        [&](const hl::MemoryRegion& r)
+                                        {
+                                            auto pos = r.name.find(libName);
+                                            if (pos != std::string::npos)
+                                            {
+                                                pos += libName.size();
+                                                return r.name[pos] == '.' || r.name[pos] == '-';
+                                            }
+                                            return false;
+                                        });
         };
 
-        auto itCheck = std::find_if(memoryMap.begin(), memoryMap.end(),
-                                    [this](const hl::MemoryRegion& r) { return r.name == m_fileName; });
+        auto itCheck =
+            std::ranges::find_if(memoryMap, [this](const hl::MemoryRegion& r) { return r.name == m_fileName; });
         if (itCheck != memoryMap.end())
         {
             writeErr("Fatal: The specified module is already loaded\n");
@@ -213,8 +221,8 @@ public:
 
     bool remoteLoadLib()
     {
-        size_t libNameLen = strlen(m_fileName) + 1;
-        size_t paddedLibNameLen = ((libNameLen - 1) & ~(sizeof(uintptr_t) - 1)) + sizeof(uintptr_t);
+        const size_t libNameLen = strlen(m_fileName) + 1;
+        const size_t paddedLibNameLen = ((libNameLen - 1) & ~(sizeof(uintptr_t) - 1)) + sizeof(uintptr_t);
 
         // Resolve weird state after syscall.
         if (!call(0, 0, 0))
@@ -234,7 +242,7 @@ public:
         // Copy the library name to the remote process. Assume that PATH_MAX is padded to pointer size boundary.
         for (uintptr_t i = 0; i < paddedLibNameLen; i += sizeof(uintptr_t))
         {
-            uintptr_t value = *(uintptr_t*)&m_fileName[i];
+            const uintptr_t value = *(uintptr_t*)&m_fileName[i];
             if (ptrace(PTRACE_POKEDATA, m_pid, m_remoteLibName + i, (void*)value) < 0)
             {
                 writeErr("Fatal: ptrace POKEDATA failed\n");
@@ -253,13 +261,14 @@ public:
 
             if (call(m_dlerror))
             {
-                uintptr_t remoteStr = USER_REG_AX(m_regs);
+                const uintptr_t remoteStr = USER_REG_AX(m_regs);
                 if (remoteStr)
                 {
                     size_t remoteStrLen = 0;
                     uintptr_t value = 0;
                     std::string errorMsg;
-                    auto hasNull = [](uintptr_t word) {
+                    auto hasNull = [](uintptr_t word)
+                    {
                         for (size_t i = 0; i < sizeof(uintptr_t); i++)
                         {
                             if ((word & ((uintptr_t)0xff << 8 * i)) == 0)
@@ -393,10 +402,10 @@ private:
 
 private:
     int m_pid = 0;
-    char m_fileName[PATH_MAX];
+    char m_fileName[PATH_MAX]{};
     hl::MemoryRegion m_libc, m_libdl;
-    uintptr_t m_malloc, m_free, m_dlopen, m_dlclose, m_dlerror;
-    struct user m_regs, m_regsBackup;
+    uintptr_t m_malloc = 0, m_free = 0, m_dlopen = 0, m_dlclose = 0, m_dlerror = 0;
+    struct user m_regs{}, m_regsBackup{};
     bool m_restoreBackup = false;
     uintptr_t m_remoteLibName = 0;
 
@@ -418,7 +427,7 @@ std::vector<int> hl::GetPIDsByProcName(const std::string& pname)
     DIR* dir = opendir("/proc");
     if (dir)
     {
-        struct dirent* entryPID;
+        struct dirent* entryPID = nullptr;
         while ((entryPID = readdir(dir)))
         {
             bool isPID = true;

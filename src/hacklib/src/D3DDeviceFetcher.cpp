@@ -50,7 +50,7 @@ private:
 
 static void cbEndScene(hl::CpuContext* ctx)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard lock(g_mutex);
 #ifdef ARCH_64BIT
     // Microsoft x64
     g_pD3D9Device = (LPDIRECT3DDEVICE9)ctx->RCX;
@@ -94,7 +94,7 @@ IDirect3DDevice9* D3DDeviceFetcher::GetD3D9Device(int timeout)
     Hooker hooker;
     hooker.hookVEH(endScene, cbEndScene);
 
-    std::unique_lock<std::mutex> lock(g_mutex);
+    std::unique_lock lock(g_mutex);
     g_condVar.wait_for(lock, std::chrono::milliseconds(timeout), [] { return g_pD3D9Device != NULL; });
 
     return g_pD3D9Device;
@@ -103,7 +103,7 @@ IDirect3DDevice9* D3DDeviceFetcher::GetD3D9Device(int timeout)
 
 static void cbPresent(hl::CpuContext* ctx)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard lock(g_mutex);
 #ifdef ARCH_64BIT
     // Microsoft x64
     g_pD3D11SwapChain = (IDXGISwapChain*)ctx->RCX;
@@ -162,10 +162,10 @@ D3DDeviceFetcher::D3D11COMs D3DDeviceFetcher::GetD3D11Device(int timeout)
     Hooker hooker;
     hooker.hookVEH(present, cbPresent);
 
-    std::unique_lock<std::mutex> lock(g_mutex);
-    g_condVar.wait_for(lock, std::chrono::milliseconds(timeout), [] {
-        return g_pD3D11SwapChain != NULL && g_pD3D11Device != NULL && g_pD3D11DeviceContext != NULL;
-    });
+    std::unique_lock lock(g_mutex);
+    g_condVar.wait_for(
+        lock, std::chrono::milliseconds(timeout),
+        [] { return g_pD3D11SwapChain != NULL && g_pD3D11Device != NULL && g_pD3D11DeviceContext != NULL; });
 
     d3d11.pSwapChain = g_pD3D11SwapChain;
     d3d11.pDevice = g_pD3D11Device;

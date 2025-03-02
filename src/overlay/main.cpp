@@ -1,9 +1,13 @@
-#include "hacklib/DrawerOpenGL.h"
 #include "hacklib/WindowOverlay.h"
 #include <GL/gl.h>
 #include <cstdio>
 #include <iostream>
 
+#if WIN32
+#include "hacklib/DrawerD3D.h"
+#else
+#include "hacklib/DrawerOpenGL.h"
+#endif
 
 int main()
 {
@@ -21,10 +25,15 @@ int main()
         return 1;
     }
 
+#if WIN32
+    hl::DrawerD3D drawer;
+#else
     hl::DrawerOpenGL drawer;
+#endif
     drawer.setContext(overlay.getContext());
 
-    auto renderLoop = [&] {
+    auto renderLoop = [&]
+    {
         while (running)
         {
             overlay.beginDraw();

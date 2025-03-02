@@ -1,8 +1,7 @@
-#define _USE_MATH_DEFINES
-
 #include "hacklib/DrawerOpenGL.h"
 #include <GL/gl.h>
 #include <cmath>
+#include <numbers>
 
 
 using namespace hl;
@@ -70,8 +69,8 @@ void DrawerOpenGL::drawCircle(float mx, float my, float r, hl::Color color) cons
     color.glSet();
     for (int i = 0; i < CIRCLE_RESOLUTION; i++)
     {
-        glVertex2f(mx + r * cos(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))),
-                   my + r * sin(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))));
+        glVertex2f(mx + r * std::cos(std::numbers::pi_v<float> * (i / (CIRCLE_RESOLUTION / 2.0f))),
+                   my + r * std::sin(std::numbers::pi_v<float> * (i / (CIRCLE_RESOLUTION / 2.0f))));
     }
     glEnd();
 }
@@ -88,8 +87,8 @@ void DrawerOpenGL::drawCircleFilled(float mx, float my, float r, hl::Color color
     color.glSet();
     for (int i = 0; i < CIRCLE_RESOLUTION + 1; i++)
     {
-        glVertex2f(mx + r * cos(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))),
-                   my + r * sin(static_cast<float>(M_PI) * (i / (CIRCLE_RESOLUTION / 2.0f))));
+        glVertex2f(mx + r * std::cos(std::numbers::pi_v<float> * (i / (CIRCLE_RESOLUTION / 2.0f))),
+                   my + r * std::sin(std::numbers::pi_v<float> * (i / (CIRCLE_RESOLUTION / 2.0f))));
     }
     glEnd();
 }

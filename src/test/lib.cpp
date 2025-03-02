@@ -10,7 +10,7 @@ public:
     bool init() override;
 };
 
-hl::StaticInit<TestMain> g_main;
+static hl::StaticInit<TestMain> g_main;
 
 
 bool TestMain::init()

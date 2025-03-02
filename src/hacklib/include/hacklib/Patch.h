@@ -12,7 +12,10 @@ class Patch
 {
 public:
     Patch() = default;
-    Patch(Patch&& p) = default;
+    Patch(const Patch&) = delete;
+    Patch& operator=(const Patch&) = delete;
+    Patch(Patch&& p) noexcept;
+    Patch& operator=(Patch&& p) noexcept;
     ~Patch();
 
     // Applies a patch. Any previous patch done by the instance is reverted before.

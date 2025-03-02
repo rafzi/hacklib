@@ -16,12 +16,13 @@ namespace hl
 class Main
 {
 public:
-    virtual ~Main() {}
+    virtual ~Main() = default;
 
     /// \brief Is called on initialization. The default implementation just returns true.
     /// \return A return value of false will cause the dll to detach.
     virtual bool init();
-    /// Is called continuously sequenially while running. The default implementation sleeps for 10 milliseconds and returns true.
+    /// Is called continuously sequenially while running. The default implementation sleeps for 10 milliseconds and
+    /// returns true.
     /// \return A return value of false will cause the dll to detach.
     virtual bool step();
     /// Is called on shutdown. Is still called when init returns false.
@@ -40,14 +41,15 @@ class StaticInitImpl
 {
 public:
     StaticInitImpl();
+    virtual ~StaticInitImpl() = default;
     void mainThread();
 
 protected:
-    virtual std::unique_ptr<hl::Main> makeMain() const = 0;
+    [[nodiscard]] virtual std::unique_ptr<hl::Main> makeMain() const = 0;
 
 private:
     void runMainThread();
-    void unloadSelf();
+    static void unloadSelf();
 
 protected:
     hl::Main* m_pMain = nullptr;
@@ -62,13 +64,13 @@ class StaticInit : private StaticInitImpl
 {
 public:
     /// Returns the instance of hl::Main.
-    T* getMain() { return dynamic_cast<T*>(m_pMain); }
+    [[nodiscard]] T* getMain() { return dynamic_cast<T*>(m_pMain); }
     /// \overload
-    const T* getMain() const { return dynamic_cast<T*>(m_pMain); }
+    [[nodiscard]] const T* getMain() const { return dynamic_cast<T*>(m_pMain); }
 
 protected:
     /// Override this for non-default constructors.
-    virtual std::unique_ptr<hl::Main> makeMain() const override { return std::make_unique<T>(); }
+    [[nodiscard]] std::unique_ptr<hl::Main> makeMain() const override { return std::make_unique<T>(); }
 };
 }
 

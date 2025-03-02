@@ -8,7 +8,7 @@ namespace hl
 {
 class Timer
 {
-    typedef std::chrono::high_resolution_clock Clock;
+    using Clock = std::chrono::high_resolution_clock;
 
 public:
     void reset() { m_timestamp = Clock::now(); }

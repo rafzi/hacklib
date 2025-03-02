@@ -7,14 +7,14 @@
 #include <thread>
 
 
-void FreeLibAndExitThread(void* hModule, int (*adr_dlclose)(void*), void (*adr_pthread_exit)(void*))
+static void FreeLibAndExitThread(void* hModule, int (*adr_dlclose)(void*), void (*adr_pthread_exit)(void*))
 {
     // This can not be executed from inside the module.
     // Don't generate any code that uses relative addressing to the IP.
     adr_dlclose(hModule);
     adr_pthread_exit((void*)0);
 }
-void FreeLibAndExitThread_after() {}
+static void FreeLibAndExitThread_after() {}
 
 void hl::StaticInitImpl::runMainThread()
 {
@@ -38,7 +38,7 @@ void hl::StaticInitImpl::unloadSelf()
     Alternative: Let the injector do dlclose. => Signaling mechanism needed; injector might die or be killed.
     */
 
-    size_t codeSize = (size_t)((uintptr_t)&FreeLibAndExitThread_after - (uintptr_t)&FreeLibAndExitThread);
+    auto codeSize = (size_t)((uintptr_t)&FreeLibAndExitThread_after - (uintptr_t)&FreeLibAndExitThread);
     hl::code_page_vector code(codeSize);
     memcpy(code.data(), (void*)&FreeLibAndExitThread, codeSize);
     decltype (&FreeLibAndExitThread)(code.data())(hModule, &dlclose, &pthread_exit);

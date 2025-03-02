@@ -11,9 +11,9 @@
 
 namespace hl
 {
-typedef glm::vec2 Vec2;
-typedef glm::vec3 Vec3;
-typedef glm::mat4x4 Mat4x4;
+using Vec2 = glm::vec2;
+using Vec3 = glm::vec3;
+using Mat4x4 = glm::mat4x4;
 }
 
 #endif

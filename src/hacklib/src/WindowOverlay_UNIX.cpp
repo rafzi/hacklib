@@ -25,10 +25,10 @@ WindowHandle WindowOverlay::GetTargetWindow()
         auto hWnd = windows.top();
         windows.pop();
 
-        Atom type;
-        int format;
-        unsigned long numitems;
-        unsigned long bytesafter;
+        Atom type = 0;
+        int format = 0;
+        unsigned long numitems = 0;
+        unsigned long bytesafter = 0;
         unsigned char* propPID = nullptr;
         auto result = XGetWindowProperty(display, hWnd, atomPID, 0, 1, False, XA_CARDINAL, &type, &format, &numitems,
                                          &bytesafter, &propPID);
@@ -50,9 +50,9 @@ WindowHandle WindowOverlay::GetTargetWindow()
             XFree(propPID);
         }
 
-        Window outRoot;
-        Window outParent;
-        Window* outChildren;
+        Window outRoot = 0;
+        Window outParent = 0;
+        Window* outChildren = nullptr;
         unsigned int numchildren = 0;
         if (XQueryTree(display, hWnd, &outRoot, &outParent, &outChildren, &numchildren))
         {
@@ -80,12 +80,12 @@ void WindowOverlay::cbWindowLoop()
     XWindowAttributes attrs = {};
     XGetWindowAttributes(display, m_targetWindow, &attrs);
 
-    int absX, absY;
-    Window child;
+    int absX = 0, absY = 0;
+    Window child = 0;
     XTranslateCoordinates(display, m_targetWindow, root, 0, 0, &absX, &absY, &child);
 
-    int posX = absX - attrs.x;
-    int posY = absY - attrs.y;
+    const int posX = absX - attrs.x;
+    const int posY = absY - attrs.y;
     if (posX != m_posX || posY != m_posY)
     {
         m_posX = changes.x = posX;

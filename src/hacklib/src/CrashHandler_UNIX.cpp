@@ -1,13 +1,13 @@
 #include "hacklib/CrashHandler.h"
 #include <cstring>
-#include <setjmp.h>
-#include <signal.h>
-#include <stdio.h>
+#include <csetjmp>
+#include <csignal>
+#include <cstdio>
 #include <unistd.h>
 
 
-thread_local sigjmp_buf t_currentEnv;
-thread_local bool t_hasHandler = false;
+static thread_local sigjmp_buf t_currentEnv;
+static thread_local bool t_hasHandler = false;
 
 
 static void SignalHandler(int sigNum)
@@ -20,7 +20,7 @@ static void SignalHandler(int sigNum)
     else
     {
         // No handling requested. Defer to default handler.
-        struct sigaction oldAction, currentAction = { 0 };
+        struct sigaction oldAction{}, currentAction{};
         currentAction.sa_handler = SIG_DFL;
         sigemptyset(&currentAction.sa_mask);
         currentAction.sa_flags = 0;
@@ -34,7 +34,7 @@ static void SignalHandler(int sigNum)
 
 void hl::CrashHandler(const std::function<void()>& body, const std::function<void(uint32_t)>& handler)
 {
-    struct sigaction oldAction[5], currentAction = { 0 };
+    struct sigaction oldAction[5]{}, currentAction{};
     sigjmp_buf oldEnv;
 
     currentAction.sa_handler = SignalHandler;
@@ -43,11 +43,11 @@ void hl::CrashHandler(const std::function<void()>& body, const std::function<voi
 
     // Backup nested contexts.
     memcpy(oldEnv, t_currentEnv, sizeof(oldEnv));
-    bool hadHandler = t_hasHandler;
+    const bool hadHandler = t_hasHandler;
     t_hasHandler = true;
 
     // Will return 0 first, then when siglongjmp is called, it returns the signal code.
-    int sigNum = sigsetjmp(t_currentEnv, 1);
+    const int sigNum = sigsetjmp(t_currentEnv, 1);
     if (!sigNum)
     {
         // Setup signal handlers.

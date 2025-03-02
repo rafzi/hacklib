@@ -15,9 +15,9 @@ class Hooker;
 class IHook
 {
 public:
-    virtual ~IHook() {}
+    virtual ~IHook() = default;
     /// Returns the memory address that was hooked by this hook.
-    virtual uintptr_t getLocation() const = 0;
+    [[nodiscard]] virtual uintptr_t getLocation() const = 0;
 };
 
 
@@ -61,10 +61,10 @@ struct CpuContext_x86_64
 
 #ifdef ARCH_64BIT
 /// A typedef referring to the CPU context of the compilation architecture.
-typedef CpuContext_x86_64 CpuContext;
+using CpuContext = CpuContext_x86_64;
 #else
 /// A typedef referring to the CPU context of the compilation architecture.
-typedef CpuContext_x86 CpuContext;
+using CpuContext = CpuContext_x86;
 #endif
 
 
@@ -72,7 +72,7 @@ typedef CpuContext_x86 CpuContext;
 class Hooker
 {
 public:
-    typedef void (*HookCallback_t)(CpuContext*);
+    using HookCallback_t = void (*)(CpuContext*);
 
     /// Hook by replacing an object instances virtual table pointer.
     /// This method can only target virtual functions. It should always

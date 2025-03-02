@@ -19,7 +19,7 @@ namespace hl
 {
 struct Hooker
 {
-    typedef int* HookCallback_t;
+    using HookCallback_t = int*;
 };
 }
 
@@ -227,7 +227,7 @@ static LONG CALLBACK VectoredHandlerNoaccess(PEXCEPTION_POINTERS exc)
 }
 
 
-typedef void (*func_t)();
+using func_t = void (*)();
 
 
 #pragma comment(linker, "/INCREMENTAL:NO")

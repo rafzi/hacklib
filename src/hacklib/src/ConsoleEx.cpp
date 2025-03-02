@@ -18,14 +18,7 @@ static const uintptr_t IDC_EDITIN = 101;
 
 CONSOLEEX_PARAMETERS ConsoleEx::GetDefaultParameters()
 {
-    CONSOLEEX_PARAMETERS parameters = {};
-    parameters.cellsX = 80;
-    parameters.cellsYVisible = 20;
-    parameters.cellsYBuffer = 500;
-    parameters.bgColor = RGB(0, 0, 0);
-    parameters.textColor = RGB(192, 192, 192);
-    parameters.closemenu = false;
-    return parameters;
+    return {};
 }
 
 

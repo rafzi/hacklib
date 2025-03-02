@@ -23,7 +23,7 @@ static int ToUnixProt(hl::Protection protection)
     return unixProt;
 }
 
-static hl::Protection FromUnixProt(int unixProt)
+[[maybe_unused]] static hl::Protection FromUnixProt(int unixProt)
 {
     hl::Protection protection = hl::PROTECTION_NOACCESS;
 
@@ -68,16 +68,17 @@ void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
 {
     // Align to page boundary.
     auto pAligned = (const void*)((uintptr_t)p & ~(hl::GetPageSize() - 1));
-    size_t nAligned = (uintptr_t)p - (uintptr_t)pAligned + n;
+    const size_t nAligned = (uintptr_t)p - (uintptr_t)pAligned + n;
 
     // const_cast: The memory contents will remain unchanged, so this is fine.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     mprotect(const_cast<void*>(pAligned), nAligned, ToUnixProt(protection));
 }
 
 
 hl::ModuleHandle hl::GetModuleByName(const std::string& name)
 {
-    void* handle;
+    void* handle = nullptr;
     if (name == "")
     {
         handle = dlopen(NULL, RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
@@ -98,10 +99,8 @@ hl::ModuleHandle hl::GetModuleByName(const std::string& name)
         dlclose(handle);
         return hModule;
     }
-    else
-    {
-        return hl::NullModuleHandle;
-    }
+
+    return hl::NullModuleHandle;
 }
 
 hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
@@ -128,8 +127,8 @@ hl::MemoryRegion hl::GetMemoryByAddress(uintptr_t adr, int pid)
     hl::MemoryRegion region;
 
     auto memoryMap = hl::GetMemoryMap(pid);
-    auto itRegion = std::find_if(memoryMap.begin(), memoryMap.end(),
-                                 [adr](const hl::MemoryRegion& r) { return adr > r.base && adr < r.base + r.size; });
+    auto itRegion = std::ranges::find_if(memoryMap, [adr](const hl::MemoryRegion& r)
+                                         { return adr > r.base && adr < r.base + r.size; });
     if (itRegion != memoryMap.end())
     {
         region = *itRegion;
@@ -150,11 +149,11 @@ std::vector<hl::MemoryRegion> hl::GetMemoryMap(int pid)
 
     std::ifstream file(fileName);
 
-    unsigned long long start, end;
+    unsigned long long start = 0, end = 0;
     char flags[32];
-    unsigned long long file_offset;
-    int dev_major, dev_minor;
-    unsigned long long inode;
+    unsigned long long file_offset = 0;
+    int dev_major = 0, dev_minor = 0;
+    unsigned long long inode = 0;
     char path[512];
 
     std::string line;

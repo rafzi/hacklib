@@ -13,17 +13,17 @@ namespace hl
 struct CONSOLEEX_PARAMETERS
 {
     // width of console buffer in characters
-    int cellsX;
+    int cellsX = 80;
     // height of visible console buffer in characters
-    int cellsYVisible;
+    int cellsYVisible = 20;
     // height of total console buffer in characters
-    int cellsYBuffer;
+    int cellsYBuffer = 500;
     // background color for output and input child windows
-    COLORREF bgColor;
+    COLORREF bgColor = RGB(0, 0, 0);
     // text color for output and input child windows
-    COLORREF textColor;
+    COLORREF textColor = RGB(192, 192, 192);
     // specifies if the console can be closed via windows shell
-    bool closemenu;
+    bool closemenu = false;
 };
 
 

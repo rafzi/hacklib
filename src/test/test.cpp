@@ -53,7 +53,7 @@
     } while (false)
 
 
-void SetupLogging(bool silent = false)
+static void SetupLogging(bool silent = false)
 {
     if (!silent)
     {
@@ -73,7 +73,7 @@ void SetupLogging(bool silent = false)
     }
 }
 
-void TestCrashHandler()
+static void TestCrashHandler()
 {
     hl::CrashHandler([] {}, [](uint32_t) { HL_ASSERT(false, "CrashHandler handler called without error"); });
 
@@ -91,7 +91,8 @@ void TestCrashHandler()
     HL_ASSERT(fellThrough, "CrashHandler did not let C++ exception fall through");
 
     handlerCalled = false;
-    hl::CrashHandler([] { int crash = *(volatile int*)nullptr; }, [&](uint32_t) { handlerCalled = true; });
+    // NOLINTNEXTLINE(clang-analyzer-core.NullDereference)
+    hl::CrashHandler([] { (void)*(volatile int*)nullptr; }, [&](uint32_t) { handlerCalled = true; });
     HL_ASSERT(handlerCalled, "CrashHandler not called on system exception");
 }
 
@@ -101,15 +102,31 @@ class Process
 public:
     Process(int id, uintptr_t handle) : m_id(id), m_handle(handle) {}
     Process(const Process&) = delete;
+    Process& operator=(const Process&) = delete;
     Process(Process&& other) = default;
-    int id() const { return m_id; }
+    Process& operator=(Process&& other) = default;
+    ~Process()
+    {
+        if (m_id)
+        {
+            try
+            {
+                join();
+            }
+            catch (std::runtime_error& e)
+            {
+                HL_LOG_ERR("Error joining process: %s\n", e.what());
+            }
+        }
+    }
+    [[nodiscard]] int id() const { return m_id; }
     int join();
 
 private:
     int m_id;
-    uintptr_t m_handle;
+    [[maybe_unused]] uintptr_t m_handle;
 };
-Process LaunchProcess(const std::string& command, const std::vector<std::string>& args = {});
+static Process LaunchProcess(const std::string& command, std::vector<std::string> args = {});
 #ifdef WIN32
 #include <Windows.h>
 int Process::join()
@@ -131,10 +148,10 @@ int Process::join()
     CloseHandle((HANDLE)m_handle);
     return exitCode;
 }
-Process LaunchProcess(const std::string& command, const std::vector<std::string>& args)
+Process LaunchProcess(const std::string& command, std::vector<std::string> args)
 {
     std::string cmdline = command;
-    for (const auto& arg : args)
+    for (const auto& arg : std::move(args))
     {
         cmdline += " ";
         cmdline += arg;
@@ -142,7 +159,7 @@ Process LaunchProcess(const std::string& command, const std::vector<std::string>
 
     STARTUPINFOA startupInfo = {};
     startupInfo.cb = sizeof(startupInfo);
-    PROCESS_INFORMATION processInfo;
+    PROCESS_INFORMATION processInfo{};
     BOOL result = CreateProcessA(NULL, const_cast<char*>(cmdline.c_str()), NULL, NULL, false, 0, NULL, NULL,
                                  &startupInfo, &processInfo);
 
@@ -150,11 +167,12 @@ Process LaunchProcess(const std::string& command, const std::vector<std::string>
     {
         throw std::runtime_error("CreateProcess failed");
     }
+    CloseHandle(processInfo.hThread);
 
-    return Process(processInfo.dwProcessId, (uintptr_t)processInfo.hProcess);
+    return { (int)processInfo.dwProcessId, (uintptr_t)processInfo.hProcess };
 }
 #else
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/wait.h>
 #include <unistd.h>
 int Process::join()
@@ -163,7 +181,7 @@ int Process::join()
     {
         throw std::runtime_error("Process is not joinable");
     }
-    int status, result;
+    int status = 0, result = 0;
     do
     {
         result = waitpid(m_id, &status, 0);
@@ -175,45 +193,45 @@ int Process::join()
     m_id = 0;
     if (WIFEXITED(status))
         return WEXITSTATUS(status);
-    else if (WIFSIGNALED(status))
+    if (WIFSIGNALED(status))
         return -WTERMSIG(status);
-    else
-        return -1;
+    return -1;
 }
-Process LaunchProcess(const std::string& command, const std::vector<std::string>& args)
+Process LaunchProcess(const std::string& command, std::vector<std::string> args)
 {
     // FIXME only for convenience, but should be removed for security.
     auto currentDirCommand = "./" + command;
 
     std::vector<char*> argv;
-    argv.push_back(const_cast<char*>(currentDirCommand.c_str()));
-    for (const auto& arg : args)
+    argv.push_back(currentDirCommand.data());
+    for (auto& arg : args)
     {
-        argv.push_back(const_cast<char*>(arg.c_str()));
+        argv.push_back(arg.data());
     }
     argv.push_back(nullptr);
 
-    int pid = fork();
+    const int pid = fork();
     if (pid < 0)
     {
         throw std::runtime_error("fork failed");
     }
-    else if (pid == 0)
+
+    if (pid == 0)
     {
-        execvp(argv[0], &argv[0]);
+        execvp(argv[0], argv.data());
         // Will only reach here on error.
         // Call special exit to prevent parent process doing double cleanup.
         _exit(72);
     }
 
-    return Process(pid, 0);
+    return { pid, 0 };
 }
 #endif
 
 
 // Set up dummy code.
 #ifdef ARCH_64BIT
-hl::code_page_vector g_dummyCode{
+static hl::code_page_vector g_dummyCode{
     0x55,             // PUSH RBP
     0x48, 0x89, 0xe5, // MOV RBP, RSP
     0x48, 0x31, 0xc0, // XOR RAX, RAX
@@ -225,9 +243,9 @@ hl::code_page_vector g_dummyCode{
     0x5d,             // POP RBP
     0xc3,             // RET
 };
-int g_dummyHookOffset = 16;
+static int g_dummyHookOffset = 16;
 #else
-hl::code_page_vector g_dummyCode{
+static hl::code_page_vector g_dummyCode{
     0x55,       // PUSH EBP
     0x89, 0xe5, // MOV EBP, ESP
     0x31, 0xc0, // XOR EAX, EAX
@@ -239,11 +257,11 @@ hl::code_page_vector g_dummyCode{
     0x5d,       // POP EBP
     0xc3,       // RET
 };
-int g_dummyHookOffset = 6;
+static int g_dummyHookOffset = 6;
 #endif
 
 template <typename T, typename F>
-void ExpectException(F func)
+static void ExpectException(F func)
 {
     bool gotException = false;
     try
@@ -258,7 +276,7 @@ void ExpectException(F func)
 }
 
 
-void TestMemory()
+static void TestMemory()
 {
     void* mem = g_dummyCode.data();
 
@@ -335,7 +353,7 @@ void TestMemory()
     hl::data_page_vector<unsigned char> twoPages(2 * hl::GetPageSize());
     auto offset = hl::GetPageSize() - g_dummyCode.size() + 1;
     mem = twoPages.data() + offset;
-    std::copy(g_dummyCode.begin(), g_dummyCode.end(), twoPages.begin() + offset);
+    std::ranges::copy(g_dummyCode, twoPages.begin() + static_cast<std::ptrdiff_t>(offset));
     hl::PageProtectVec(twoPages, hl::PROTECTION_NOACCESS);
     hl::PageProtect(mem, g_dummyCode.size(), hl::PROTECTION_READ_WRITE_EXECUTE);
 
@@ -344,7 +362,7 @@ void TestMemory()
     HL_ASSERT(!execFunc(), "Could not execute RWE page across page boundary");
 }
 
-void TestInject()
+static void TestInject()
 {
     std::string libName = "hl_test_lib";
 #ifdef _DEBUG
@@ -380,13 +398,13 @@ void TestInject()
     HL_ASSERT(process.join() == 0, "");
 }
 
-void TestModules()
+static void TestModules()
 {
     auto modPath = hl::GetCurrentModulePath();
     HL_ASSERT(modPath.find("hl_test_host") != std::string::npos, "Wrong module path");
 
     auto hModule = hl::GetCurrentModule();
-    uintptr_t ownFuncAdr = (uintptr_t)&TestModules;
+    auto ownFuncAdr = (uintptr_t)&TestModules;
     HL_ASSERT(ownFuncAdr > (uintptr_t)hModule && ownFuncAdr - (uintptr_t)hModule < 0x100000,
               "Module base address is wrong");
 
@@ -401,7 +419,7 @@ void TestModules()
     HL_ASSERT(hModule == hModuleByAddressData, "hl::GetModuleByAddress does not work with data");
 }
 
-void TestPatch()
+static void TestPatch()
 {
     auto testAdr = (uintptr_t)g_dummyCode.data();
     char testData[] = "\x12\34\x56";
@@ -423,6 +441,9 @@ void TestPatch()
         patch.apply(testAdr, (uint16_t)0xabcd);
 
         HL_ASSERT(*(uint16_t*)testAdr == 0xabcd, "Patch not applied");
+
+        const hl::Patch patch_moved = std::move(patch);
+        HL_ASSERT(*(uint16_t*)testAdr == 0xabcd, "Patch undone too early");
     }
 
     HL_ASSERT(std::equal(backupData, backupData + 3, (char*)testAdr), "Patch not undone");
@@ -435,14 +456,13 @@ public:
     IMPLVTFUNC_OR(void, SomeFunction, 13, int, argument1);
 };
 
-void TestPatternScan()
+static void TestPatternScan()
 {
     auto testAdr = (uintptr_t)g_dummyCode.data();
 
     hl::Patch patch;
     patch.apply(testAdr, "\x12\x34\x56\x78\x9a\xbc\xde\xf0", 8);
 
-    std::string modName = hl::GetCurrentModulePath();
     auto pattern1 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxxxxxxx", testAdr, 0x100);
     auto pattern2 = hl::FindPatternMask("\x12\x34\x56\x78\x9a\xbc\xde\xf0", "xxx?xxxx", testAdr, 0x100);
     auto pattern3 = hl::FindPattern("12 34 56 78 9a bc de f0", testAdr, 0x100);
@@ -482,7 +502,7 @@ static void DetourFunc(hl::CpuContext* ctx)
 {
     cbCounter++;
 }
-void TestHooks()
+static void TestHooks()
 {
     auto dummyFunc = (int (*)())g_dummyCode.data();
 
@@ -491,16 +511,15 @@ void TestHooks()
     uintptr_t jmpBack = 0;
     auto jmpHook = hooker.hookJMP(g_dummyCode.data(), g_dummyHookOffset, &CallbackFunc, &jmpBack);
 
-    int result = 0;
 
     cbCounter = 0;
-    result = dummyFunc();
+    dummyFunc();
     HL_ASSERT(cbCounter == 1, "JMP hook had no effect");
 
     hooker.unhook(jmpHook);
 
     cbCounter = 0;
-    result = dummyFunc();
+    int result = dummyFunc();
     HL_ASSERT(cbCounter == 0, "Hook not undone");
     HL_ASSERT(result == 5, "JMP unhook broke the function");
 
@@ -541,6 +560,7 @@ void TestHooks()
     HL_ASSERT(cbCounter == 0, "Hook not undone");
 }
 
+#ifdef WIN32
 static int vehCounter1 = 0;
 static int vehCounter2 = 0;
 static void VEHFunc1(hl::CpuContext* ctx)
@@ -553,13 +573,11 @@ static void VEHFunc2(hl::CpuContext* ctx)
 }
 void TestVEH()
 {
-#ifdef WIN32
     hl::code_page_vector dummyCode(2 * hl::GetPageSize());
     std::copy(g_dummyCode.begin(), g_dummyCode.end(), dummyCode.begin());
     std::copy(g_dummyCode.begin(), g_dummyCode.end(), dummyCode.begin() + hl::GetPageSize());
     void* funcPage1 = dummyCode.data();
     void* funcPage2 = dummyCode.data() + hl::GetPageSize();
-    // Test hooking page 2, then page 1 (overwrites hook for page 2!)
 
     hl::Hooker hooker;
     auto hook2 = hooker.hookVEH((uintptr_t)funcPage2, VEHFunc2);
@@ -599,8 +617,10 @@ void TestVEH()
     ((void (*)())funcPage2)();
     HL_ASSERT(vehCounter1 == 1, "");
     HL_ASSERT(vehCounter2 == 5, "");
-#endif
 }
+#else
+static void TestVEH() {}
+#endif
 
 
 class TestMain : public hl::Main
@@ -625,4 +645,4 @@ public:
     }
 };
 
-hl::StaticInit<TestMain> g_main;
+static hl::StaticInit<TestMain> g_main;

@@ -247,7 +247,7 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     p.set_value(Error::Okay);
 
 
-    typedef std::chrono::high_resolution_clock Clock;
+    using Clock = std::chrono::high_resolution_clock;
     auto timestamp = Clock::now();
     MSG msg;
     do

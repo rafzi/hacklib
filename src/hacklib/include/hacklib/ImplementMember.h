@@ -51,15 +51,24 @@
 #define IMPLMEMBER(type, name, offset)                                                                                 \
 protected:                                                                                                             \
     static const uintptr_t o##name = offset;                                                                           \
-    typedef type t##name;                                                                                              \
+    using t##name = type;                                                                                              \
                                                                                                                        \
 public:                                                                                                                \
-    type const& get##name() const { return *(type*)((uintptr_t)this + o##name); }                                      \
-    type& get##name() { return *(type*)((uintptr_t)this + o##name); }                                                  \
-    void set##name(type value) { *(type*)((uintptr_t)this + o##name) = value; }
+    type const& get##name() const                                                                                      \
+    {                                                                                                                  \
+        return *(type*)((uintptr_t)this + o##name);                                                                    \
+    }                                                                                                                  \
+    type& get##name() /* NOLINT(bugprone-macro-parentheses) */                                                         \
+    {                                                                                                                  \
+        return *(type*)((uintptr_t)this + o##name);                                                                    \
+    }                                                                                                                  \
+    void set##name(type value)                                                                                         \
+    {                                                                                                                  \
+        *(type*)((uintptr_t)this + o##name) = value;                                                                   \
+    }
 
 
-#define IMPLMEMBER_REL(type, name, offset, from) IMPLMEMBER(type, name, offset + o##from + sizeof(t##from))
+#define IMPLMEMBER_REL(type, name, offset, from) IMPLMEMBER(type, name, (offset) + o##from + sizeof(t##from))
 
 
 #define EXPAND(x) x
@@ -104,7 +113,7 @@ public:                                                                         
 public:                                                                                                                \
     rettype name(EXPAND_ARGS(ARGS_FULL, __VA_ARGS__))                                                                  \
     {                                                                                                                  \
-        return ((rettype(THISCALL*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__)))(                                \
+        return ((rettype(THISCALL*)(uintptr_t EXPAND_ARGS(ARGS_TYPES, __VA_ARGS__)))(                                  \
             *(uintptr_t*)((*(uintptr_t**)this) + ordinal)))((uintptr_t)this EXPAND_ARGS(ARGS_NAMES, __VA_ARGS__));     \
     }
 

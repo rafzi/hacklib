@@ -78,7 +78,9 @@ class VertexBuffer
 
 public:
     VertexBuffer(DWORD format, IDirect3DVertexBuffer9* d3dobj, unsigned int verts)
-        : m_format(format), m_pVertexBuffer(d3dobj), m_numVertices(verts)
+        : m_format(format)
+        , m_pVertexBuffer(d3dobj)
+        , m_numVertices(verts)
     {
     }
     ~VertexBuffer();
@@ -95,7 +97,9 @@ class IndexBuffer
 
 public:
     IndexBuffer(DWORD format, IDirect3DIndexBuffer9* d3dobj, unsigned int indices)
-        : m_format(format), m_pIndexBuffer(d3dobj), m_numIndices(indices)
+        : m_format(format)
+        , m_pIndexBuffer(d3dobj)
+        , m_numIndices(indices)
     {
     }
     ~IndexBuffer();
@@ -217,9 +221,7 @@ const T* DrawerD3D::alloc(std::vector<std::unique_ptr<T>>& container, Ts&&... vs
 template <typename T>
 void DrawerD3D::release(std::vector<std::unique_ptr<T>>& container, const T* instance)
 {
-    container.erase(std::remove_if(container.begin(), container.end(),
-                                   [instance](const auto& uptr) { return uptr.get() == instance; }),
-                    container.end());
+    std::erase_if(container, [instance](const auto& uptr) { return uptr.get() == instance; });
 }
 
 

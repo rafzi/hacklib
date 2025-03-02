@@ -10,13 +10,10 @@ using namespace hl;
 Color::Color() : Color(0, 0, 0, 0) {}
 Color::Color(uint8_t red, uint8_t green, uint8_t blue) : Color(255, red, green, blue) {}
 Color::Color(uint8_t alpha, uint8_t red, uint8_t green, uint8_t blue)
+    : m_data((alpha << 24) | (red << 16) | (green << 8) | blue)
 {
-    m_data = (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
-Color::Color(uint32_t combined)
-{
-    m_data = combined;
-}
+Color::Color(uint32_t combined) : m_data(combined) {}
 
 void Color::glSet() const
 {
@@ -67,7 +64,7 @@ void IDrawer::project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::M
         modelMatrix = modelMatrix * *worldMatrix;
     }
 
-    glm::vec4 viewport(0.0f, 0.0f, m_width, m_height);
+    const glm::vec4 viewport(0.0f, 0.0f, m_width, m_height);
     screenPos = glm::project(worldPos, modelMatrix, m_projMatrix, viewport);
 
     // Invert Y axis, because the drawer interface assumes a top to bottom (d3d-like) viewport.

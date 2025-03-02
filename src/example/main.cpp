@@ -11,15 +11,16 @@
 #define GLSL_SRC(src) "#version 150 core\n" #src
 
 
-hl::StaticInit<class ExampleMain> g_main;
+static hl::StaticInit<class ExampleMain> g_main;
 
 
-const GLchar* vertexSource = GLSL_SRC(in vec2 position; uniform mat4 world; uniform mat4 view; uniform mat4 proj;
+static const GLchar* vertexSource =
+    GLSL_SRC(in vec2 position; uniform mat4 world; uniform mat4 view; uniform mat4 proj;
 
-                                      void main() { gl_Position = proj * view * world * vec4(position, 0.0, 1.0); });
-const GLchar* fragmentSource = GLSL_SRC(out vec4 outColor;
+             void main() { gl_Position = proj * view * world * vec4(position, 0.0, 1.0); });
+static const GLchar* fragmentSource = GLSL_SRC(out vec4 outColor;
 
-                                        void main() { outColor = vec4(1.0, 1.0, 1.0, 1.0); });
+                                               void main() { outColor = vec4(1.0, 1.0, 1.0, 1.0); });
 
 
 class GLDTest
@@ -36,7 +37,7 @@ public:
     bool init()
     {
         glewExperimental = GL_TRUE;
-        GLenum result = glewInit();
+        const GLenum result = glewInit();
         if (result != GLEW_OK)
         {
             printf("glew init failed: %s\n", glewGetErrorString(result));
@@ -65,7 +66,7 @@ public:
         m_vertShader = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(m_vertShader, 1, &vertexSource, NULL);
         glCompileShader(m_vertShader);
-        GLint vertStatus;
+        GLint vertStatus = 0;
         glGetShaderiv(m_vertShader, GL_COMPILE_STATUS, &vertStatus);
         if (vertStatus != GL_TRUE)
         {
@@ -78,7 +79,7 @@ public:
         m_fragShader = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(m_fragShader, 1, &fragmentSource, NULL);
         glCompileShader(m_fragShader);
-        GLint fragStatus;
+        GLint fragStatus = 0;
         glGetShaderiv(m_fragShader, GL_COMPILE_STATUS, &fragStatus);
         if (fragStatus != GL_TRUE)
         {
@@ -95,13 +96,13 @@ public:
         glLinkProgram(m_program);
         glUseProgram(m_program);
 
-        GLint posAttr = glGetAttribLocation(m_program, "position");
+        const GLint posAttr = glGetAttribLocation(m_program, "position");
         glEnableVertexAttribArray(posAttr);
         glVertexAttribPointer(posAttr, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-        GLint uniModel = glGetUniformLocation(m_program, "model");
-        GLint uniView = glGetUniformLocation(m_program, "view");
-        GLint uniProj = glGetUniformLocation(m_program, "proj");
+        // GLint uniModel = glGetUniformLocation(m_program, "model");
+        // GLint uniView = glGetUniformLocation(m_program, "view");
+        // GLint uniProj = glGetUniformLocation(m_program, "proj");
 
         return true;
     }
@@ -133,12 +134,12 @@ public:
     }
 
 private:
-    GLuint m_vaTest;
-    GLuint m_vbTest;
-    GLuint m_ibTest;
-    GLuint m_vertShader;
-    GLuint m_fragShader;
-    GLuint m_program;
+    GLuint m_vaTest = 0;
+    GLuint m_vbTest = 0;
+    GLuint m_ibTest = 0;
+    GLuint m_vertShader = 0;
+    GLuint m_fragShader = 0;
+    GLuint m_program = 0;
 };
 
 
@@ -177,7 +178,7 @@ public:
         if (std::chrono::system_clock::now() - m_started > std::chrono::seconds(5))
             return false;
 
-        GLuint vao;
+        GLuint vao{};
         glGenVertexArrays(1, &vao);
         glBindVertexArray(vao);
 

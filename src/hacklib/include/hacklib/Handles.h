@@ -12,11 +12,11 @@ namespace hl
 #ifdef _WIN32
 
 /// Represents a module handle. Can interpreted as pointer to the module base address.
-typedef HINSTANCE ModuleHandle;
+using ModuleHandle = HINSTANCE;
 /// Represents a window handle.
-typedef HWND WindowHandle;
+using WindowHandle = HWND;
 /// Represents a graphics context.
-typedef IDirect3DDevice9* GraphicsContext;
+using GraphicsContext = IDirect3DDevice9*;
 
 /// Represents a null value for hl::ModuleHandle.
 static const ModuleHandle NullModuleHandle = NULL;
@@ -24,11 +24,11 @@ static const ModuleHandle NullModuleHandle = NULL;
 #else
 
 /// Represents a module handle. Analogous to Windows this represents the module base address, not a dlopen handle!
-typedef void* ModuleHandle;
+using ModuleHandle = void*;
 /// Represents a window handle. Must be compatible with X11 Window type.
-typedef long unsigned int WindowHandle;
+using WindowHandle = long unsigned int;
 /// Represent a graphics context.
-typedef void* GraphicsContext;
+using GraphicsContext = void*;
 
 /// Represents a null value for hl::ModuleHandle.
 static const ModuleHandle NullModuleHandle = nullptr;

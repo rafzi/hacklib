@@ -16,10 +16,16 @@ template <typename T, Protection P>
 class page_allocator
 {
 public:
-    typedef T value_type;
+    using value_type = T;
 
     page_allocator() = default;
+    page_allocator(const page_allocator&) = default;
+    page_allocator& operator=(const page_allocator&) = default;
+    page_allocator(page_allocator&&) noexcept = default;
+    page_allocator& operator=(page_allocator&&) noexcept = default;
+    ~page_allocator() = default;
     template <typename U>
+    // NOLINTNEXTLINE(google-explicit-constructor)
     page_allocator(const page_allocator<U, P>& other)
     {
     }
@@ -52,7 +58,7 @@ class code_page_allocator : public page_allocator<T, hl::PROTECTION_READ_WRITE_E
     using page_allocator<T, hl::PROTECTION_READ_WRITE_EXECUTE>::page_allocator;
 };
 
-typedef std::vector<unsigned char, code_page_allocator<unsigned char>> code_page_vector;
+using code_page_vector = std::vector<unsigned char, code_page_allocator<unsigned char>>;
 }
 
 #endif

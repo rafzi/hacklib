@@ -2,9 +2,13 @@
 #include "hacklib/ExeFile.h"
 #include <algorithm>
 #include <unordered_map>
+#include <memory>
+#include <map>
 #include <iterator>
 #include <cstring>
 #include <stdexcept>
+#include <cstdlib>
+#include <cctype>
 
 
 using namespace hl;
@@ -16,19 +20,17 @@ using namespace hl;
 #include <climits>
 #include <cstdint>
 
-#define NO_OF_CHARS 256
+constexpr size_t NO_OF_CHARS = 256;
 
 // The preprocessing function for Boyer Moore's bad character heuristic
 static void badCharHeuristic(const uint8_t* str, size_t size, int badchar[NO_OF_CHARS])
 {
-    size_t i;
-
     // Initialize all occurrences as -1
-    for (i = 0; i < NO_OF_CHARS; i++)
+    for (size_t i = 0; i < NO_OF_CHARS; i++)
         badchar[i] = -1;
 
     // Fill the actual value of last occurrence of a character
-    for (i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
         badchar[(int)str[i]] = (int)i;
 }
 
@@ -46,7 +48,7 @@ static const uint8_t* boyermoore(const uint8_t* txt, const size_t n, const uint8
     badCharHeuristic(pat, m, badchar);
 
     int s = 0; // s is shift of the pattern with respect to text
-    int end = (int)(n - m);
+    const int end = (int)(n - m);
     while (s <= end)
     {
         int j = (int)m - 1;
@@ -73,7 +75,7 @@ static const uint8_t* boyermoore(const uint8_t* txt, const size_t n, const uint8
             // s += (s + m < n) ? m-badchar[txt[s + m]] : 1;
             // HACKLIB EDIT END
         }
-        else
+        else // NOLINT(readability-else-after-return)
         {
             /* Shift the pattern so that the bad character in text
             aligns with the last occurrence of it in pattern. The
@@ -98,31 +100,23 @@ PatternScanner::PatternScanner()
 std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& strings, const std::string& moduleName)
 {
     std::vector<uintptr_t> results(strings.size());
-    int stringsFound = 0;
 
     int i = 0;
+    bool errorEncountered = false;
     for (const auto& str : strings)
     {
-        uintptr_t found = 0;
         try
         {
-            found = findString(str, moduleName);
+            results[i] = findString(str, moduleName);
         }
-        catch (...)
+        catch (std::runtime_error&)
         {
-        }
-
-        if (found)
-        {
-            results[i] = found;
-            stringsFound++;
-            if (stringsFound == strings.size())
-                break;
+            errorEncountered = true;
         }
         i++;
     }
 
-    if (stringsFound != strings.size())
+    if (errorEncountered)
         throw std::runtime_error("one or more patterns not found");
 
     return results;
@@ -130,7 +124,7 @@ std::vector<uintptr_t> PatternScanner::find(const std::vector<std::string>& stri
 
 uintptr_t hl::PatternScanner::findString(const std::string& str, const std::string& moduleName, int instance)
 {
-    if (!moduleMap.count(moduleName))
+    if (!moduleMap.contains(moduleName))
         moduleMap[moduleName] = hl::GetModuleByName(moduleName);
     auto hModule = moduleMap[moduleName];
 
@@ -155,13 +149,13 @@ uintptr_t hl::PatternScanner::findString(const std::string& str, const std::stri
     if (!addr)
         throw std::runtime_error("pattern not found");
 
-    if (!exeFileMap.count(moduleName))
+    if (!exeFileMap.contains(moduleName))
         exeFileMap[moduleName] = std::make_unique<ExeFile>();
     ExeFile& exeFile = *exeFileMap[moduleName].get();
 
-    if (!verifyRelocsMap.count(moduleName))
+    if (!verifyRelocsMap.contains(moduleName))
         verifyRelocsMap[moduleName] = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
-    bool verifyWithRelocs = verifyRelocsMap[moduleName];
+    [[maybe_unused]] const bool verifyWithRelocs = verifyRelocsMap[moduleName];
 
     uintptr_t ret = 0;
 
@@ -170,13 +164,13 @@ uintptr_t hl::PatternScanner::findString(const std::string& str, const std::stri
     {
         if (region.hModule == hModule && region.protection == hl::PROTECTION_READ_EXECUTE)
         {
-            const uint8_t* baseAdr = (const uint8_t*)region.base;
-            size_t regionSize = region.size;
+            auto baseAdr = (const uint8_t*)region.base;
+            const size_t regionSize = region.size;
 
 #ifndef ARCH_64BIT
             do
             {
-                auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&addr, sizeof(uintptr_t));
+                const auto found = boyermoore(baseAdr, regionSize, (const uint8_t*)&addr, sizeof(uintptr_t));
                 if (found)
                 {
                     // Prevent false positives by checking if the reference is relocated.
@@ -192,13 +186,13 @@ uintptr_t hl::PatternScanner::findString(const std::string& str, const std::stri
                 }
             } while (false);
 #else
-            uintptr_t endAdr = (uintptr_t)(baseAdr + regionSize);
-            for (uintptr_t adr = (uintptr_t)baseAdr; adr < endAdr; adr++)
+            auto endAdr = (uintptr_t)(baseAdr + regionSize);
+            for (auto adr = (uintptr_t)baseAdr; adr < endAdr; adr++)
             {
                 if (FollowRelativeAddress(adr) == addr)
                 {
                     // Prevent false poritives by checking if the reference occurs in a LEA instruction.
-                    uint16_t opcode = *(uint16_t*)(adr - 3);
+                    const uint16_t opcode = *(uint16_t*)(adr - 3);
                     if (opcode == 0x8D48 || opcode == 0x8D4C)
                     {
                         if (instance-- <= 0)
@@ -255,7 +249,7 @@ uintptr_t hl::FindPatternMask(const char* byteMask, const char* checkMask, const
 
 uintptr_t hl::FindPatternMask(const char* byteMask, const char* checkMask, uintptr_t address, size_t len, int instance)
 {
-    uintptr_t end = address + len - strlen(checkMask) + 1;
+    const uintptr_t end = address + len - strlen(checkMask) + 1;
     for (uintptr_t i = address; i < end; i++)
     {
         if (MatchMaskedPattern(i, byteMask, checkMask))
@@ -285,7 +279,7 @@ uintptr_t hl::FindPattern(const std::string& pattern, uintptr_t address, size_t 
     std::vector<char> checkMask;
 
     std::string lowPattern = pattern;
-    std::transform(lowPattern.begin(), lowPattern.end(), lowPattern.begin(), ::tolower);
+    std::ranges::transform(lowPattern, lowPattern.begin(), ::tolower);
     lowPattern += " ";
 
     for (size_t i = 0; i < lowPattern.size() / 3; i++)
@@ -343,10 +337,8 @@ const std::vector<hl::MemoryRegion>& hl::GetCodeRegions(const std::string& modul
     }
 
     const static auto memoryMap = hl::GetMemoryMap();
-    std::copy_if(memoryMap.begin(), memoryMap.end(), std::back_inserter(lut[moduleName]),
-                 [hModule](const hl::MemoryRegion& r) {
-                     return r.hModule == hModule && r.protection == hl::PROTECTION_READ_EXECUTE;
-                 });
+    std::ranges::copy_if(memoryMap, std::back_inserter(lut[moduleName]), [hModule](const hl::MemoryRegion& r)
+                         { return r.hModule == hModule && r.protection == hl::PROTECTION_READ_EXECUTE; });
     if (lut[moduleName].empty())
     {
         throw std::runtime_error("no code sections found");

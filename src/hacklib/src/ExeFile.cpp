@@ -6,7 +6,7 @@
 bool hl::ExeFile::loadFromFile(const std::string& path)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
-    size_t size = (size_t)file.tellg();
+    const size_t size = (size_t)file.tellg();
     file.seekg(0, std::ios::beg);
     if (size == (size_t)-1)
     {
@@ -14,7 +14,7 @@ bool hl::ExeFile::loadFromFile(const std::string& path)
     }
 
     std::vector<char> buf(size);
-    if (file.read(buf.data(), size))
+    if (file.read(buf.data(), static_cast<std::streamsize>(size)))
     {
         return loadFromMem((uintptr_t)buf.data());
     }
@@ -38,7 +38,7 @@ bool hl::ExeFile::isReloc(uintptr_t rva) const
         throw std::runtime_error("no exe file loaded");
     }
 
-    auto it = std::find(m_relocs.begin(), m_relocs.end(), rva);
+    auto it = std::ranges::find(m_relocs, rva);
     return it != m_relocs.end();
 }
 

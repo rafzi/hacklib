@@ -8,7 +8,7 @@
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/Xrender.h>
 #include <X11/extensions/shape.h>
-#include <string.h>
+#include <cstring>
 
 
 using namespace hl;
@@ -74,11 +74,11 @@ bool GfxOverlay::IsCompositionEnabled()
         throw std::runtime_error("Could not connect to X Server");
     }
 
-    int screen = DefaultScreen(display);
+    const int screen = DefaultScreen(display);
     auto atomName = "_NET_WM_CM_S" + std::to_string(screen);
 
     auto atom = XInternAtom(display, atomName.c_str(), False);
-    bool enabled = XGetSelectionOwner(display, atom) != None;
+    const bool enabled = XGetSelectionOwner(display, atom) != None;
 
     XCloseDisplay(display);
     return enabled;
@@ -143,7 +143,7 @@ void GfxOverlay::impl_close()
     event.xclient.window = m_hWnd;
     event.xclient.message_type = XInternAtom(display, "WM_PROTOCOLS", True);
     event.xclient.format = 32;
-    event.xclient.data.l[0] = XInternAtom(display, "WM_DELETE_WINDOW", False);
+    event.xclient.data.l[0] = static_cast<long>(XInternAtom(display, "WM_DELETE_WINDOW", False));
     event.xclient.data.l[1] = CurrentTime;
     XSendEvent(display, m_hWnd, False, NoEventMask, &event);
 }
@@ -224,11 +224,11 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     XMapWindow(display, m_hWnd);
 
     XEvent event;
-    XIfEvent(display, &event,
-             [](Display* display, XEvent* event, XPointer arg) -> Bool {
-                 return display && event && arg && (event->type == MapNotify) && (event->xmap.window == *(Window*)arg);
-             },
-             (XPointer)&m_hWnd);
+    XIfEvent(
+        display, &event,
+        [](Display* display, XEvent* event, XPointer arg) -> Bool // NOLINT(readability-non-const-parameter)
+        { return display && event && arg && (event->type == MapNotify) && (event->xmap.window == *(Window*)arg); },
+        (XPointer)&m_hWnd);
 
     auto deleteAtom = XInternAtom(display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(display, m_hWnd, &deleteAtom, 1);
@@ -248,7 +248,7 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
     topEvent.message_type = windowState;
     topEvent.format = 32;
     topEvent.data.l[0] = 1; // Add property.
-    topEvent.data.l[1] = stateAbove;
+    topEvent.data.l[1] = static_cast<long>(stateAbove);
     topEvent.data.l[2] = 0;
     topEvent.data.l[3] = 0;
     topEvent.data.l[4] = 0;
@@ -274,7 +274,7 @@ void GfxOverlay::impl_windowThread(std::promise<Error>& p)
 
 
     // Window message loop.
-    typedef std::chrono::high_resolution_clock Clock;
+    using Clock = std::chrono::high_resolution_clock;
     auto timestamp = Clock::now();
     bool running = true;
     while (running)

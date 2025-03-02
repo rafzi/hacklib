@@ -9,7 +9,7 @@
 
 namespace hl
 {
-typedef int Protection;
+using Protection = int;
 
 static const Protection PROTECTION_NOACCESS = 0x0;
 static const Protection PROTECTION_READ = 0x1;

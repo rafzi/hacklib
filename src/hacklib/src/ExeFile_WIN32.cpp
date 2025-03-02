@@ -54,7 +54,7 @@ hl::ExeFile::ExeFile()
     m_impl = std::make_unique<ExeFileImpl>();
 }
 
-hl::ExeFile::~ExeFile() {}
+hl::ExeFile::~ExeFile() = default;
 
 
 bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)

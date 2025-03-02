@@ -14,8 +14,9 @@ public:
     Color();
     Color(uint8_t red, uint8_t green, uint8_t blue);
     Color(uint8_t alpha, uint8_t red, uint8_t green, uint8_t blue);
-    Color(uint32_t combined);
+    explicit Color(uint32_t combined);
 
+    // NOLINTNEXTLINE(google-explicit-constructor)
     operator uint32_t() const { return m_data; }
     void glSet() const;
 
@@ -31,6 +32,8 @@ private:
 class IDrawer
 {
 public:
+    virtual ~IDrawer() = default;
+
     /// Releases all resources aquired by the Alloc* functions.
     virtual void clearRessources();
 
@@ -38,7 +41,7 @@ public:
     /// calling any other function.
     void setContext(hl::GraphicsContext context);
     /// Returns the currently associated hl::GraphicsContext.
-    hl::GraphicsContext getContext() const;
+    [[nodiscard]] hl::GraphicsContext getContext() const;
 
     /// Must be called before the graphics context is reset.
     virtual void onLostDevice();
@@ -49,17 +52,17 @@ public:
     void update(const hl::Mat4x4& viewMatrix, const hl::Mat4x4& projectionMatrix);
 
     /// Returns the current width of the viewport.
-    float getWidth() const;
+    [[nodiscard]] float getWidth() const;
     /// Returns the current height of the viewport.
-    float getHeight() const;
+    [[nodiscard]] float getHeight() const;
 
     /// Projects a position in world coordiantes to screen coordinates.
     void project(const hl::Vec3& worldPos, hl::Vec3& screenPos, const hl::Mat4x4* worldMatrix = nullptr) const;
     /// Returns true if the screen position is in front of the camera.
-    virtual bool isInfrontCam(const hl::Vec3& screenPos) const;
+    [[nodiscard]] virtual bool isInfrontCam(const hl::Vec3& screenPos) const;
     /// Checks if a screen position would be visible on the viewport. The offScreenTolerance is measured in pixels.
     /// Returns true if the position is behind the camera, but on the viewport.
-    bool isOnScreen(const hl::Vec3& screenPos, float offScreenTolerance = 0) const;
+    [[nodiscard]] bool isOnScreen(const hl::Vec3& screenPos, float offScreenTolerance = 0) const;
 
     /// Draws a line between screen coordinates x1,y1 and x2,y2 with color.
     virtual void drawLine(float x1, float y1, float x2, float y2, hl::Color color) const;
@@ -85,8 +88,8 @@ protected:
 
     float m_width = 0;
     float m_height = 0;
-    hl::Mat4x4 m_viewMatrix;
-    hl::Mat4x4 m_projMatrix;
+    hl::Mat4x4 m_viewMatrix{};
+    hl::Mat4x4 m_projMatrix{};
 };
 }
 

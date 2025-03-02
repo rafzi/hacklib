@@ -18,14 +18,18 @@ public:
         va_list vl_copy;
         va_copy(vl_copy, vl);
 
-        int size = vsnprintf(nullptr, 0, format, vl);
+        const int size = vsnprintf(nullptr, 0, format, vl);
         m_str = new char[size + 1];
         vsnprintf(m_str, size + 1, format, vl_copy);
 
         va_end(vl_copy);
     }
+    FormatStr(const FormatStr&) = delete;
+    FormatStr& operator=(const FormatStr&) = delete;
+    FormatStr(FormatStr&&) = delete;
+    FormatStr& operator=(FormatStr&&) = delete;
     ~FormatStr() { delete[] m_str; }
-    const char* str() const { return m_str; }
+    [[nodiscard]] const char* str() const { return m_str; }
 
 private:
     char* m_str;
@@ -39,7 +43,7 @@ static std::string GetTimeStr()
     auto timetp = std::chrono::system_clock::to_time_t(timept);
     strftime(strtime, sizeof(strtime), "%X", std::localtime(&timetp));
 
-    return std::string(strtime);
+    return strtime;
 }
 
 static std::string GetCodeStr(const char* file, const char* func, int line)
@@ -95,7 +99,7 @@ void hl::LogDebug(const char* file, const char* func, int line, const char* form
 {
     va_list vl;
     va_start(vl, format);
-    FormatStr str(format, vl);
+    const FormatStr str(format, vl);
 
     LogString(GetCodeStr(file, func, line) + " " + str.str(), false);
 
@@ -106,7 +110,7 @@ void hl::LogError(const char* file, const char* func, int line, const char* form
 {
     va_list vl;
     va_start(vl, format);
-    FormatStr str(format, vl);
+    const FormatStr str(format, vl);
 
     LogString(GetCodeStr(file, func, line) + " ERROR: " + str.str(), false);
 
@@ -117,7 +121,7 @@ void hl::LogError(const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);
-    FormatStr str(format, vl);
+    const FormatStr str(format, vl);
 
     LogString(std::string("ERROR: ") + str.str(), false);
 
@@ -128,7 +132,7 @@ void hl::LogRaw(const char* format, ...)
 {
     va_list vl;
     va_start(vl, format);
-    FormatStr str(format, vl);
+    const FormatStr str(format, vl);
 
     LogString(str.str(), true);
 

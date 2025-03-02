@@ -6,6 +6,19 @@
 using namespace hl;
 
 
+Patch::Patch(Patch&& p) noexcept
+{
+    *this = std::move(p);
+}
+
+Patch& Patch::operator=(Patch&& p) noexcept
+{
+    std::swap(m_backup, p.m_backup);
+    std::swap(m_location, p.m_location);
+    std::swap(m_size, p.m_size);
+    return *this;
+}
+
 Patch::~Patch()
 {
     revert();
@@ -43,7 +56,7 @@ void Patch::revert()
 }
 
 
-hl::Patch MakePatch(uintptr_t location, const char* patch, size_t size)
+hl::Patch hl::MakePatch(uintptr_t location, const char* patch, size_t size)
 {
     Patch p;
     p.apply(location, patch, size);

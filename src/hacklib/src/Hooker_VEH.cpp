@@ -149,6 +149,10 @@ public:
     {
         g_vehHookManager.addHook(location, cbHook);
     }
+    VEHHook(const VEHHook&) = delete;
+    VEHHook& operator=(const VEHHook&) = delete;
+    VEHHook(VEHHook&&) = delete;
+    VEHHook& operator=(VEHHook&&) = delete;
     ~VEHHook() override { g_vehHookManager.removeHook(location); }
 
     uintptr_t getLocation() const override { return location; }
