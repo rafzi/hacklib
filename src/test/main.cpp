@@ -22,7 +22,11 @@ int main(int argc, char* argv[])
     if (argc == 2 && std::string(argv[1]) == "--child")
     {
         printf("Dummy executable running.\n");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        // Regularly return from syscalls to give ptrace a chance to wait.
+        for (int i = 0; i < 10; ++i)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
         printf("Dummy executable stopping.\n");
         return 0;
     }
