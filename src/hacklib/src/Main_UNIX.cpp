@@ -14,7 +14,6 @@ static void FreeLibAndExitThread(void* hModule, int (*adr_dlclose)(void*), void 
     adr_dlclose(hModule);
     adr_pthread_exit((void*)0);
 }
-static void FreeLibAndExitThread_after() {}
 
 void hl::StaticInitImpl::runMainThread()
 {
@@ -38,8 +37,13 @@ void hl::StaticInitImpl::unloadSelf()
     Alternative: Let the injector do dlclose. => Signaling mechanism needed; injector might die or be killed.
     */
 
-    auto codeSize = (size_t)((uintptr_t)&FreeLibAndExitThread_after - (uintptr_t)&FreeLibAndExitThread);
-    hl::code_page_vector code(codeSize);
-    memcpy(code.data(), (void*)&FreeLibAndExitThread, codeSize);
+    // Limit copy size by available memory region.
+    auto funcAddress = (uintptr_t)&FreeLibAndExitThread;
+    auto memRegion = hl::GetMemoryByAddress(funcAddress);
+    auto sizeLeftInRegion = memRegion.base + memRegion.size - funcAddress;
+    auto codeSizeToCopy = std::min(hl::GetPageSize(), sizeLeftInRegion);
+    hl::code_page_vector code(codeSizeToCopy);
+    memcpy(code.data(), (void*)&FreeLibAndExitThread, codeSizeToCopy);
+
     decltype (&FreeLibAndExitThread)(code.data())(hModule, &dlclose, &pthread_exit);
 }
