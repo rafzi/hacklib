@@ -1,4 +1,5 @@
 #include "hacklib/ConsoleEx.h"
+#include "commctrl.h"
 
 
 using namespace hl;
@@ -14,6 +15,8 @@ static const int SPACING = 3;
 
 static const uintptr_t IDC_EDITOUT = 100;
 static const uintptr_t IDC_EDITIN = 101;
+
+static const int EDITOUT_SUBCLASS_ID = 1;
 
 
 CONSOLEEX_PARAMETERS ConsoleEx::GetDefaultParameters()
@@ -119,7 +122,7 @@ void ConsoleEx::vprintf(const char* format, va_list valist)
     // write formatted string to buffer
     vsnprintf(pBuffer, size + 1, format, valist_copy);
 
-    writeStringToRawBuffer(pBuffer);
+    writeString(pBuffer, size);
 
     delete[] pBuffer;
     va_end(valist_copy);
@@ -131,6 +134,11 @@ void ConsoleEx::printf(const char* format, ...)
     va_start(vl, format);
     vprintf(format, vl);
     va_end(vl);
+}
+
+void ConsoleEx::print(const std::string& str)
+{
+    writeString(str.c_str(), static_cast<int>(str.length()));
 }
 
 
@@ -154,6 +162,20 @@ LRESULT CALLBACK ConsoleEx::s_WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM
     }
     // else
     return DefWindowProc(hWnd, msg, wparam, lparam);
+}
+
+// SubclassProc for the output edit control
+LRESULT CALLBACK ConsoleEx::s_EditOutSubclassProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam,
+                                                  UINT_PTR subclassId, DWORD_PTR refData)
+{
+    if (msg == WM_NCDESTROY)
+    {
+        RemoveWindowSubclass(hWnd, s_EditOutSubclassProc, subclassId);
+        return DefSubclassProc(hWnd, msg, wparam, lparam);
+    }
+
+    ConsoleEx* pInstance = reinterpret_cast<ConsoleEx*>(refData);
+    return pInstance->editOutSubclassProc(hWnd, msg, wparam, lparam);
 }
 
 
@@ -206,25 +228,32 @@ LRESULT ConsoleEx::wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
             return -1;
         }
 
+        if (!SetWindowSubclass(m_hEditOut, s_EditOutSubclassProc, static_cast<UINT_PTR>(EDITOUT_SUBCLASS_ID),
+                               reinterpret_cast<DWORD_PTR>(this)))
+        {
+            return -1;
+        }
+
         // set font in edit controls to system monospaced font
         HGDIOBJ fixedFont = GetStockObject(SYSTEM_FIXED_FONT);
         SendMessageA(m_hEditOut, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE, 0));
         SendMessageA(m_hEditIn, WM_SETFONT, reinterpret_cast<WPARAM>(fixedFont), MAKELPARAM(FALSE, 0));
 
+        // preallocate buffer for scroll lock
+        m_bufferForScrollLock.reserve(m_parameters.cellsX * m_parameters.cellsYBuffer);
+
         // get edit control raw buffer
         m_rawBuffer.setBuffer(reinterpret_cast<HLOCAL>(SendMessageA(m_hEditOut, EM_GETHANDLE, 0, 0)));
 
         // resize raw edit control buffer
-        if (!m_rawBuffer.resize(m_parameters.cellsX, m_parameters.cellsYBuffer))
+        if (!m_rawBuffer.resize(m_parameters.cellsX, m_parameters.cellsYBuffer, m_parameters.cellsYVisible))
         {
             // createwindow of parent will return 0
             return -1;
         }
 
         // set up raw edit control buffer with spaces, CRLF and null termination
-        m_rawBuffer.lock();
         m_rawBuffer.clear();
-        m_rawBuffer.unlock();
 
         SendMessageA(m_hEditOut, EM_SETHANDLE, reinterpret_cast<WPARAM>(m_rawBuffer.getBuffer()), 0);
 
@@ -263,11 +292,29 @@ LRESULT ConsoleEx::wndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 }
             }
         }
+        else if (LOWORD(wparam) == IDC_EDITOUT && HIWORD(wparam) == EN_VSCROLL)
+        {
+            // This covers scrolling by mouse wheel, text navigation (arrow keys, page up/down, home/end), clicking
+            // the up and down scroll buttons and clicking between the scroll thumb and scroll buttons.
+            // It does not cover clicking and dragging the scroll thumb. This is detected by the subclass proc.
+            updateScrollState(false);
+        }
     }
         return 0;
     }
 
     return DefWindowProcA(hWnd, msg, wparam, lparam);
+}
+
+LRESULT ConsoleEx::editOutSubclassProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+    // All other cases are covered by WM_COMMAND with EN_VSCROLL.
+    if (msg == WM_VSCROLL && LOWORD(wparam) == SB_THUMBTRACK)
+    {
+        updateScrollState(true);
+    }
+
+    return DefSubclassProc(hWnd, msg, wparam, lparam);
 }
 
 void ConsoleEx::threadProc(std::promise<bool>& p)
@@ -320,12 +367,34 @@ void ConsoleEx::threadProc(std::promise<bool>& p)
 }
 
 
+void ConsoleEx::writeString(const char* strOut, int len)
+{
+    // if not scrolled to bottom, buffer the output
+    if (!m_isScrolledToBottom)
+    {
+        m_bufferForScrollLock.insert(m_bufferForScrollLock.end(), strOut, strOut + len + 1);
+        m_bufferForScrollLockLengths.push_back(len);
+        return;
+    }
+
+    // drain the buffer first
+    int bufferOffset = 0;
+    for (int bufferLen : m_bufferForScrollLockLengths)
+    {
+        writeStringToRawBuffer(m_bufferForScrollLock.data() + bufferOffset, bufferLen);
+        bufferOffset += bufferLen + 1;
+    }
+    m_bufferForScrollLockLengths.clear();
+    m_bufferForScrollLock.clear();
+
+    // write the string from the function arguments
+    writeStringToRawBuffer(strOut, len);
+}
+
 // function splits argument pBuffer into strings that can be drawn to a single console line
 // splits occur at line feed
-void ConsoleEx::writeStringToRawBuffer(char* strOut)
+void ConsoleEx::writeStringToRawBuffer(const char* strOut, int len)
 {
-    int len = static_cast<int>(strlen(strOut));
-
     // convert string to wide chars
     wchar_t* strOutW = new wchar_t[len + 1];
     size_t copied;
@@ -333,16 +402,10 @@ void ConsoleEx::writeStringToRawBuffer(char* strOut)
 
     // remove special characters: horizontal tab ('\t'), vertical tab ('\v'), backspace ('\b'), carriage return ('\r'),
     // form feed ('\f'), alert ('\a')
-    for (int i = 0; i < len; i++)
-    {
-        if (strOutW[i] == L'\t' || strOutW[i] == L'\v' || strOutW[i] == L'\b' || strOutW[i] == L'\r' ||
-            strOutW[i] == L'\f' || strOutW[i] == L'\a')
-        {
-            memmove(&strOutW[i], &strOutW[i + 1], (len - i + 1) * sizeof(wchar_t));
-            i--;
-            len--;
-        }
-    }
+    auto itRemoved =
+        std::remove_if(strOutW, strOutW + len + 1, [](wchar_t c)
+                       { return c == L'\t' || c == L'\v' || c == L'\b' || c == L'\r' || c == L'\f' || c == L'\a'; });
+    len = static_cast<int>(itRemoved - strOutW - 1);
 
     // replace LF ('\n') with null terminator ('\0') to split string
     for (int i = 0; i < len; i++)
@@ -376,7 +439,28 @@ void ConsoleEx::writeStringToRawBuffer(char* strOut)
 
     // queue redraw
     if (m_hEditOut)
+    {
         InvalidateRect(m_hEditOut, NULL, FALSE);
+    }
+}
+
+void ConsoleEx::updateScrollState(bool checkTrackPos)
+{
+    if (!m_hEditOut)
+        return;
+
+    SCROLLINFO scrollInfo = { sizeof(SCROLLINFO) };
+    scrollInfo.fMask = (checkTrackPos ? SIF_TRACKPOS : SIF_POS) | SIF_RANGE;
+    GetScrollInfo(m_hEditOut, SB_VERT, &scrollInfo);
+    bool wasScrolledToBottom = m_isScrolledToBottom;
+    m_isScrolledToBottom =
+        (checkTrackPos ? scrollInfo.nTrackPos : scrollInfo.nPos) + m_parameters.cellsYVisible - 1 == scrollInfo.nMax;
+
+    if (!m_isScrolledToBottom && wasScrolledToBottom)
+    {
+        // if we scrolled up, the back buffer of the console buffer needs to be flushed to the edit control
+        m_rawBuffer.flushBackBuffer();
+    }
 }
 
 
@@ -384,13 +468,6 @@ void ConsoleEx::writeStringToRawBuffer(char* strOut)
 // === ConsoleEx::ConsoleBuffer
 // =============================================
 
-ConsoleEx::ConsoleBuffer::ConsoleBuffer()
-{
-    m_bufferHandle = NULL;
-    m_buffer = nullptr;
-    m_cursorPos = 0;
-    m_wid = m_hei = 0;
-}
 ConsoleEx::ConsoleBuffer::~ConsoleBuffer()
 {
     free();
@@ -428,7 +505,7 @@ void ConsoleEx::ConsoleBuffer::unlock()
     m_writeMutex.unlock();
 }
 
-bool ConsoleEx::ConsoleBuffer::resize(int width, int height)
+bool ConsoleEx::ConsoleBuffer::resize(int width, int height, int heightVisible)
 {
     if (!m_bufferHandle)
     {
@@ -436,6 +513,7 @@ bool ConsoleEx::ConsoleBuffer::resize(int width, int height)
     }
     m_wid = width;
     m_hei = height;
+    m_heiVisible = heightVisible;
 
     // size: a line has 'width' characters and CRLF ('\r','\n')
     // last line doesnt need CRLF but a null terminator ('\0')
@@ -444,34 +522,45 @@ bool ConsoleEx::ConsoleBuffer::resize(int width, int height)
     {
         return false;
     }
+
+    m_backBuffer.resize(width, height);
+
     return true;
 }
 void ConsoleEx::ConsoleBuffer::clear()
 {
+    lock();
     if (m_buffer)
     {
         // buffer will contain spaces (' ') in the usable buffer area
         for (int i = 0; i < (m_wid + 2) * m_hei - 2; i++)
         {
-            m_buffer[i] = L' ';
+            writeChar(L' ', i);
         }
         // buffer ends with null terminator ('\0')
-        m_buffer[(m_wid + 2) * m_hei - 2] = L'\0';
+        writeChar(L'\0', (m_wid + 2) * m_hei - 2);
         // every line but the last will end with CRLF ('\r','\n')
         for (int i = 0; i < m_hei - 1; i++)
         {
-            m_buffer[(m_wid + 2) * i + m_wid] = L'\r';
-            m_buffer[(m_wid + 2) * i + m_wid + 1] = L'\n';
+            writeChar(L'\r', (m_wid + 2) * i + m_wid);
+            writeChar(L'\n', (m_wid + 2) * i + m_wid + 1);
         }
         // insert cursor ('_') at beginning of last line
         m_cursorPos = 0;
-        m_buffer[getBufferOffsetFromCursorPos()] = L'_';
+        writeChar(L'_', getBufferOffsetFromCursorPos());
 
         // buffer looks like this: (m_wid=10,m_hei=3)
         // '          \r\n'
         // '          \r\n'
         // '_         \0'
     }
+    unlock();
+}
+void ConsoleEx::ConsoleBuffer::flushBackBuffer()
+{
+    lock();
+    m_backBuffer.copyTo(m_buffer);
+    unlock();
 }
 
 // function expects input string to not contain '\r','\n','\t'
@@ -493,14 +582,14 @@ void ConsoleEx::ConsoleBuffer::write(wchar_t* str)
             }
 
             // dont use strcpy to not mess crafted buffer up
-            memcpy(&m_buffer[getBufferOffsetFromCursorPos()], pStr, copyLen * sizeof(wchar_t));
+            writeToLine(pStr, copyLen, getBufferOffsetFromCursorPos());
 
             // adjust cursor position
             m_cursorPos += copyLen;
             // draw cursor when it is visible
             if (m_cursorPos < m_wid)
             {
-                m_buffer[getBufferOffsetFromCursorPos()] = L'_';
+                writeChar(L'_', getBufferOffsetFromCursorPos());
             }
 
             // if string was not fully outputed, adjust ptr and continue
@@ -523,23 +612,29 @@ void ConsoleEx::ConsoleBuffer::scrollUp()
         // erase cursor when it is visible
         if (m_cursorPos < m_wid)
         {
-            m_buffer[getBufferOffsetFromCursorPos()] = L' ';
+            writeChar(L' ', getBufferOffsetFromCursorPos());
         }
 
-        // scroll all content of buffer up a line
-        memmove(m_buffer, &m_buffer[m_wid + 2], (((m_wid + 2) * (m_hei - 1)) - 2) * sizeof(wchar_t));
+        // avoid a huge memmove by rotating the ring buffer
+        m_backBuffer.scrollUp();
+
+        // scroll all visible content of buffer up a line
+        auto dst = &m_buffer[(m_wid + 2) * (m_hei - m_heiVisible)];
+        auto src = &m_buffer[(m_wid + 2) * (m_hei - m_heiVisible + 1)];
+        auto sz = (((m_wid + 2) * (m_heiVisible - 1)) - 2) * sizeof(wchar_t);
+        memmove(dst, src, sz);
         // add CRLF to line before last line
-        m_buffer[(m_wid + 2) * (m_hei - 2) + m_wid] = L'\r';
-        m_buffer[(m_wid + 2) * (m_hei - 2) + m_wid + 1] = L'\n';
+        writeChar(L'\r', (m_wid + 2) * (m_hei - 2) + m_wid);
+        writeChar(L'\n', (m_wid + 2) * (m_hei - 2) + m_wid + 1);
         // erase new line
         for (int i = 0; i < m_wid; i++)
         {
-            m_buffer[((m_wid + 2) * (m_hei - 1)) + i] = L' ';
+            writeChar(L' ', ((m_wid + 2) * (m_hei - 1)) + i);
         }
 
         // set cursor
         m_cursorPos = 0;
-        m_buffer[getBufferOffsetFromCursorPos()] = L'_';
+        writeChar(L'_', getBufferOffsetFromCursorPos());
     }
 }
 
