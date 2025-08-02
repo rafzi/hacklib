@@ -8,6 +8,7 @@
 #include "hacklib/PageAllocator.h"
 #include "hacklib/Patch.h"
 #include "hacklib/PatternScanner.h"
+#include "hacklib/Process.h"
 #include <chrono>
 #include <cstdio>
 #include <functional>
@@ -95,139 +96,6 @@ static void TestCrashHandler()
     hl::CrashHandler([] { (void)*(volatile int*)nullptr; }, [&](uint32_t) { handlerCalled = true; });
     HL_ASSERT(handlerCalled, "CrashHandler not called on system exception");
 }
-
-// TODO add to hacklib?
-class Process
-{
-public:
-    Process(int id, uintptr_t handle) : m_id(id), m_handle(handle) {}
-    Process(const Process&) = delete;
-    Process& operator=(const Process&) = delete;
-    Process(Process&& other) = default;
-    Process& operator=(Process&& other) = default;
-    ~Process()
-    {
-        if (m_id)
-        {
-            try
-            {
-                join();
-            }
-            catch (std::runtime_error& e)
-            {
-                HL_LOG_ERR("Error joining process: %s\n", e.what());
-            }
-        }
-    }
-    [[nodiscard]] int id() const { return m_id; }
-    int join();
-
-private:
-    int m_id;
-    [[maybe_unused]] uintptr_t m_handle;
-};
-static Process LaunchProcess(const std::string& command, std::vector<std::string> args = {});
-#ifdef WIN32
-#include <Windows.h>
-int Process::join()
-{
-    if (!m_id)
-    {
-        throw std::runtime_error("Process is not joinable");
-    }
-    if (WaitForSingleObject((HANDLE)m_handle, INFINITE) != WAIT_OBJECT_0)
-    {
-        throw std::runtime_error("WaitForSingleObject failed");
-    }
-    DWORD exitCode;
-    if (GetExitCodeProcess((HANDLE)m_handle, &exitCode) == 0)
-    {
-        throw std::runtime_error("GetExitCodeProcess failed");
-    }
-    m_id = 0;
-    CloseHandle((HANDLE)m_handle);
-    return exitCode;
-}
-Process LaunchProcess(const std::string& command, std::vector<std::string> args)
-{
-    std::string cmdline = command;
-    for (const auto& arg : std::move(args))
-    {
-        cmdline += " ";
-        cmdline += arg;
-    }
-
-    STARTUPINFOA startupInfo = {};
-    startupInfo.cb = sizeof(startupInfo);
-    PROCESS_INFORMATION processInfo{};
-    BOOL result = CreateProcessA(NULL, const_cast<char*>(cmdline.c_str()), NULL, NULL, false, 0, NULL, NULL,
-                                 &startupInfo, &processInfo);
-
-    if (!result)
-    {
-        throw std::runtime_error("CreateProcess failed");
-    }
-    CloseHandle(processInfo.hThread);
-
-    return { (int)processInfo.dwProcessId, (uintptr_t)processInfo.hProcess };
-}
-#else
-#include <cstdlib>
-#include <sys/wait.h>
-#include <unistd.h>
-int Process::join()
-{
-    if (!m_id)
-    {
-        throw std::runtime_error("Process is not joinable");
-    }
-    int status = 0, result = 0;
-    do
-    {
-        result = waitpid(m_id, &status, 0);
-    } while (result < 0 && errno == EINTR);
-    if (result != m_id)
-    {
-        throw std::runtime_error("waitpid failed");
-    }
-    m_id = 0;
-    if (WIFEXITED(status))
-        return WEXITSTATUS(status);
-    if (WIFSIGNALED(status))
-        return -WTERMSIG(status);
-    return -1;
-}
-Process LaunchProcess(const std::string& command, std::vector<std::string> args)
-{
-    // FIXME only for convenience, but should be removed for security.
-    auto currentDirCommand = "./" + command;
-
-    std::vector<char*> argv;
-    argv.push_back(currentDirCommand.data());
-    for (auto& arg : args)
-    {
-        argv.push_back(arg.data());
-    }
-    argv.push_back(nullptr);
-
-    const int pid = fork();
-    if (pid < 0)
-    {
-        throw std::runtime_error("fork failed");
-    }
-
-    if (pid == 0)
-    {
-        execvp(argv[0], argv.data());
-        // Will only reach here on error.
-        // Call special exit to prevent parent process doing double cleanup.
-        _exit(72);
-    }
-
-    return { pid, 0 };
-}
-#endif
-
 
 // Set up dummy code.
 #ifdef ARCH_64BIT
@@ -374,25 +242,34 @@ static void TestInject()
     libName = "lib" + libName + ".so";
 #endif
 
-    auto process = LaunchProcess("hl_test", { "--child" });
+    auto process = hl::LaunchProcess("./hl_test", { "--child" });
 
     // Give the child time to set everything up.
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     std::string error;
     auto result = hl::Inject(process.id(), libName, &error);
-    HL_LOG_RAW("hl::Inject error string:\n%s\n", error.c_str());
+    if (!result)
+    {
+        HL_LOG_RAW("hl::Inject error string:\n%s\n", error.c_str());
+    }
     HL_ASSERT(result, "Injection failed");
 
     error = "";
     result = !hl::Inject(process.id(), libName, &error);
-    HL_LOG_RAW("hl::Inject error string:\n%s\n", error.c_str());
+    if (error != "Fatal: The specified module is already loaded\n")
+    {
+        HL_LOG_RAW("hl::Inject error string:\n%s\n", error.c_str());
+    }
     HL_ASSERT(result, "Double Injection must fail");
 
     // Give the library time to detach itself.
     std::this_thread::sleep_for(std::chrono::milliseconds(400));
     error = "";
     result = hl::Inject(process.id(), libName, &error);
-    HL_LOG_RAW("hl::Inject error string:\n%s\n", error.c_str());
+    if (!result)
+    {
+        HL_LOG_RAW("hl::Inject error string:\n%s\n", error.c_str());
+    }
     HL_ASSERT(result, "Re-Injection must succeed");
 
     HL_ASSERT(process.join() == 0, "");

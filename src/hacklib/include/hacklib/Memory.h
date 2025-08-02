@@ -43,6 +43,7 @@ struct MemoryRegion
 };
 
 
+// Returns the system page size in bytes.
 uintptr_t GetPageSize();
 
 // Allocate memory on own pages. This is useful when the protection

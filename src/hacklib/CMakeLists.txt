@@ -12,6 +12,7 @@ SET(FILES_CPP
     src/IDrawer.cpp
     src/DrawerOpenGL.cpp
     src/CrashHandler.cpp
+    src/StringManip.cpp
     )
 SET(FILES_H
     include/hacklib/MessageBox.h
@@ -33,6 +34,8 @@ SET(FILES_H
     include/hacklib/IDrawer.h
     include/hacklib/DrawerOpenGL.h
     include/hacklib/Math.h
+    include/hacklib/StringManip.h
+    include/hacklib/Process.h
     )
 
 IF(WIN32)
@@ -50,6 +53,7 @@ IF(WIN32)
         src/CrashHandler_WIN32.cpp
         src/Memory_WIN32.cpp
         src/DrawerD3D.cpp
+        src/Process_WIN32.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/D3DDeviceFetcher.h
@@ -69,6 +73,7 @@ ELSEIF(UNIX)
         src/Main_UNIX.cpp
         src/CrashHandler_UNIX.cpp
         src/Memory_UNIX.cpp
+        src/Process_UNIX.cpp
         )
     SET(FILES_H ${FILES_H}
         include/hacklib/GfxOverlay_UNIX.h
