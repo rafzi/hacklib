@@ -88,4 +88,12 @@ ELSEIF(UNIX)
     FIND_PACKAGE(Threads REQUIRED)
     TARGET_LINK_LIBRARIES(${PROJECT_NAME} X11 Xrender Xfixes GL GLEW dl ${CMAKE_THREAD_LIBS_INIT})
     TARGET_COMPILE_OPTIONS(${PROJECT_NAME} PUBLIC "-pthread")
+
+    # We rely on the reinitialization of our DSO, so we must prevent UNIQUE symbols that stop dlclose from working.
+    # See https://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html#index-fno-gnu-unique
+    INCLUDE(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag("-fno-gnu-unique" HAS_NO_GNU_UNIQUE)
+    if(HAS_NO_GNU_UNIQUE)
+        target_compile_options(${PROJECT_NAME} PUBLIC "-fno-gnu-unique")
+    endif()
 ENDIF()
