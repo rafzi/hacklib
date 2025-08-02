@@ -166,14 +166,17 @@ public:
 
         auto libc = findLib("libc");
         auto libdl = findLib("libdl");
-        if (libc == memoryMap.end() || libdl == memoryMap.end())
+        if (libc == memoryMap.end())
         {
-            writeErr("Fatal: Did not find mapping for libc and libdl libraries\n");
+            writeErr("Fatal: Did not find mapping for libc library\n");
             return false;
         }
 
         m_libc = *libc;
-        m_libdl = *libdl;
+        if (libdl != memoryMap.end())
+        {
+            m_libdl = *libdl;
+        }
 
         return true;
     }
@@ -197,15 +200,26 @@ public:
         m_malloc += m_libc.base;
         m_free += m_libc.base;
 
-        hl::ExeFile libdl;
-        if (!libdl.loadFromFile(m_libdl.name))
+        if (m_libdl.status != hl::MemoryRegion::Status::Invalid)
         {
-            writeErr("Fatal: Could not load libdl ELF file\n");
-            return false;
+            hl::ExeFile libdl;
+            if (!libdl.loadFromFile(m_libdl.name))
+            {
+                writeErr("Fatal: Could not load libdl ELF file\n");
+                return false;
+            }
+            m_dlopen = libdl.getExport("dlopen");
+            m_dlclose = libdl.getExport("dlclose");
+            m_dlerror = libdl.getExport("dlerror");
         }
-        m_dlopen = libdl.getExport("dlopen");
-        m_dlclose = libdl.getExport("dlclose");
-        m_dlerror = libdl.getExport("dlerror");
+        else
+        {
+            // If libdl is not mapped, use the libc exports.
+            m_dlopen = libc.getExport("dlopen");
+            m_dlclose = libc.getExport("dlclose");
+            m_dlerror = libc.getExport("dlerror");
+            m_libdl.base = m_libc.base;
+        }
 
         if (!m_dlopen || !m_dlclose || !m_dlerror)
         {
