@@ -7,7 +7,11 @@
 #include <fstream>
 
 
-static hl::LogConfig g_cfg;
+hl::LogConfig& getGlobalConfig()
+{
+    static hl::LogConfig cfg;
+    return cfg;
+}
 
 
 class FormatStr
@@ -65,20 +69,22 @@ static std::string GetCodeStr(const char* file, const char* func, int line)
 
 static void LogString(const std::string& str, bool raw)
 {
+    const auto& cfg = getGlobalConfig();
+
     std::string logStr = str;
-    if (!raw && g_cfg.logTime)
+    if (!raw && cfg.logTime)
     {
         logStr = GetTimeStr() + " " + str;
     }
 
-    if (g_cfg.logFunc)
+    if (cfg.logFunc)
     {
-        g_cfg.logFunc(logStr);
+        cfg.logFunc(logStr);
     }
 
-    if (g_cfg.logToFile)
+    if (cfg.logToFile)
     {
-        std::ofstream logfile(g_cfg.fileName, std::ios::out | std::ios::app);
+        std::ofstream logfile(cfg.fileName, std::ios::out | std::ios::app);
         logfile << logStr;
     }
 }
@@ -86,11 +92,12 @@ static void LogString(const std::string& str, bool raw)
 
 void hl::ConfigLog(const LogConfig& config)
 {
-    g_cfg = config;
+    auto& cfg = getGlobalConfig();
+    cfg = config;
 
-    if (g_cfg.fileName == "")
+    if (cfg.fileName == "")
     {
-        g_cfg.fileName = hl::GetCurrentModulePath() + "_log.txt";
+        cfg.fileName = hl::GetCurrentModulePath() + "_log.txt";
     }
 }
 
