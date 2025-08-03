@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <thread>
 #include <algorithm>
+#include <fstream>
 
 
 #define HL_ASSERT(cond, format, ...)                                                                                   \
@@ -599,6 +600,7 @@ public:
         HL_TEST(TestVEH);
 
         HL_LOG_RAW("==========\nTests finished successfully.\n");
+        std::ofstream successFile("hl_test_success");
         return false;
     }
 };

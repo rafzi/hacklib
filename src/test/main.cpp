@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <iostream>
 #include <thread>
+#include <filesystem>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -31,6 +32,8 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    std::remove("hl_test_success");
+
 #ifdef WIN32
     auto result = (void*)LoadLibrary("hl_test_hostd.dll");
 #else
@@ -43,5 +46,17 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::cin.ignore();
+    int elapsedTime = 0;
+    while (elapsedTime++ < 200)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if (std::filesystem::exists("hl_test_success"))
+        {
+            std::remove("hl_test_success");
+            return 0;
+        }
+    }
+
+    printf("Timed out while waiting for tests to finish.\n");
+    return 1;
 }
