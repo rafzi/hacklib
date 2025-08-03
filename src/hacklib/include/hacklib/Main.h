@@ -5,6 +5,8 @@
 #include "hacklib/MessageBox.h"
 #include <memory>
 #include <string>
+#include <mutex>
+#include <condition_variable>
 
 
 namespace hl
@@ -45,6 +47,7 @@ public:
     void mainThread();
 
 protected:
+    void notifyDerivedConstructed();
     [[nodiscard]] virtual std::unique_ptr<hl::Main> makeMain() const = 0;
 
 private:
@@ -53,6 +56,9 @@ private:
 
 protected:
     hl::Main* m_pMain = nullptr;
+    std::mutex m_mutex;
+    std::condition_variable m_condVar;
+    bool m_derivedConstructed = false;
 };
 
 /**
@@ -60,9 +66,11 @@ protected:
  * hl::StaticInit<MyMain> g_main;
  */
 template <typename T>
-class StaticInit : private StaticInitImpl
+class StaticInit final : private StaticInitImpl
 {
 public:
+    StaticInit() { notifyDerivedConstructed(); }
+
     /// Returns the instance of hl::Main.
     [[nodiscard]] T* getMain() { return dynamic_cast<T*>(m_pMain); }
     /// \overload

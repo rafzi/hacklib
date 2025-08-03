@@ -50,7 +50,8 @@ static void ProtectedCode(const std::string& location, const std::function<void(
     auto errorStr = "Hacklib error: " + location;
 
     hl::CrashHandler(
-        [&] {
+        [&]
+        {
             try
             {
                 body();
@@ -64,7 +65,8 @@ static void ProtectedCode(const std::string& location, const std::function<void(
                 hl::MsgBox(errorStr, "Unknown C++ exception");
             }
         },
-        [&](uint32_t code) {
+        [&](uint32_t code)
+        {
             char buf[128];
 #ifdef WIN32
             sprintf(buf, "SEH exception 0x%08X", code);
@@ -83,6 +85,14 @@ hl::StaticInitImpl::StaticInitImpl()
 
 void hl::StaticInitImpl::mainThread()
 {
+    // Wait until the derived class has been constructed.
+    // This is only an issue on Linux. On Windows, we have the loader lock that prevents the thread from running before
+    // static initialization is done.
+    {
+        std::unique_lock l(m_mutex);
+        m_condVar.wait(l, [&] { return m_derivedConstructed; });
+    }
+
     {
         std::unique_ptr<hl::Main> pMain;
 
@@ -97,11 +107,13 @@ void hl::StaticInitImpl::mainThread()
 
             if (initSuccess)
             {
-                ProtectedCode("hl::Main::step", [&] {
-                    while (m_pMain->step())
-                    {
-                    }
-                });
+                ProtectedCode("hl::Main::step",
+                              [&]
+                              {
+                                  while (m_pMain->step())
+                                  {
+                                  }
+                              });
             }
 
             ProtectedCode("hl::Main::shutdown", [&] { m_pMain->shutdown(); });
@@ -111,4 +123,11 @@ void hl::StaticInitImpl::mainThread()
     }
 
     unloadSelf();
+}
+
+void hl::StaticInitImpl::notifyDerivedConstructed()
+{
+    std::lock_guard l(m_mutex);
+    m_derivedConstructed = true;
+    m_condVar.notify_one();
 }
