@@ -9,12 +9,14 @@
 #include "hacklib/Patch.h"
 #include "hacklib/PatternScanner.h"
 #include "hacklib/Process.h"
+#include "hacklib/BitManip.h"
 #include <chrono>
 #include <cstdio>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <algorithm>
 
 
 #define HL_ASSERT(cond, format, ...)                                                                                   \
@@ -144,6 +146,59 @@ static void ExpectException(F func)
 }
 
 
+#define ASSERT_EQ(a, b) HL_ASSERT((a) == (b), #a " == " #b)
+static void TestBitManip()
+{
+    ASSERT_EQ(hl::HasOverlap(0, 1, 2, 3), false);
+    ASSERT_EQ(hl::HasOverlap(2, 3, 0, 1), false);
+    ASSERT_EQ(hl::HasOverlap(0, 1, 1, 2), false);
+    ASSERT_EQ(hl::HasOverlap(1, 2, 0, 1), false);
+    ASSERT_EQ(hl::HasOverlap(0, 1, 0, 1), true);
+    ASSERT_EQ(hl::HasOverlap(0, 1, 0, 3), true);
+    ASSERT_EQ(hl::HasOverlap(5, 7, 6, 8), true);
+    ASSERT_EQ(hl::HasOverlap(6, 8, 5, 7), true);
+
+    ASSERT_EQ(hl::HasOverlapInclusive(0, 1, 2, 3), false);
+    ASSERT_EQ(hl::HasOverlapInclusive(2, 3, 0, 1), false);
+    ASSERT_EQ(hl::HasOverlapInclusive(0, 1, 1, 2), true);
+    ASSERT_EQ(hl::HasOverlapInclusive(1, 2, 0, 1), true);
+    ASSERT_EQ(hl::HasOverlapInclusive(0, 1, 0, 1), true);
+    ASSERT_EQ(hl::HasOverlapInclusive(0, 1, 0, 3), true);
+    ASSERT_EQ(hl::HasOverlapInclusive(5, 7, 6, 8), true);
+    ASSERT_EQ(hl::HasOverlapInclusive(6, 8, 5, 7), true);
+
+    ASSERT_EQ(hl::Align(0x0, 0x10), 0x0);
+    ASSERT_EQ(hl::Align(0x5, 0x10), 0x10);
+    ASSERT_EQ(hl::Align(0x15, 0x10), 0x20);
+    ASSERT_EQ(hl::Align(0x25, 0x10), 0x30);
+    ASSERT_EQ(hl::Align(0x10, 0x10), 0x10);
+    ASSERT_EQ(hl::Align(0x11, 0x10), 0x20);
+    ASSERT_EQ(hl::Align(0x1f, 0x10), 0x20);
+    ASSERT_EQ(hl::Align(0xffffffff, 0x10u), 0x0);
+
+    ASSERT_EQ(hl::AlignDown(0x0, 0x10), 0x0);
+    ASSERT_EQ(hl::AlignDown(0x5, 0x10), 0x0);
+    ASSERT_EQ(hl::AlignDown(0x15, 0x10), 0x10);
+    ASSERT_EQ(hl::AlignDown(0x25, 0x10), 0x20);
+    ASSERT_EQ(hl::AlignDown(0x10, 0x10), 0x10);
+    ASSERT_EQ(hl::AlignDown(0x11, 0x10), 0x10);
+    ASSERT_EQ(hl::AlignDown(0x1f, 0x10), 0x10);
+    ASSERT_EQ(hl::AlignDown(0xffffffff, 0x10u), 0xfffffff0);
+
+    ASSERT_EQ(hl::MakeMask<uint8_t>(0, 0), 0x0);
+    ASSERT_EQ(hl::MakeMask<uint8_t>(0, 1), 0x1);
+    ASSERT_EQ(hl::MakeMask<uint8_t>(0, 2), 0x3);
+    ASSERT_EQ(hl::MakeMask<uint8_t>(0, 4), 0xf);
+    ASSERT_EQ(hl::MakeMask<uint8_t>(0, 8), 0xff);
+    ASSERT_EQ(hl::MakeMask<uint16_t>(0, 16), 0xffff);
+
+    ASSERT_EQ(hl::MakeMask<uint8_t>(1, 0), 0x0);
+    ASSERT_EQ(hl::MakeMask<uint8_t>(1, 1), 0x2);
+    ASSERT_EQ(hl::MakeMask<uint8_t>(1, 7), 0xfe);
+
+    ASSERT_EQ(hl::MakeMask<uint64_t>(0, 64), 0xffffffffffffffffull);
+}
+
 static void TestMemory()
 {
     void* mem = g_dummyCode.data();
@@ -242,7 +297,12 @@ static void TestInject()
     libName = "lib" + libName + ".so";
 #endif
 
-    auto process = hl::LaunchProcess("./hl_test", { "--child" });
+#ifdef WIN32
+    std::string procName = "hl_test";
+#else
+    std::string procName = "./hl_test";
+#endif
+    auto process = hl::LaunchProcess(procName, { "--child" });
 
     // Give the child time to set everything up.
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -437,6 +497,25 @@ static void TestHooks()
     HL_ASSERT(cbCounter == 0, "Hook not undone");
 }
 
+static void TestExeFile()
+{
+#ifdef WIN32
+    std::string fileName = "hl_test.exe";
+#else
+    std::string fileName = "hl_test";
+#endif
+    hl::ExeFile exeFile;
+    HL_ASSERT(exeFile.loadFromFile(fileName), "ExeFile::loadFromFile failed");
+    auto relocs = exeFile.hasRelocs();
+    HL_ASSERT(relocs, "ExeFile::getRelocations returned non-empty list");
+    auto sections = exeFile.getSections();
+    HL_ASSERT(sections.size() > 1, "ExeFile::getSections returned wrong number of sections");
+    auto numCodeSections =
+        std::count_if(sections.begin(), sections.end(), [](const hl::ExeFile::Section& section)
+                      { return section.type == hl::ExeFile::SectionType::Code && section.name == ".text"; });
+    HL_ASSERT(numCodeSections > 0, "Must find at least one code section");
+}
+
 #ifdef WIN32
 static int vehCounter1 = 0;
 static int vehCounter2 = 0;
@@ -509,12 +588,14 @@ public:
         SetupLogging();
         TestCrashHandler();
 
+        HL_TEST(TestBitManip);
         HL_TEST(TestMemory);
         HL_TEST(TestInject);
         HL_TEST(TestModules);
         HL_TEST(TestPatch);
         HL_TEST(TestPatternScan);
         HL_TEST(TestHooks);
+        HL_TEST(TestExeFile);
         HL_TEST(TestVEH);
 
         HL_LOG_RAW("==========\nTests finished successfully.\n");

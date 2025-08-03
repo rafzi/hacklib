@@ -8,11 +8,13 @@ using Elf_Ehdr = Elf64_Ehdr;
 using Elf_Phdr = Elf64_Phdr;
 using Elf_Shdr = Elf64_Shdr;
 using Elf_Sym = Elf64_Sym;
+using Elf_Rel = Elf64_Rel;
 #else
 using Elf_Ehdr = Elf32_Ehdr;
 using Elf_Phdr = Elf32_Phdr;
 using Elf_Shdr = Elf32_Shdr;
 using Elf_Sym = Elf32_Sym;
+using Elf_Rel = Elf32_Rel;
 #endif
 
 
@@ -93,9 +95,25 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
     for (size_t i = 0; i < numSections; i++)
     {
         auto section = &m_impl->sectionHeaders[i];
+        auto sectionData = (uint8_t*)(moduleBase + section->sh_offset);
+        auto sectionName = m_impl->strTable + section->sh_name;
+
+        Section outSection;
+        outSection.name = sectionName;
+        if (section->sh_type != SHT_NOBITS)
+        {
+            outSection.data.assign(sectionData, sectionData + section->sh_size);
+        }
 
         switch (section->sh_type)
         {
+        case SHT_PROGBITS:
+            if (outSection.name == ".text")
+            {
+                outSection.type = SectionType::Code;
+            }
+            break;
+
         case SHT_SYMTAB:
         case SHT_DYNSYM:
             symTableSectionIndex = i;
@@ -112,9 +130,23 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
                 m_exports.insert(symbols.begin(), symbols.end());
                 symTableSectionIndex = -1;
             }
+
+        case SHT_REL:
+        {
+            size_t numRelocs = section->sh_size / sizeof(Elf_Rel);
+            for (size_t r = 0; r < numRelocs; r++)
+            {
+                Elf_Rel* rel = ((Elf_Rel*)sectionData) + r;
+                m_relocs.push_back(rel->r_offset);
+            }
+            break;
+        }
+
         default:
             break;
         }
+
+        m_sections.push_back(std::move(outSection));
     }
 
     m_valid = true;

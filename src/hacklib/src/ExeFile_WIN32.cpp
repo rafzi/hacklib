@@ -42,10 +42,30 @@ static std::vector<uintptr_t> LoadRelocs(uintptr_t relocData)
                 uintptr_t reloc = rvaRegion | relocLow;
                 relocs.push_back(reloc);
             }
+            else if (type == IMAGE_REL_BASED_DIR64)
+            {
+                uintptr_t reloc = rvaRegion + relocLow;
+                relocs.push_back(reloc);
+            }
         }
     }
 
     return relocs;
+}
+
+static uintptr_t RvaToRawDataOffset(const hl::ExeFileImpl& impl, DWORD rva)
+{
+    for (auto sectionHeader : impl.sectionHeaders)
+    {
+        uint32_t va = sectionHeader->VirtualAddress;
+        uint32_t size = sectionHeader->SizeOfRawData;
+        if (rva >= va && rva < va + size)
+        {
+            uint32_t delta = rva - va;
+            return sectionHeader->PointerToRawData + delta;
+        }
+    }
+    return 0;
 }
 
 
@@ -75,9 +95,14 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         return false;
     }
 
-    // Only support 32-bit images for now.
+    // Check if image type matches.
+#ifdef ARCH_64BIT
+    if (m_impl->peHeader->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 ||
+        (m_impl->peHeader->FileHeader.Characteristics & IMAGE_FILE_32BIT_MACHINE))
+#else
     if (m_impl->peHeader->FileHeader.Machine != IMAGE_FILE_MACHINE_I386 ||
         !(m_impl->peHeader->FileHeader.Characteristics & IMAGE_FILE_32BIT_MACHINE))
+#endif
     {
         return false;
     }
@@ -89,13 +114,37 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         auto sectionHeader = (IMAGE_SECTION_HEADER*)((uintptr_t)m_impl->peHeader + sizeof(IMAGE_NT_HEADERS) +
                                                      i * sizeof(IMAGE_SECTION_HEADER));
         m_impl->sectionHeaders.push_back(sectionHeader);
+
+        Section outSection;
+        for (int i = 0; i < IMAGE_SIZEOF_SHORT_NAME; i++)
+        {
+            if (sectionHeader->Name[i] == 0)
+            {
+                break;
+            }
+            outSection.name.push_back((char)sectionHeader->Name[i]);
+        }
+        if (sectionHeader->SizeOfRawData > 0)
+        {
+            auto sectionData = (const uint8_t*)(moduleBase + sectionHeader->PointerToRawData);
+            outSection.data.assign(sectionData, sectionData + sectionHeader->SizeOfRawData);
+        }
+        if (sectionHeader->Characteristics & IMAGE_SCN_CNT_CODE)
+        {
+            outSection.type = SectionType::Code;
+        }
+        m_sections.push_back(std::move(outSection));
     }
 
     // Load relocs.
     auto relocDir = &m_impl->peHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
     if (relocDir->VirtualAddress != 0)
     {
-        m_relocs = LoadRelocs(moduleBase + relocDir->VirtualAddress);
+        uintptr_t relocsOffset = RvaToRawDataOffset(*m_impl, relocDir->VirtualAddress);
+        if (relocsOffset)
+        {
+            m_relocs = LoadRelocs(moduleBase + relocsOffset);
+        }
     }
 
     m_valid = true;

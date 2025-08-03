@@ -40,7 +40,7 @@ hl::Process hl::LaunchProcess(const std::string& command, const std::vector<std:
 
     STARTUPINFOA startupInfo = {};
     startupInfo.cb = sizeof(startupInfo);
-    PROCESS_INFORMATION processInfo;
+    PROCESS_INFORMATION processInfo{};
     BOOL result = CreateProcessA(NULL, const_cast<char*>(cmdline.c_str()), NULL, NULL, false, 0, NULL,
                                  initialDirectoryCStr, &startupInfo, &processInfo);
 
