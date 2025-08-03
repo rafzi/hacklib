@@ -36,6 +36,7 @@ SET(FILES_H
     include/hacklib/Math.h
     include/hacklib/StringManip.h
     include/hacklib/Process.h
+    include/hacklib/BitManip.h
     )
 
 IF(WIN32)
