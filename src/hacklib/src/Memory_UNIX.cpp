@@ -94,7 +94,7 @@ void hl::PageCommit(void* p, size_t n, hl::Protection protection)
 }
 
 
-void FlushICache(void* p, size_t n)
+void hl::FlushICache(void* p, size_t n)
 {
     __builtin___clear_cache((char*)p, (char*)p + n);
 }

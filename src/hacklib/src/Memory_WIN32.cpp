@@ -124,7 +124,7 @@ void hl::PageCommit(void* p, size_t n, hl::Protection protection)
 }
 
 
-void FlushICache(void* p, size_t n)
+void hl::FlushICache(void* p, size_t n)
 {
     HL_APICHECK(FlushInstructionCache(GetCurrentProcess(), p, n));
 }
