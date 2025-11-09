@@ -1,4 +1,5 @@
 #include "hacklib/Memory.h"
+#include "hacklib/Logging.h"
 #include <Windows.h>
 #include <stdexcept>
 
@@ -95,12 +96,12 @@ uintptr_t hl::GetPageSize()
 
 void* hl::PageAlloc(size_t n, hl::Protection protection)
 {
-    return VirtualAlloc(NULL, n, MEM_COMMIT, ToWindowsProt(protection));
+    return VirtualAlloc(NULL, n, MEM_RESERVE | MEM_COMMIT, ToWindowsProt(protection));
 }
 
 void hl::PageFree(void* p, size_t n)
 {
-    VirtualFree(p, 0, MEM_RELEASE);
+    HL_APICHECK(VirtualFree(p, 0, MEM_RELEASE));
 }
 
 void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
@@ -108,7 +109,24 @@ void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
     DWORD dwOldProt;
 
     // const_cast: The memory contents will remain unchanged, so this is fine.
-    VirtualProtect(const_cast<LPVOID>(p), n, ToWindowsProt(protection), &dwOldProt);
+    HL_APICHECK(VirtualProtect(const_cast<LPVOID>(p), n, ToWindowsProt(protection), &dwOldProt));
+}
+
+
+void* hl::PageReserve(size_t n)
+{
+    return VirtualAlloc(NULL, n, MEM_RESERVE, PAGE_NOACCESS);
+}
+
+void hl::PageCommit(void* p, size_t n, hl::Protection protection)
+{
+    HL_APICHECK(VirtualAlloc(p, n, MEM_COMMIT, ToWindowsProt(protection)));
+}
+
+
+void FlushICache(void* p, size_t n)
+{
+    HL_APICHECK(FlushInstructionCache(GetCurrentProcess(), p, n));
 }
 
 
@@ -143,12 +161,7 @@ hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
 std::string hl::GetModulePath(hl::ModuleHandle hModule)
 {
     char path[MAX_PATH];
-
-    if (GetModuleFileNameA(hModule, path, MAX_PATH) == 0)
-    {
-        throw std::runtime_error("GetModuleFileName failed");
-    }
-
+    HL_APICHECK(GetModuleFileNameA(hModule, path, MAX_PATH));
     return path;
 }
 

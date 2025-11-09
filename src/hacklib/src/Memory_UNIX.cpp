@@ -1,4 +1,6 @@
 #include "hacklib/Memory.h"
+#include "hacklib/BitManip.h"
+#include "hacklib/Logging.h"
 #include <algorithm>
 #include <dlfcn.h>
 #include <fstream>
@@ -67,12 +69,34 @@ void hl::PageFree(void* p, size_t n)
 void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
 {
     // Align to page boundary.
-    auto pAligned = (const void*)((uintptr_t)p & ~(hl::GetPageSize() - 1));
+    auto pAligned = hl::AlignDown(p, hl::GetPageSize());
     const size_t nAligned = (uintptr_t)p - (uintptr_t)pAligned + n;
 
     // const_cast: The memory contents will remain unchanged, so this is fine.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    mprotect(const_cast<void*>(pAligned), nAligned, ToUnixProt(protection));
+    HL_APICHECK(0 == mprotect(const_cast<void*>(pAligned), nAligned, ToUnixProt(protection)));
+}
+
+
+void* hl::PageReserve(size_t n)
+{
+    return mmap(nullptr, n, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+}
+
+void hl::PageCommit(void* p, size_t n, hl::Protection protection)
+{
+    // Align to page boundary.
+    auto pAligned = hl::AlignDown(p, hl::GetPageSize());
+    const size_t nAligned = (uintptr_t)p - (uintptr_t)pAligned + n;
+
+    HL_APICHECK(MAP_FAILED !=
+                mmap(pAligned, nAligned, ToUnixProt(protection), MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0));
+}
+
+
+void FlushICache(void* p, size_t n)
+{
+    __builtin___clear_cache((char*)p, (char*)p + n);
 }
 
 
@@ -114,10 +138,7 @@ hl::ModuleHandle hl::GetModuleByAddress(uintptr_t adr)
 std::string hl::GetModulePath(hl::ModuleHandle hModule)
 {
     Dl_info info = { 0 };
-    if (dladdr((void*)hModule, &info) == 0)
-    {
-        throw std::runtime_error("dladdr failed");
-    }
+    HL_APICHECK(dladdr((void*)hModule, &info));
     return info.dli_fname;
 }
 

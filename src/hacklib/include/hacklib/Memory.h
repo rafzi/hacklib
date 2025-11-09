@@ -59,6 +59,11 @@ void PageProtectVec(const std::vector<T, A>& vec, Protection protection)
     PageProtect(vec.data(), vec.size() * sizeof(T), protection);
 }
 
+void* PageReserve(size_t n);
+void PageCommit(void* p, size_t n, Protection protection);
+
+void FlushICache(void* p, size_t n);
+
 
 // An empty string requests the main module.
 hl::ModuleHandle GetModuleByName(const std::string& name = "");

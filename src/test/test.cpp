@@ -284,6 +284,17 @@ static void TestMemory()
     HL_ASSERT(!readFunc(), "Could not read RWE page across page boundary");
     HL_ASSERT(!writeFunc(), "Could not write RWE page across page boundary");
     HL_ASSERT(!execFunc(), "Could not execute RWE page across page boundary");
+
+    auto base = hl::PageReserve(2 * hl::GetPageSize());
+    HL_ASSERT(base, "PageReserve failed");
+    hl::PageCommit(base, hl::GetPageSize(), hl::PROTECTION_READ_WRITE);
+    *(volatile int*)base;
+    bool crashed = false;
+    hl::CrashHandler([&] { *(volatile int*)((uintptr_t)base + hl::GetPageSize()); }, [&](uint32_t) { crashed = true; });
+    HL_ASSERT(crashed, "Accessing uncommitted page should crash");
+    hl::PageCommit((void*)((uintptr_t)base + hl::GetPageSize()), hl::GetPageSize(), hl::PROTECTION_READ_WRITE);
+    *(volatile int*)((uintptr_t)base + hl::GetPageSize());
+    hl::PageFree(base, 2 * hl::GetPageSize());
 }
 
 static void TestInject()
