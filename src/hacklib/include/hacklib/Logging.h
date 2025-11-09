@@ -4,6 +4,7 @@
 #include <functional>
 #include <stdexcept>
 #include <string>
+#include <cstdint>
 
 
 #ifdef _DEBUG
