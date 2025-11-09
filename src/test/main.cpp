@@ -34,15 +34,29 @@ int main(int argc, char* argv[])
 
     std::remove("hl_test_success");
 
+    std::string error;
 #ifdef WIN32
     auto result = (void*)LoadLibrary("hl_test_hostd.dll");
+    if (!result)
+    {
+        DWORD code = GetLastError();
+        LPVOID buf = NULL;
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                       NULL, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&buf, 0, NULL);
+        error = (char*)buf;
+        LocalFree(buf);
+    }
 #else
     auto result = dlopen("./libhl_test_hostd.so", RTLD_NOW | RTLD_LOCAL);
+    if (!result)
+    {
+        error = dlerror();
+    }
 #endif
 
     if (result == NULL)
     {
-        printf("Failed to load hl_test_host shared library\n");
+        printf("Failed to load hl_test_host shared library: %s\n", error.c_str());
         return 1;
     }
 
