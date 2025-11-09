@@ -14,11 +14,27 @@ T Align(T v, T align)
     return (v + align - 1) & ~(align - 1);
 }
 
+// Convenience overload for pointer types.
+template <typename T, typename U>
+    requires std::is_pointer_v<T>
+T Align(T v, U align)
+{
+    return (T)(((uintptr_t)v + (uintptr_t)align - 1) & ~((uintptr_t)align - 1));
+}
+
 // Aligns a value v to the previous value aligned by align bits.
 template <typename T>
 T AlignDown(T v, T align)
 {
     return v & ~(align - 1);
+}
+
+// Convenience overload for pointer types.
+template <typename T, typename U>
+    requires std::is_pointer_v<T>
+T AlignDown(T v, U align)
+{
+    return (T)((uintptr_t)v & ~((uintptr_t)align - 1));
 }
 
 // Returns true if the given ranges [start, end] overlap.
