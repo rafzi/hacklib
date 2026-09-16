@@ -49,6 +49,8 @@ struct LogConfig
     bool logToFile = true;
     // Whether or not the time is prepended.
     bool logTime = true;
+    // Whether HL_LOG_DBG output is emitted at all (debug builds only have it).
+    bool logDebug = true;
     // Path of log file. Leave empty for "<moduleName>_log.txt"
     std::string fileName;
     // Log function.
@@ -150,6 +152,10 @@ inline hl::Color& operator|=(hl::Color& lhs, hl::Color rhs)
 }
 
 void ConfigLog(const LogConfig& config);
+
+// True if HL_LOG_DBG output is enabled (LogConfig::logDebug). Use to skip building
+// expensive debug-only strings.
+bool LogDebugEnabled();
 
 void LogDebug(hl::Color color, const char* file, const char* func, int line, const char* format, ...);
 void LogError(hl::Color color, const char* file, const char* func, int line, const char* format, ...);

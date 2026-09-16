@@ -179,8 +179,18 @@ void hl::ConfigLog(const LogConfig& config)
 }
 
 
+bool hl::LogDebugEnabled()
+{
+    return getGlobalConfig().logDebug;
+}
+
 void hl::LogDebug(hl::Color color, const char* file, const char* func, int line, const char* format, ...)
 {
+    if (!getGlobalConfig().logDebug)
+    {
+        return;
+    }
+
     va_list vl;
     va_start(vl, format);
     const FormatStr str(format, vl);
