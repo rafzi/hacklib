@@ -1,4 +1,5 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
+# 3.15: CMP0091, the MSVC runtime is selected by CMAKE_MSVC_RUNTIME_LIBRARY instead of /MD in the flags
+CMAKE_MINIMUM_REQUIRED(VERSION 3.15)
 PROJECT(hacklib_project)
 
 # set the default configuration to debug
@@ -38,6 +39,24 @@ SET(CMAKE_DEBUG_POSTFIX "d")
 SET(CMAKE_CXX_STANDARD 23)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Static C/C++ runtime (/MT, /MTd) for everything: each module gets a private copy of the
+# CRT. Injected DLLs then share no CRT state with the process they are loaded into, and
+# cemu's dispatcher shares none with a guest that uses the ucrt DLL (locks, atexit table,
+# stdio, errno). See src/cemu/docs/decisions/staticcrt.md.
+SET(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# Build trees configured before this switch cache /MD in the flags, where it would fight the
+# runtime selected above. Strip it from the cache once.
+FOREACH(flags_var CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+        CMAKE_CXX_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELWITHDEBINFO CMAKE_C_FLAGS_MINSIZEREL
+        CMAKE_CXX_FLAGS_MINSIZEREL)
+    IF("${${flags_var}}" MATCHES "(^| )[/-]M[DT]d?( |$)")
+        STRING(REGEX REPLACE "(^| )[/-]M[DT]d?( |$)" " " stripped "${${flags_var}}")
+        STRING(STRIP "${stripped}" stripped)
+        SET(${flags_var} "${stripped}" CACHE STRING "Flags used by the compiler." FORCE)
+        MESSAGE(STATUS "Removed a stale runtime flag (/MD, /MT) from ${flags_var}")
+    ENDIF()
+ENDFOREACH()
 
 IF(WIN32)
     ADD_DEFINITIONS(/MP)  # parallel compilation
