@@ -3,6 +3,32 @@
 #include <fstream>
 
 
+hl::ExeFile::ExeFile() = default;
+
+hl::ExeFile::~ExeFile() = default;
+
+
+bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
+{
+    m_valid = false;
+    m_relocs.clear();
+    m_exports.clear();
+    m_sections.clear();
+    m_entryPoint = 0;
+
+    // The format decides the parser, not the platform.
+    auto magic = (const uint8_t*)moduleBase;
+    if (magic[0] == 'M' && magic[1] == 'Z')
+    {
+        m_valid = loadPe(moduleBase);
+    }
+    else if (magic[0] == 0x7f && magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F')
+    {
+        m_valid = loadElf(moduleBase);
+    }
+    return m_valid;
+}
+
 bool hl::ExeFile::loadFromFile(const std::string& path)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);

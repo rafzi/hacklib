@@ -12,6 +12,7 @@
 #include "hacklib/BitManip.h"
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
@@ -528,6 +529,75 @@ static void TestExeFile()
     HL_ASSERT(numCodeSections > 0, "Must find at least one code section");
 }
 
+// A minimal PE32+ image put together from the specification's offsets, so that PE parsing is
+// covered on every platform, not only through the native executable on Windows.
+static void TestExeFilePe()
+{
+#ifdef ARCH_64BIT
+    std::vector<uint8_t> image(0x600, 0);
+    auto put16 = [&](size_t off, uint16_t v) { memcpy(&image[off], &v, sizeof(v)); };
+    auto put32 = [&](size_t off, uint32_t v) { memcpy(&image[off], &v, sizeof(v)); };
+    auto put64 = [&](size_t off, uint64_t v) { memcpy(&image[off], &v, sizeof(v)); };
+    auto putName = [&](size_t off, const char* name) { memcpy(&image[off], name, strlen(name)); };
+
+    put16(0x00, 0x5A4D);       // "MZ"
+    put32(0x3C, 0x80);         // e_lfanew
+    put32(0x80, 0x00004550);   // "PE\0\0"
+    put16(0x84, 0x8664);       // Machine: AMD64
+    put16(0x86, 2);            // NumberOfSections
+    put16(0x94, 240);          // SizeOfOptionalHeader
+    put16(0x96, 0x0022);       // Characteristics: executable, large address aware
+    put16(0x98, 0x020B);       // Magic: PE32+
+    put32(0xA8, 0x1000);       // AddressOfEntryPoint
+    put64(0xB0, 0x140000000);  // ImageBase
+    put32(0xB8, 0x1000);       // SectionAlignment
+    put32(0xBC, 0x200);        // FileAlignment
+    put32(0xD0, 0x3000);       // SizeOfImage
+    put32(0xD4, 0x200);        // SizeOfHeaders
+    put32(0x104, 16);          // NumberOfRvaAndSizes
+    put32(0x130, 0x2000);      // DataDirectory[BASERELOC]
+    put32(0x134, 12);
+
+    // The section headers follow the optional header.
+    putName(0x188, ".text");
+    put32(0x188 + 8, 0x10);        // VirtualSize
+    put32(0x188 + 12, 0x1000);     // VirtualAddress
+    put32(0x188 + 16, 0x200);      // SizeOfRawData
+    put32(0x188 + 20, 0x200);      // PointerToRawData
+    put32(0x188 + 36, 0x60000020); // code, execute, read
+    putName(0x1B0, ".reloc");
+    put32(0x1B0 + 8, 12);
+    put32(0x1B0 + 12, 0x2000);
+    put32(0x1B0 + 16, 0x200);
+    put32(0x1B0 + 20, 0x400);
+    put32(0x1B0 + 36, 0x42000040); // initialized data, discardable, read
+
+    image[0x200] = 0xC3; // ret
+    // One block for page 0x1000: a DIR64 entry at +8, then an ABSOLUTE entry as padding.
+    put32(0x400, 0x1000);
+    put32(0x404, 12);
+    put16(0x408, 0xA008);
+    put16(0x40A, 0x0000);
+
+    hl::ExeFile exeFile;
+    HL_ASSERT(exeFile.loadFromMem((uintptr_t)image.data()), "ExeFile::loadFromMem failed on a PE image");
+    auto sections = exeFile.getSections();
+    HL_ASSERT(sections.size() == 2, "Expected 2 sections, got %zu", sections.size());
+    HL_ASSERT(sections[0].name == ".text" && sections[0].type == hl::ExeFile::SectionType::Code, "Bad .text section");
+    HL_ASSERT(sections[0].virtualAddress == 0x140001000, "Bad .text address 0x%llx",
+              (unsigned long long)sections[0].virtualAddress);
+    HL_ASSERT(sections[0].data.size() == 0x200 && sections[0].data[0] == 0xC3, "Bad .text data");
+    HL_ASSERT(sections[1].name == ".reloc" && sections[1].type == hl::ExeFile::SectionType::Unknown,
+              "Bad .reloc section");
+    HL_ASSERT(exeFile.isReloc(0x1008) && !exeFile.isReloc(0x1000), "Bad relocations");
+    HL_ASSERT(exeFile.getEntryPoint() == 0x140001000, "Bad entry point 0x%llx",
+              (unsigned long long)exeFile.getEntryPoint());
+
+    put32(0x80, 0); // break the PE signature
+    HL_ASSERT(!exeFile.loadFromMem((uintptr_t)image.data()), "A bad PE signature must be rejected");
+#endif
+}
+
 #ifdef WIN32
 static int vehCounter1 = 0;
 static int vehCounter2 = 0;
@@ -608,6 +678,7 @@ public:
         HL_TEST(TestPatternScan);
         HL_TEST(TestHooks);
         HL_TEST(TestExeFile);
+        HL_TEST(TestExeFilePe);
         HL_TEST(TestVEH);
 
         HL_LOG_RAW("==========\nTests finished successfully.\n");

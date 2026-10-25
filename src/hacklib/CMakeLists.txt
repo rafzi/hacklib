@@ -9,6 +9,8 @@ SET(FILES_CPP
     src/WindowOverlay.cpp
     src/Logging.cpp
     src/ExeFile.cpp
+    src/ExeFile_PE.cpp
+    src/PeFormat.h
     src/IDrawer.cpp
     src/DrawerOpenGL.cpp
     src/CrashHandler.cpp

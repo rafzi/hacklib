@@ -18,17 +18,7 @@ using Elf_Rel = Elf32_Rel;
 #endif
 
 
-class hl::ExeFileImpl
-{
-public:
-    Elf_Ehdr* elfHeader = nullptr;
-    Elf_Shdr* sectionHeaders = nullptr;
-    Elf_Shdr* strTableHeader = nullptr;
-    char* strTable = nullptr;
-};
-
-
-static std::unordered_map<std::string, uintptr_t> LoadSymbols(Elf_Sym* symTable, size_t symTableNum,
+static std::unordered_map<std::string, uintptr_t> LoadSymbols(const Elf_Sym* symTable, size_t symTableNum,
                                                               const char* strTable)
 {
     std::unordered_map<std::string, uintptr_t> symbols;
@@ -47,56 +37,46 @@ static std::unordered_map<std::string, uintptr_t> LoadSymbols(Elf_Sym* symTable,
 }
 
 
-hl::ExeFile::ExeFile()
+bool hl::ExeFile::loadElf(uintptr_t moduleBase)
 {
-    m_impl = std::make_unique<ExeFileImpl>();
-}
-
-hl::ExeFile::~ExeFile() = default;
-
-
-bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
-{
-    m_valid = false;
-
-    m_impl->elfHeader = (Elf_Ehdr*)moduleBase;
-    if (m_impl->elfHeader->e_ident[EI_MAG0] != ELFMAG0 || m_impl->elfHeader->e_ident[EI_MAG1] != ELFMAG1 ||
-        m_impl->elfHeader->e_ident[EI_MAG2] != ELFMAG2 || m_impl->elfHeader->e_ident[EI_MAG3] != ELFMAG3)
+    auto elfHeader = (const Elf_Ehdr*)moduleBase;
+    if (elfHeader->e_ident[EI_MAG0] != ELFMAG0 || elfHeader->e_ident[EI_MAG1] != ELFMAG1 ||
+        elfHeader->e_ident[EI_MAG2] != ELFMAG2 || elfHeader->e_ident[EI_MAG3] != ELFMAG3)
     {
         return false;
     }
 
-    if (m_impl->elfHeader->e_ident[EI_VERSION] != EV_CURRENT)
+    if (elfHeader->e_ident[EI_VERSION] != EV_CURRENT)
     {
         return false;
     }
 
 #ifdef ARCH_64BIT
-    if (m_impl->elfHeader->e_ident[EI_CLASS] != ELFCLASS64 && m_impl->elfHeader->e_machine != EM_X86_64)
+    if (elfHeader->e_ident[EI_CLASS] != ELFCLASS64 && elfHeader->e_machine != EM_X86_64)
 #else
-    if (m_impl->elfHeader->e_ident[EI_CLASS] != ELFCLASS32 && m_impl->elfHeader->e_machine != EM_386)
+    if (elfHeader->e_ident[EI_CLASS] != ELFCLASS32 && elfHeader->e_machine != EM_386)
 #endif
     {
         return false;
     }
 
-    if (m_impl->elfHeader->e_ident[EI_OSABI] != ELFOSABI_LINUX && m_impl->elfHeader->e_ident[EI_OSABI] != ELFOSABI_SYSV)
+    if (elfHeader->e_ident[EI_OSABI] != ELFOSABI_LINUX && elfHeader->e_ident[EI_OSABI] != ELFOSABI_SYSV)
     {
         return false;
     }
 
-    const size_t strTableSectionIndex = m_impl->elfHeader->e_shstrndx;
-    m_impl->sectionHeaders = (Elf_Shdr*)(moduleBase + m_impl->elfHeader->e_shoff);
-    m_impl->strTableHeader = &m_impl->sectionHeaders[strTableSectionIndex];
-    m_impl->strTable = (char*)(moduleBase + m_impl->strTableHeader->sh_offset);
+    const size_t strTableSectionIndex = elfHeader->e_shstrndx;
+    auto sectionHeaders = (const Elf_Shdr*)(moduleBase + elfHeader->e_shoff);
+    auto strTableHeader = &sectionHeaders[strTableSectionIndex];
+    auto sectionNames = (const char*)(moduleBase + strTableHeader->sh_offset);
 
-    const size_t numSections = m_impl->elfHeader->e_shnum;
+    const size_t numSections = elfHeader->e_shnum;
     size_t symTableSectionIndex = -1;
     for (size_t i = 0; i < numSections; i++)
     {
-        auto section = &m_impl->sectionHeaders[i];
-        auto sectionData = (uint8_t*)(moduleBase + section->sh_offset);
-        auto sectionName = m_impl->strTable + section->sh_name;
+        auto section = &sectionHeaders[i];
+        auto sectionData = (const uint8_t*)(moduleBase + section->sh_offset);
+        auto sectionName = sectionNames + section->sh_name;
 
         Section outSection;
         outSection.name = sectionName;
@@ -123,9 +103,9 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         case SHT_STRTAB:
             if (i != strTableSectionIndex && symTableSectionIndex != (size_t)-1)
             {
-                char* strTable = (char*)(moduleBase + m_impl->sectionHeaders[i].sh_offset);
-                Elf_Shdr* symTableSectionHeader = &m_impl->sectionHeaders[symTableSectionIndex];
-                auto symTable = (Elf_Sym*)(moduleBase + symTableSectionHeader->sh_offset);
+                auto strTable = (const char*)(moduleBase + sectionHeaders[i].sh_offset);
+                const Elf_Shdr* symTableSectionHeader = &sectionHeaders[symTableSectionIndex];
+                auto symTable = (const Elf_Sym*)(moduleBase + symTableSectionHeader->sh_offset);
                 const size_t symTableNum = symTableSectionHeader->sh_size / symTableSectionHeader->sh_entsize;
                 auto symbols = LoadSymbols(symTable, symTableNum, strTable);
                 m_exports.insert(symbols.begin(), symbols.end());
@@ -137,7 +117,7 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
             size_t numRelocs = section->sh_size / sizeof(Elf_Rel);
             for (size_t r = 0; r < numRelocs; r++)
             {
-                Elf_Rel* rel = ((Elf_Rel*)sectionData) + r;
+                auto rel = ((const Elf_Rel*)sectionData) + r;
                 m_relocs.push_back(rel->r_offset);
             }
             break;
@@ -150,8 +130,7 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
         m_sections.push_back(std::move(outSection));
     }
 
-    m_entryPoint = m_impl->elfHeader->e_entry;
+    m_entryPoint = elfHeader->e_entry;
 
-    m_valid = true;
     return true;
 }

@@ -11,7 +11,8 @@
 
 namespace hl
 {
-// Represents an executable image in PE or EFI format.
+// Represents an executable image in PE or ELF format. PE images can be read on any platform, ELF
+// images on UNIX.
 class ExeFile
 {
 public:
@@ -32,7 +33,8 @@ public:
     ExeFile();
     ~ExeFile();
 
-    // Load a module in the current process memory.
+    // Load an image from memory. Sections are read at their file offsets, so this expects the
+    // file's contents, not a module mapped by the loader.
     bool loadFromMem(uintptr_t moduleBase);
     // Load a file from the file system.
     bool loadFromFile(const std::string& path);
@@ -48,7 +50,11 @@ public:
     uintptr_t getEntryPoint() const { return m_entryPoint; }
 
 private:
-    std::unique_ptr<class ExeFileImpl> m_impl;
+    // Fill the members below from an image of that format (ExeFile_PE.cpp, ExeFile_UNIX.cpp).
+    bool loadPe(uintptr_t moduleBase);
+    bool loadElf(uintptr_t moduleBase);
+
+private:
     bool m_valid = false;
     std::vector<uintptr_t> m_relocs;
     std::unordered_map<std::string, uintptr_t> m_exports;
