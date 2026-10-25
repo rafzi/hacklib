@@ -527,6 +527,17 @@ static void TestExeFile()
         std::count_if(sections.begin(), sections.end(), [](const hl::ExeFile::Section& section)
                       { return section.type == hl::ExeFile::SectionType::Code && section.name == ".text"; });
     HL_ASSERT(numCodeSections > 0, "Must find at least one code section");
+#ifdef WIN32
+    // A linker-made PE: every import names its module and a function, and its slot lies in the image.
+    auto imports = exeFile.getImports();
+    HL_ASSERT(!imports.empty(), "ExeFile::getImports found no imports in %s", fileName.c_str());
+    for (const auto& import : imports)
+    {
+        HL_ASSERT(!import.module.empty() && (!import.name.empty() || import.ordinal != 0), "Malformed import");
+        HL_ASSERT(import.slot >= exeFile.getImageBase() && import.slot < exeFile.getImageBase() + exeFile.getImageSize(),
+                  "Import slot 0x%llx outside the image", (unsigned long long)import.slot);
+    }
+#endif
 }
 
 // A minimal PE32+ image put together from the specification's offsets, so that PE parsing is
@@ -534,17 +545,19 @@ static void TestExeFile()
 static void TestExeFilePe()
 {
 #ifdef ARCH_64BIT
-    std::vector<uint8_t> image(0x600, 0);
+    std::vector<uint8_t> image(0x800, 0);
     auto put16 = [&](size_t off, uint16_t v) { memcpy(&image[off], &v, sizeof(v)); };
     auto put32 = [&](size_t off, uint32_t v) { memcpy(&image[off], &v, sizeof(v)); };
     auto put64 = [&](size_t off, uint64_t v) { memcpy(&image[off], &v, sizeof(v)); };
     auto putName = [&](size_t off, const char* name) { memcpy(&image[off], name, strlen(name)); };
+    // File offset of an RVA in .rdata (RVA 0x3000, file offset 0x600).
+    auto rdata = [](uint32_t rva) -> size_t { return rva - 0x3000 + 0x600; };
 
     put16(0x00, 0x5A4D);       // "MZ"
     put32(0x3C, 0x80);         // e_lfanew
     put32(0x80, 0x00004550);   // "PE\0\0"
     put16(0x84, 0x8664);       // Machine: AMD64
-    put16(0x86, 2);            // NumberOfSections
+    put16(0x86, 3);            // NumberOfSections
     put16(0x94, 240);          // SizeOfOptionalHeader
     put16(0x96, 0x0022);       // Characteristics: executable, large address aware
     put16(0x98, 0x020B);       // Magic: PE32+
@@ -552,9 +565,13 @@ static void TestExeFilePe()
     put64(0xB0, 0x140000000);  // ImageBase
     put32(0xB8, 0x1000);       // SectionAlignment
     put32(0xBC, 0x200);        // FileAlignment
-    put32(0xD0, 0x3000);       // SizeOfImage
+    put32(0xD0, 0x4000);       // SizeOfImage
     put32(0xD4, 0x200);        // SizeOfHeaders
     put32(0x104, 16);          // NumberOfRvaAndSizes
+    put32(0x108, 0x30A0);      // DataDirectory[EXPORT]
+    put32(0x10C, 0x80);
+    put32(0x110, 0x3000);      // DataDirectory[IMPORT]
+    put32(0x114, 40);
     put32(0x130, 0x2000);      // DataDirectory[BASERELOC]
     put32(0x134, 12);
 
@@ -571,6 +588,12 @@ static void TestExeFilePe()
     put32(0x1B0 + 16, 0x200);
     put32(0x1B0 + 20, 0x400);
     put32(0x1B0 + 36, 0x42000040); // initialized data, discardable, read
+    putName(0x1D8, ".rdata");
+    put32(0x1D8 + 8, 0x120);
+    put32(0x1D8 + 12, 0x3000);
+    put32(0x1D8 + 16, 0x200);
+    put32(0x1D8 + 20, 0x600);
+    put32(0x1D8 + 36, 0x40000040); // initialized data, read
 
     image[0x200] = 0xC3; // ret
     // One block for page 0x1000: a DIR64 entry at +8, then an ABSOLUTE entry as padding.
@@ -579,19 +602,67 @@ static void TestExeFilePe()
     put16(0x408, 0xA008);
     put16(0x40A, 0x0000);
 
+    // Imports: one descriptor (then a null one) for ws2_32.dll, importing ntohs by name and
+    // ordinal 5. Lookup table at 0x3040, address table at 0x3060.
+    put32(rdata(0x3000) + 0, 0x3040); // OriginalFirstThunk
+    put32(rdata(0x3000) + 12, 0x3080); // Name
+    put32(rdata(0x3000) + 16, 0x3060); // FirstThunk
+    for (uint32_t table : { 0x3040u, 0x3060u })
+    {
+        put64(rdata(table), 0x3090);
+        put64(rdata(table) + 8, 0x8000000000000005ULL);
+    }
+    putName(rdata(0x3080), "ws2_32.dll");
+    put16(rdata(0x3090), 15); // hint
+    putName(rdata(0x3092), "ntohs");
+
+    // Exports: "run" at 0x1000 and "fwd", forwarded (its RVA points into the export directory).
+    put32(rdata(0x30A0) + 12, 0x3100); // Name
+    put32(rdata(0x30A0) + 16, 1);      // Base
+    put32(rdata(0x30A0) + 20, 2);      // NumberOfFunctions
+    put32(rdata(0x30A0) + 24, 2);      // NumberOfNames
+    put32(rdata(0x30A0) + 28, 0x30D0); // AddressOfFunctions
+    put32(rdata(0x30A0) + 32, 0x30D8); // AddressOfNames (sorted)
+    put32(rdata(0x30A0) + 36, 0x30E0); // AddressOfNameOrdinals
+    put32(rdata(0x30D0), 0x1000);
+    put32(rdata(0x30D0) + 4, 0x3110);
+    put32(rdata(0x30D8), 0x3118);
+    put32(rdata(0x30D8) + 4, 0x3108);
+    put16(rdata(0x30E0), 1);
+    put16(rdata(0x30E0) + 2, 0);
+    putName(rdata(0x3100), "t.exe");
+    putName(rdata(0x3108), "run");
+    putName(rdata(0x3110), "K.F");
+    putName(rdata(0x3118), "fwd");
+
     hl::ExeFile exeFile;
     HL_ASSERT(exeFile.loadFromMem((uintptr_t)image.data()), "ExeFile::loadFromMem failed on a PE image");
+    HL_ASSERT(exeFile.getImageBase() == 0x140000000 && exeFile.getImageSize() == 0x4000, "Bad image layout");
+    HL_ASSERT(exeFile.getHeaders().size() == 0x200 && exeFile.getHeaders()[0] == 'M', "Bad headers");
     auto sections = exeFile.getSections();
-    HL_ASSERT(sections.size() == 2, "Expected 2 sections, got %zu", sections.size());
+    HL_ASSERT(sections.size() == 3, "Expected 3 sections, got %zu", sections.size());
     HL_ASSERT(sections[0].name == ".text" && sections[0].type == hl::ExeFile::SectionType::Code, "Bad .text section");
     HL_ASSERT(sections[0].virtualAddress == 0x140001000, "Bad .text address 0x%llx",
               (unsigned long long)sections[0].virtualAddress);
+    HL_ASSERT(sections[0].virtualSize == 0x10 && sections[0].protection == hl::PROTECTION_READ_EXECUTE,
+              "Bad .text size or protection");
     HL_ASSERT(sections[0].data.size() == 0x200 && sections[0].data[0] == 0xC3, "Bad .text data");
     HL_ASSERT(sections[1].name == ".reloc" && sections[1].type == hl::ExeFile::SectionType::Unknown,
               "Bad .reloc section");
+    HL_ASSERT(sections[2].name == ".rdata" && sections[2].protection == hl::PROTECTION_READ, "Bad .rdata section");
     HL_ASSERT(exeFile.isReloc(0x1008) && !exeFile.isReloc(0x1000), "Bad relocations");
+    HL_ASSERT(exeFile.getRelocs().size() == 1 && exeFile.getRelocs()[0] == 0x1008, "Bad relocation list");
     HL_ASSERT(exeFile.getEntryPoint() == 0x140001000, "Bad entry point 0x%llx",
               (unsigned long long)exeFile.getEntryPoint());
+
+    auto imports = exeFile.getImports();
+    HL_ASSERT(imports.size() == 2, "Expected 2 imports, got %zu", imports.size());
+    HL_ASSERT(imports[0].module == "ws2_32.dll" && imports[0].name == "ntohs" && imports[0].slot == 0x140003060,
+              "Bad import by name");
+    HL_ASSERT(imports[1].name.empty() && imports[1].ordinal == 5 && imports[1].slot == 0x140003068,
+              "Bad import by ordinal");
+    HL_ASSERT(exeFile.getExport("run") == 0x140001000, "Bad export");
+    HL_ASSERT(exeFile.getExport("fwd") == 0 && exeFile.getExports().size() == 1, "Forwarded exports must be left out");
 
     put32(0x80, 0); // break the PE signature
     HL_ASSERT(!exeFile.loadFromMem((uintptr_t)image.data()), "A bad PE signature must be rejected");

@@ -81,6 +81,13 @@ bool hl::ExeFile::loadElf(uintptr_t moduleBase)
         Section outSection;
         outSection.name = sectionName;
         outSection.virtualAddress = section->sh_addr;
+        outSection.virtualSize = section->sh_size;
+        if (section->sh_flags & SHF_ALLOC)
+            outSection.protection |= hl::PROTECTION_READ;
+        if (section->sh_flags & SHF_WRITE)
+            outSection.protection |= hl::PROTECTION_WRITE;
+        if (section->sh_flags & SHF_EXECINSTR)
+            outSection.protection |= hl::PROTECTION_EXECUTE;
         if (section->sh_type != SHT_NOBITS)
         {
             outSection.data.assign(sectionData, sectionData + section->sh_size);

@@ -6,9 +6,26 @@
 
 #ifdef ARCH_64BIT
 using NtHeaders = hl::pe::ImageNtHeaders64;
+using Thunk = uint64_t;
+static constexpr Thunk kOrdinalFlag = hl::pe::kOrdinalFlag64;
 #else
 using NtHeaders = hl::pe::ImageNtHeaders32;
+using Thunk = uint32_t;
+static constexpr Thunk kOrdinalFlag = hl::pe::kOrdinalFlag32;
 #endif
+
+
+static hl::Protection SectionProtection(uint32_t characteristics)
+{
+    hl::Protection protection = hl::PROTECTION_NOACCESS;
+    if (characteristics & hl::pe::kScnMemRead)
+        protection |= hl::PROTECTION_READ;
+    if (characteristics & hl::pe::kScnMemWrite)
+        protection |= hl::PROTECTION_WRITE;
+    if (characteristics & hl::pe::kScnMemExecute)
+        protection |= hl::PROTECTION_EXECUTE;
+    return protection;
+}
 
 
 static std::vector<uintptr_t> LoadRelocs(uintptr_t relocData)
@@ -125,7 +142,79 @@ bool hl::ExeFile::loadPe(uintptr_t moduleBase)
             outSection.type = SectionType::Code;
         }
         outSection.virtualAddress = peHeader->OptionalHeader.ImageBase + sectionHeader->VirtualAddress;
+        // Old linkers leave VirtualSize at 0; the raw size is the size in memory then.
+        outSection.virtualSize = sectionHeader->VirtualSize ? sectionHeader->VirtualSize : sectionHeader->SizeOfRawData;
+        outSection.protection = SectionProtection(sectionHeader->Characteristics);
         m_sections.push_back(std::move(outSection));
+    }
+
+    m_imageBase = peHeader->OptionalHeader.ImageBase;
+    m_imageSize = peHeader->OptionalHeader.SizeOfImage;
+    m_headers.assign((const uint8_t*)moduleBase, (const uint8_t*)moduleBase + peHeader->OptionalHeader.SizeOfHeaders);
+
+    // File data at an RVA, or null if no section holds it.
+    auto at = [&](uint32_t rva) -> const uint8_t*
+    {
+        uintptr_t offset = RvaToRawDataOffset(sectionHeaders, rva);
+        return offset ? (const uint8_t*)(moduleBase + offset) : nullptr;
+    };
+
+    // Load imports. Each descriptor names a module; its lookup table holds names or ordinals,
+    // and the import address table at FirstThunk receives the addresses. Old linkers leave the
+    // lookup table out, so the address table holds the lookup data before binding.
+    auto importDir = &peHeader->OptionalHeader.DataDirectory[pe::kDirectoryEntryImport];
+    if (importDir->VirtualAddress != 0)
+    {
+        for (auto desc = (const pe::ImageImportDescriptor*)at(importDir->VirtualAddress); desc && desc->Name; desc++)
+        {
+            auto module = (const char*)at(desc->Name);
+            auto lookup = (const Thunk*)at(desc->OriginalFirstThunk ? desc->OriginalFirstThunk : desc->FirstThunk);
+            if (!module || !lookup)
+            {
+                break;
+            }
+            for (size_t i = 0; lookup[i] != 0; i++)
+            {
+                Import import;
+                import.module = module;
+                import.slot = m_imageBase + desc->FirstThunk + i * sizeof(Thunk);
+                if (lookup[i] & kOrdinalFlag)
+                {
+                    import.ordinal = (uint16_t)(lookup[i] & 0xffff);
+                }
+                else if (auto hintName = at((uint32_t)lookup[i]))
+                {
+                    import.name = (const char*)hintName + 2; // after the 16-bit hint
+                }
+                m_imports.push_back(std::move(import));
+            }
+        }
+    }
+
+    // Load exports by name. A function RVA inside the export directory is a forwarder string
+    // naming another module's export, not code in this image; those are left out.
+    auto exportDir = &peHeader->OptionalHeader.DataDirectory[pe::kDirectoryEntryExport];
+    auto exports = exportDir->VirtualAddress != 0 ? (const pe::ImageExportDirectory*)at(exportDir->VirtualAddress)
+                                                  : nullptr;
+    if (exports)
+    {
+        auto functions = (const uint32_t*)at(exports->AddressOfFunctions);
+        auto names = (const uint32_t*)at(exports->AddressOfNames);
+        auto ordinals = (const uint16_t*)at(exports->AddressOfNameOrdinals);
+        for (uint32_t i = 0; functions && names && ordinals && i < exports->NumberOfNames; i++)
+        {
+            auto name = (const char*)at(names[i]);
+            if (!name || ordinals[i] >= exports->NumberOfFunctions)
+            {
+                continue;
+            }
+            uint32_t rva = functions[ordinals[i]];
+            if (rva >= exportDir->VirtualAddress && rva < exportDir->VirtualAddress + exportDir->Size)
+            {
+                continue;
+            }
+            m_exports[name] = m_imageBase + rva;
+        }
     }
 
     // Load relocs.

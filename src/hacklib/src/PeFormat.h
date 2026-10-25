@@ -17,6 +17,11 @@ constexpr uint16_t kMachineI386 = 0x014C;
 constexpr uint16_t kMachineAmd64 = 0x8664;
 constexpr uint16_t kFile32BitMachine = 0x0100;
 constexpr uint32_t kScnCntCode = 0x00000020;
+constexpr uint32_t kScnMemExecute = 0x20000000;
+constexpr uint32_t kScnMemRead = 0x40000000;
+constexpr uint32_t kScnMemWrite = 0x80000000;
+constexpr int kDirectoryEntryExport = 0;
+constexpr int kDirectoryEntryImport = 1;
 constexpr int kDirectoryEntryBaseReloc = 5;
 constexpr int kNumberOfDirectoryEntries = 16;
 constexpr int kSizeOfShortName = 8;
@@ -160,6 +165,34 @@ struct ImageSectionHeader
     uint32_t Characteristics;
 };
 
+struct ImageImportDescriptor
+{
+    uint32_t OriginalFirstThunk; // RVA of the import lookup table (Characteristics in winnt.h)
+    uint32_t TimeDateStamp;
+    uint32_t ForwarderChain;
+    uint32_t Name;
+    uint32_t FirstThunk; // RVA of the import address table
+};
+
+struct ImageExportDirectory
+{
+    uint32_t Characteristics;
+    uint32_t TimeDateStamp;
+    uint16_t MajorVersion;
+    uint16_t MinorVersion;
+    uint32_t Name;
+    uint32_t Base;
+    uint32_t NumberOfFunctions;
+    uint32_t NumberOfNames;
+    uint32_t AddressOfFunctions;
+    uint32_t AddressOfNames;
+    uint32_t AddressOfNameOrdinals;
+};
+
+// Import lookup table entries are pointer-sized; the top bit marks an import by ordinal.
+constexpr uint64_t kOrdinalFlag64 = 0x8000000000000000ULL;
+constexpr uint32_t kOrdinalFlag32 = 0x80000000U;
+
 // The natural layout matches the file format; checked here instead of relying on packing pragmas.
 static_assert(sizeof(ImageDosHeader) == 64 && offsetof(ImageDosHeader, e_lfanew) == 0x3C);
 static_assert(sizeof(ImageFileHeader) == 20);
@@ -168,6 +201,8 @@ static_assert(sizeof(ImageOptionalHeader64) == 240 && offsetof(ImageOptionalHead
 static_assert(sizeof(ImageNtHeaders32) == 248 && offsetof(ImageNtHeaders32, OptionalHeader) == 24);
 static_assert(sizeof(ImageNtHeaders64) == 264 && offsetof(ImageNtHeaders64, OptionalHeader) == 24);
 static_assert(sizeof(ImageSectionHeader) == 40);
+static_assert(sizeof(ImageImportDescriptor) == 20);
+static_assert(sizeof(ImageExportDirectory) == 40);
 
 }
 

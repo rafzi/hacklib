@@ -13,8 +13,12 @@ bool hl::ExeFile::loadFromMem(uintptr_t moduleBase)
     m_valid = false;
     m_relocs.clear();
     m_exports.clear();
+    m_imports.clear();
     m_sections.clear();
     m_entryPoint = 0;
+    m_imageBase = 0;
+    m_imageSize = 0;
+    m_headers.clear();
 
     // The format decides the parser, not the platform.
     auto magic = (const uint8_t*)moduleBase;
