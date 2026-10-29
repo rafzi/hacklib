@@ -23,6 +23,7 @@ constexpr uint32_t kScnMemRead = 0x40000000;
 constexpr uint32_t kScnMemWrite = 0x80000000;
 constexpr int kDirectoryEntryExport = 0;
 constexpr int kDirectoryEntryImport = 1;
+constexpr int kDirectoryEntryException = 3;
 constexpr int kDirectoryEntryBaseReloc = 5;
 constexpr int kDirectoryEntryTls = 9;
 constexpr int kNumberOfDirectoryEntries = 16;
@@ -210,6 +211,14 @@ struct ImageBaseRelocation
     uint32_t SizeOfBlock; // Including this header
 };
 
+// An x64 exception directory entry (RUNTIME_FUNCTION), sorted by BeginAddress. All RVAs.
+struct ImageRuntimeFunctionEntry
+{
+    uint32_t BeginAddress;
+    uint32_t EndAddress;
+    uint32_t UnwindInfoAddress;
+};
+
 // What an import lookup table entry points to when importing by name.
 struct ImageImportByName
 {
@@ -233,6 +242,7 @@ static_assert(sizeof(ImageImportDescriptor) == 20);
 static_assert(sizeof(ImageExportDirectory) == 40);
 static_assert(sizeof(ImageTlsDirectory64) == 40);
 static_assert(sizeof(ImageBaseRelocation) == 8);
+static_assert(sizeof(ImageRuntimeFunctionEntry) == 12);
 static_assert(offsetof(ImageImportByName, Name) == 2);
 
 }
