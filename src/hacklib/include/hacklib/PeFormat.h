@@ -4,9 +4,9 @@
 #include <cstddef>
 #include <cstdint>
 
-// The PE/COFF structures ExeFile reads, as laid out in the file. Defined here rather than taken
-// from <windows.h> so that PE images can be parsed on any platform. Field names follow the PE
-// specification (and winnt.h); the type names differ so that both can be included.
+// PE/COFF structures as laid out in the file and in a mapped image. Defined here rather than taken
+// from <windows.h> so that PE images can be parsed and mapped on any platform. Field names follow
+// the PE specification (and winnt.h); the type names differ so that both can be included.
 
 namespace hl::pe
 {
@@ -15,6 +15,7 @@ constexpr uint16_t kDosSignature = 0x5A4D;    // "MZ"
 constexpr uint32_t kNtSignature = 0x00004550; // "PE\0\0"
 constexpr uint16_t kMachineI386 = 0x014C;
 constexpr uint16_t kMachineAmd64 = 0x8664;
+constexpr uint16_t kFileRelocsStripped = 0x0001;
 constexpr uint16_t kFile32BitMachine = 0x0100;
 constexpr uint32_t kScnCntCode = 0x00000020;
 constexpr uint32_t kScnMemExecute = 0x20000000;
@@ -23,8 +24,10 @@ constexpr uint32_t kScnMemWrite = 0x80000000;
 constexpr int kDirectoryEntryExport = 0;
 constexpr int kDirectoryEntryImport = 1;
 constexpr int kDirectoryEntryBaseReloc = 5;
+constexpr int kDirectoryEntryTls = 9;
 constexpr int kNumberOfDirectoryEntries = 16;
 constexpr int kSizeOfShortName = 8;
+constexpr int kRelBasedAbsolute = 0;
 constexpr int kRelBasedHighLow = 3;
 constexpr int kRelBasedDir64 = 10;
 
@@ -189,6 +192,31 @@ struct ImageExportDirectory
     uint32_t AddressOfNameOrdinals;
 };
 
+// Holds virtual addresses, not RVAs, so they are subject to relocation.
+struct ImageTlsDirectory64
+{
+    uint64_t StartAddressOfRawData;
+    uint64_t EndAddressOfRawData;
+    uint64_t AddressOfIndex;
+    uint64_t AddressOfCallBacks; // Null-terminated array of PIMAGE_TLS_CALLBACK
+    uint32_t SizeOfZeroFill;
+    uint32_t Characteristics;
+};
+
+// Header of a base relocation block, followed by 16-bit entries: type << 12 | offset in the page.
+struct ImageBaseRelocation
+{
+    uint32_t VirtualAddress;
+    uint32_t SizeOfBlock; // Including this header
+};
+
+// What an import lookup table entry points to when importing by name.
+struct ImageImportByName
+{
+    uint16_t Hint;
+    char Name[1]; // Null-terminated
+};
+
 // Import lookup table entries are pointer-sized; the top bit marks an import by ordinal.
 constexpr uint64_t kOrdinalFlag64 = 0x8000000000000000ULL;
 constexpr uint32_t kOrdinalFlag32 = 0x80000000U;
@@ -203,6 +231,9 @@ static_assert(sizeof(ImageNtHeaders64) == 264 && offsetof(ImageNtHeaders64, Opti
 static_assert(sizeof(ImageSectionHeader) == 40);
 static_assert(sizeof(ImageImportDescriptor) == 20);
 static_assert(sizeof(ImageExportDirectory) == 40);
+static_assert(sizeof(ImageTlsDirectory64) == 40);
+static_assert(sizeof(ImageBaseRelocation) == 8);
+static_assert(offsetof(ImageImportByName, Name) == 2);
 
 }
 

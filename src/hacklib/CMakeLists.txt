@@ -10,7 +10,6 @@ SET(FILES_CPP
     src/Logging.cpp
     src/ExeFile.cpp
     src/ExeFile_PE.cpp
-    src/PeFormat.h
     src/IDrawer.cpp
     src/DrawerOpenGL.cpp
     src/CrashHandler.cpp
@@ -29,6 +28,7 @@ SET(FILES_H
     include/hacklib/PageAllocator.h
     include/hacklib/Patch.h
     include/hacklib/ExeFile.h
+    include/hacklib/PeFormat.h
     include/hacklib/Handles.h
     include/hacklib/Logging.h
     include/hacklib/CrashHandler.h

@@ -55,7 +55,9 @@ uintptr_t hl::GetPageSize()
 
 void* hl::PageAlloc(size_t n, hl::Protection protection)
 {
-    return mmap(nullptr, n, ToUnixProt(protection), MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* p = mmap(nullptr, n, ToUnixProt(protection), MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // Null on failure, as on Windows (VirtualAlloc)
+    return p == MAP_FAILED ? nullptr : p;
 }
 
 void hl::PageFree(void* p, size_t n)

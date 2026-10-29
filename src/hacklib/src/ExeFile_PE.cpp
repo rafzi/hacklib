@@ -1,5 +1,5 @@
 #include "hacklib/ExeFile.h"
-#include "PeFormat.h"
+#include "hacklib/PeFormat.h"
 
 // PE images, read from the file layout (sections at their raw data offsets). Uses no OS API, so
 // it works on any platform.

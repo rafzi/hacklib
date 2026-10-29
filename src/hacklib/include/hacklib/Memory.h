@@ -48,7 +48,7 @@ uintptr_t GetPageSize();
 
 // Allocate memory on own pages. This is useful when the protection
 // is adjusted to prevent other data from being affected.
-// PageFree must be used to free the retrieved memory block.
+// PageFree must be used to free the retrieved memory block. Returns null on failure.
 void* PageAlloc(size_t n, Protection protection);
 void PageFree(void* p, size_t n = 0);
 void PageProtect(const void* p, size_t n, Protection protection);
