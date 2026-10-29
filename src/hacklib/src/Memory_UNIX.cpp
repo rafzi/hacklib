@@ -82,7 +82,8 @@ void hl::PageProtect(const void* p, size_t n, hl::Protection protection)
 
 void* hl::PageReserve(size_t n)
 {
-    return mmap(nullptr, n, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    void* p = mmap(nullptr, n, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    return p == MAP_FAILED ? nullptr : p;
 }
 
 void hl::PageCommit(void* p, size_t n, hl::Protection protection)

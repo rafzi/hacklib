@@ -59,6 +59,7 @@ void PageProtectVec(const std::vector<T, A>& vec, Protection protection)
     PageProtect(vec.data(), vec.size() * sizeof(T), protection);
 }
 
+// Reserve address space without access (null on failure); PageCommit makes part of it usable.
 void* PageReserve(size_t n);
 void PageCommit(void* p, size_t n, Protection protection);
 
