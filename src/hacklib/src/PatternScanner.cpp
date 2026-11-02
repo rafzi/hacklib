@@ -149,13 +149,17 @@ uintptr_t hl::PatternScanner::findString(const std::string& str, const std::stri
     if (!addr)
         throw std::runtime_error("pattern not found");
 
+#ifndef ARCH_64BIT
+    // Relocation verification is only used by the 32-bit string-reference search. ExeFile currently
+    // expects a file layout, while hModule points to a loader-mapped image, so don't load it on x64.
     if (!exeFileMap.contains(moduleName))
         exeFileMap[moduleName] = std::make_unique<ExeFile>();
     ExeFile& exeFile = *exeFileMap[moduleName].get();
 
     if (!verifyRelocsMap.contains(moduleName))
         verifyRelocsMap[moduleName] = exeFile.loadFromMem((uintptr_t)hModule) && exeFile.hasRelocs();
-    [[maybe_unused]] const bool verifyWithRelocs = verifyRelocsMap[moduleName];
+    const bool verifyWithRelocs = verifyRelocsMap[moduleName];
+#endif
 
     uintptr_t ret = 0;
 
