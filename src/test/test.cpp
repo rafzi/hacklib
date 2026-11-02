@@ -693,6 +693,8 @@ void TestVEH()
 
     ((void (*)())funcPage2)();
     HL_ASSERT(vehCounter2 == 1, "");
+    HL_ASSERT(hl::GetMemoryByAddress((uintptr_t)funcPage2).protection & hl::PROTECTION_GUARD,
+              "VEH guard page was not restored");
 
     auto hook1 = hooker.hookVEH((uintptr_t)funcPage1, VEHFunc1);
 

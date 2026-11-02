@@ -66,9 +66,9 @@ public:
         }
         else
         {
-            auto region = hl::GetMemoryByAddress(adr);
-            uintptr_t lowerBound = region.base;
-            uintptr_t upperBound = lowerBound + hl::GetPageSize();
+            const uintptr_t pageSize = hl::GetPageSize();
+            uintptr_t lowerBound = adr & ~(pageSize - 1);
+            uintptr_t upperBound = lowerBound + pageSize;
 
             m_pages[lowerBound] = std::make_unique<Page>(lowerBound, upperBound);
             m_pages.try_emplace(upperBound, nullptr);
@@ -125,10 +125,11 @@ private:
     Page* getPage(uintptr_t adr)
     {
         auto it = m_pages.upper_bound(adr);
-        if (it != m_pages.end())
-            return (--it)->second.get();
+        if (it == m_pages.begin())
+            return nullptr;
 
-        return nullptr;
+        auto page = (--it)->second.get();
+        return page && adr >= page->m_begin && adr < page->m_end ? page : nullptr;
     }
 
 private:
