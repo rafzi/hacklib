@@ -60,13 +60,21 @@ private:
 };
 
 
+// Without strftime: the UCRT's allocates on the process heap for every call, so a log line written
+// while the same thread is inside the process heap (e.g. from a hook in heap code) re-entered it
+// and corrupted its state.
 static std::string GetTimeStr()
 {
-    char strtime[256];
-    auto timept = std::chrono::system_clock::now();
-    auto timetp = std::chrono::system_clock::to_time_t(timept);
-    strftime(strtime, sizeof(strtime), "%X", std::localtime(&timetp));
+    auto timetp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::tm local{};
+#ifdef WIN32
+    localtime_s(&local, &timetp);
+#else
+    localtime_r(&timetp, &local);
+#endif
 
+    char strtime[16];
+    snprintf(strtime, sizeof(strtime), "%02d:%02d:%02d", local.tm_hour, local.tm_min, local.tm_sec);
     return strtime;
 }
 
