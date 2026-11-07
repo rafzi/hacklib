@@ -2,8 +2,10 @@
 #include "hacklib/Main.h"
 #include "hacklib/PageAllocator.h"
 #include <Windows.h>
+#include <algorithm>
 #include <map>
 #include <mutex>
+#include <vector>
 
 
 using namespace hl;
@@ -183,11 +185,14 @@ const IHook* Hooker::hookVEH(uintptr_t location, HookCallback_t cbHook)
 }
 
 
-static void checkForHookAndCall(uintptr_t adr, CONTEXT* pCtx)
+static bool checkForHookAndCall(uintptr_t adr, CONTEXT* pCtx)
 {
     // Check for hooks and call them.
     auto cbHook = g_vehHookManager.getHook(adr);
-    if (cbHook)
+    if (!cbHook)
+    {
+        return false;
+    }
     {
         hl::CpuContext ctx;
 #ifdef ARCH_64BIT
@@ -254,11 +259,19 @@ static void checkForHookAndCall(uintptr_t adr, CONTEXT* pCtx)
         pCtx->Eax = ctx.EAX;
 #endif
     }
+    return true;
 }
 
 static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
 {
-    thread_local uintptr_t guardFaultAdr;
+    // The hooked pages whose guard this thread's faults removed. Execution can move from one hooked
+    // page into another while single-stepping (a hooked function calling one on another page), so
+    // there can be several; all of them are guarded again once the thread leaves the hooked pages.
+    thread_local std::vector<uintptr_t> unguardedPages;
+    // The hook the single-step handler just called. If its page is still guarded (execution came
+    // from another hooked page, or another thread restored the guard), executing the instruction
+    // raises a guard fault at the same address, which must not call the hook a second time.
+    thread_local uintptr_t steppedHookAdr = 0;
 
     CONTEXT* pCtx = exc->ContextRecord;
 
@@ -281,23 +294,30 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
             }
         }
 
-        // Save the address that was accessed to reprotect it at the single-step exception.
-        guardFaultAdr = exc->ExceptionRecord->ExceptionInformation[1];
+        // Save the page that was accessed to reprotect it at the single-step exception.
+        const uintptr_t faultAdr = exc->ExceptionRecord->ExceptionInformation[1];
+        const uintptr_t page = faultAdr & ~(hl::GetPageSize() - 1);
+        if (std::find(unguardedPages.begin(), unguardedPages.end(), page) == unguardedPages.end())
+        {
+            unguardedPages.push_back(page);
+        }
 
         // Set single-step flag to advance one instruction.
         pCtx->EFlags |= 0x100;
 
         // Only hook for execute access. Not if someone tries to read or write the hooked memory.
-        if (exc->ExceptionRecord->ExceptionInformation[0] == EXCEPTION_EXECUTE_FAULT)
+        if (exc->ExceptionRecord->ExceptionInformation[0] == EXCEPTION_EXECUTE_FAULT && faultAdr != steppedHookAdr)
         {
-            checkForHookAndCall(guardFaultAdr, pCtx);
+            checkForHookAndCall(faultAdr, pCtx);
         }
+        steppedHookAdr = 0;
 
         return EXCEPTION_CONTINUE_EXECUTION;
     }
     else if (exc->ExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP)
     {
         // Single-step exeption occured. Single-step flag is cleared now.
+        steppedHookAdr = 0;
 
         // Check if we are within a page that contains hooks.
         if (g_vehHookManager.isPageHooked(pCtx->REG_INSTRUCTIONPTR))
@@ -305,18 +325,25 @@ static LONG CALLBACK VectoredHandler(PEXCEPTION_POINTERS exc)
             // We are still on a hooked page. Continue single-stepping.
             pCtx->EFlags |= 0x100;
 
-            checkForHookAndCall(pCtx->REG_INSTRUCTIONPTR, pCtx);
+            const uintptr_t adr = pCtx->REG_INSTRUCTIONPTR;
+            if (checkForHookAndCall(adr, pCtx) && pCtx->REG_INSTRUCTIONPTR == adr)
+            {
+                steppedHookAdr = adr;
+            }
         }
         else
         {
-            // We stepped out of a hooked page.
-            // Check if the page that was last guarded still contains a hook.
-            if (g_vehHookManager.isPageHooked(guardFaultAdr))
+            // We stepped out of the hooked pages. Restore the guard of every page this thread's
+            // faults removed it from, as long as the page still contains a hook.
+            for (uintptr_t page : unguardedPages)
             {
-                // Restore guard page protection.
-                DWORD oldProt;
-                VirtualProtect((LPVOID)guardFaultAdr, 1, PAGE_EXECUTE_READ | PAGE_GUARD, &oldProt);
+                if (g_vehHookManager.isPageHooked(page))
+                {
+                    DWORD oldProt;
+                    VirtualProtect((LPVOID)page, 1, PAGE_EXECUTE_READ | PAGE_GUARD, &oldProt);
+                }
             }
+            unguardedPages.clear();
         }
 
         return EXCEPTION_CONTINUE_EXECUTION;

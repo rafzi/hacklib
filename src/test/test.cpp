@@ -728,6 +728,42 @@ void TestVEH()
     ((void (*)())funcPage2)();
     HL_ASSERT(vehCounter1 == 1, "");
     HL_ASSERT(vehCounter2 == 5, "");
+
+#ifdef ARCH_64BIT
+    // A hooked function that calls a hooked function on another page. Both pages must be guarded
+    // again afterwards (not only the one that faulted last), and stepping onto the second hook
+    // while its page is still guarded must call it once, not twice.
+    {
+        hl::code_page_vector code(2 * hl::GetPageSize());
+        uint8_t* caller = code.data() + 0x10;
+        uint8_t* callee = code.data() + hl::GetPageSize() + 0x10;
+        callee[0] = 0xC3; // ret
+        caller[0] = 0x48; // mov rax, imm64
+        caller[1] = 0xB8;
+        const uint64_t target = (uint64_t)(uintptr_t)callee;
+        memcpy(caller + 2, &target, 8);
+        caller[10] = 0xFF; // call rax
+        caller[11] = 0xD0;
+        caller[12] = 0xC3; // ret
+
+        vehCounter1 = 0;
+        vehCounter2 = 0;
+        auto hookCaller = hooker.hookVEH((uintptr_t)caller, VEHFunc1);
+        auto hookCallee = hooker.hookVEH((uintptr_t)callee, VEHFunc2);
+        for (int i = 1; i <= 3; i++)
+        {
+            ((void (*)())caller)();
+            HL_ASSERT(vehCounter1 == i, "caller hook: %d calls after %d runs", vehCounter1, i);
+            HL_ASSERT(vehCounter2 == i, "callee hook: %d calls after %d runs", vehCounter2, i);
+        }
+        HL_ASSERT(hl::GetMemoryByAddress((uintptr_t)caller).protection & hl::PROTECTION_GUARD,
+                  "the caller's guard page was not restored");
+        HL_ASSERT(hl::GetMemoryByAddress((uintptr_t)callee).protection & hl::PROTECTION_GUARD,
+                  "the callee's guard page was not restored");
+        hooker.unhook(hookCallee);
+        hooker.unhook(hookCaller);
+    }
+#endif
 }
 #else
 static void TestVEH() {}
